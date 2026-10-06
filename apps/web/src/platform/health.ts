@@ -39,7 +39,7 @@ export function isOutage(error: { code?: string | null; message?: string | null 
   return /failed to fetch|fetch failed|networkerror|load failed|network request failed|upstream connect|service unavailable/i.test(error.message ?? "");
 }
 
-export const OUTAGE_MESSAGE = "XApps can't reach its database right now. Try again in a minute.";
+export const OUTAGE_MESSAGE = "Vibecade can't reach its database right now. Try again in a minute.";
 
 /** A request failed because the database is unreachable (see `isOutage`). */
 export class OutageError extends BackendError {

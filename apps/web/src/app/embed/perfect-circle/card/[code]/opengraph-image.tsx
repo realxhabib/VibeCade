@@ -3,7 +3,7 @@ import { circleArt, decodeCard } from "@/first-party/perfect-circle/card";
 import { accuracyColor, formatAccuracy, verdictFor } from "@/first-party/perfect-circle/logic";
 import { getOfficialApp } from "@/platform/catalog";
 
-export const alt = "A circle drawn freehand on XApps, with its accuracy";
+export const alt = "A circle drawn freehand on Vibecade, with its accuracy";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -70,7 +70,7 @@ export default async function PerfectCircleCardImage({ params }: { params: Promi
           <div style={{ fontSize: 50, fontWeight: 800, marginTop: 18 }}>{verdict}</div>
           <div style={{ fontSize: 30, color: "#dfe3ec", marginTop: 14 }}>drawn freehand, one stroke</div>
           <div style={{ fontSize: 30, fontWeight: 700, marginTop: 92 }}>Can you beat it?</div>
-          <div style={{ fontSize: 24, color: "#8a93a6", marginTop: 8 }}>XApps · draw yours, see where you rank</div>
+          <div style={{ fontSize: 24, color: "#8a93a6", marginTop: 8 }}>Vibecade · draw yours, see where you rank</div>
         </div>
       </div>
     ),

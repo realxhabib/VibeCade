@@ -35,7 +35,7 @@ export function ProfileView({ handle }: { handle: string }) {
   if (isPending) return <Skeleton className="h-80 rounded-[2.5rem]" />;
   if (!profile) {
     return (
-      <EmptyState emoji="👻" title={`@${handle} isn't on XApps yet`} action={<Button href="/apps">Browse apps</Button>}>
+      <EmptyState emoji="👻" title={`@${handle} isn't on Vibecade yet`} action={<Button href="/apps">Browse apps</Button>}>
         Send them an open challenge link — that usually does it.
       </EmptyState>
     );

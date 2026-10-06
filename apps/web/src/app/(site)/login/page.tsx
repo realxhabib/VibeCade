@@ -4,7 +4,7 @@ import { Login } from "@/components/pages/login";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to XApps with your X account.",
+  description: "Sign in to Vibecade with your X account.",
 };
 
 export default function LoginPage() {

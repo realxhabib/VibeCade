@@ -1,4 +1,4 @@
-# XApps — notes for coding agents
+# Vibecade (repo: XApps) — notes for coding agents
 
 Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind v4, `motion/react`),
 `packages/sdk` (`@xapps/sdk`), `supabase/` (migrations + SQL tests), `examples/rps`.
@@ -18,6 +18,10 @@ Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind
   match state (`state.update`), turns and rounds, and apps may render their own challenge setup (purpose
   "setup"). SQL, demo backend and `src/platform/scoring.ts` settlement must stay in lockstep.
 - Lint uses the React Compiler rules: no setState in effect bodies, no ref access during render.
+- Brand: the product is **Vibecade** (vibecade.si, arcade look: Pixelify Sans `font-display`, Press Start 2P
+  `font-arcade`, neon tokens in `globals.css`). The SDK keeps its `@xapps/sdk` / `xapps.*` / `X-XApps-*` names.
+- Production runs on a DigitalOcean droplet: root `Dockerfile` (Next standalone, `NEXT_OUTPUT=standalone`) behind
+  Caddy, deployed by `.github/workflows/deploy.yml`; see `deploy/README.md`.
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e` (demo mode),
 `supabase/tests/run.sh` (needs a local Postgres).

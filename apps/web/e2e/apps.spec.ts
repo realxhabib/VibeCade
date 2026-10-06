@@ -11,7 +11,7 @@ for (const app of OFFICIAL_APPS.filter((a) => a.official)) {
       if (message.type() === "error") errors.push(message.text());
     });
     await page.goto(app.url);
-    await expect(page.locator("body")).not.toContainText("Couldn't reach XApps");
+    await expect(page.locator("body")).not.toContainText("Couldn't reach Vibecade");
     await page.waitForTimeout(3000);
     expect(errors).toEqual([]);
   });

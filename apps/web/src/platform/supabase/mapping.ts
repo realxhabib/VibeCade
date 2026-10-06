@@ -281,7 +281,7 @@ export function toBackendError(error: { code?: string; message?: string } | null
   const code = error?.code;
   if (isSchemaMissing(code)) {
     return new BackendError(
-      "Supabase is connected, but the XApps database schema isn't installed yet. Run the SQL in supabase/migrations.",
+      "Supabase is connected, but the Vibecade database schema isn't installed yet. Run the SQL in supabase/migrations.",
       "setup_required",
     );
   }

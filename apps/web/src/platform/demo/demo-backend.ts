@@ -618,7 +618,7 @@ export class DemoBackend implements Backend {
           handle: clean,
           name: name?.trim() || clean,
           avatarUrl: null,
-          bio: "Trying out XApps",
+          bio: "Trying out Vibecade",
           xp: 0,
           wins: 0,
           losses: 0,
@@ -1171,7 +1171,7 @@ export class DemoBackend implements Backend {
     return mutate((db) => {
       const app = this.requireAppOwner(db, appSlug);
       const profile = Object.values(db.profiles).find((p) => p.handle.toLowerCase() === clean);
-      if (!clean || !profile || isPracticeBot(profile.id)) throw new BackendError(`@${clean || "?"} hasn't joined XApps yet`, "not_found");
+      if (!clean || !profile || isPracticeBot(profile.id)) throw new BackendError(`@${clean || "?"} hasn't joined Vibecade yet`, "not_found");
       if (profile.id === app.developer.id) throw new BackendError("You can always play your own test builds", "invalid");
       const list = ((db.testers ??= {})[appSlug] ??= []);
       if (!list.includes(profile.id)) {
@@ -1473,7 +1473,7 @@ export class DemoBackend implements Backend {
       if (!handle || seen.has(handle)) continue;
       seen.add(handle);
       const profile = Object.values(db.profiles).find((p) => p.handle.toLowerCase() === handle);
-      if (!profile || isPracticeBot(profile.id)) throw new BackendError(`@${handle} hasn't joined XApps yet`, "not_found");
+      if (!profile || isPracticeBot(profile.id)) throw new BackendError(`@${handle} hasn't joined Vibecade yet`, "not_found");
       if (profile.id === viewerId) throw new BackendError("You can't challenge yourself", "invalid");
       if (testApp && !canTest(db, testApp.slug, profile.id)) {
         throw new BackendError(`@${profile.handle} isn't a tester of ${testApp.name}`, "forbidden");

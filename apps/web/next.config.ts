@@ -1,7 +1,16 @@
+import { resolve } from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // The Docker image (Dockerfile at the repo root) sets NEXT_OUTPUT=standalone: a
+  // self-contained server.js with only the files it traces. `next start` and Vercel
+  // keep the default output. Tracing starts at the monorepo root because the app
+  // imports packages/sdk from source.
+  ...(process.env.NEXT_OUTPUT === "standalone" && {
+    output: "standalone" as const,
+    outputFileTracingRoot: resolve(__dirname, "../.."),
+  }),
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "pbs.twimg.com" },

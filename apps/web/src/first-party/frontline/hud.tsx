@@ -625,7 +625,7 @@ function Connections({ hud }: { hud: HudState }) {
 /** How that player's packets reach us: a direct connection (with ping) or the XApps room. */
 function LinkBadge({ link }: { link: PeerLink }) {
   const label = link.via === "direct" ? (link.rtt !== null ? `direct ${Math.round(link.rtt)} ms` : "direct") : link.via === "relay" ? "relay" : "connecting";
-  const title = link.via === "direct" ? "Direct connection" : link.via === "relay" ? "No direct connection: relayed through XApps (slower updates)" : "Connecting directly…";
+  const title = link.via === "direct" ? "Direct connection" : link.via === "relay" ? "No direct connection: relayed through Vibecade (slower updates)" : "Connecting directly…";
   return (
     <span
       title={title}

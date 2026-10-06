@@ -1,15 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Pixelify_Sans, Press_Start_2P } from "next/font/google";
 import Script from "next/script";
 import { HostLinkGuard } from "@/components/chrome/host-link-guard";
 import { MotionProvider } from "@/components/chrome/motion-provider";
 import "./globals.css";
 
-const display = Bricolage_Grotesque({
-  variable: "--font-bricolage",
-  subsets: ["latin"],
-  axes: ["opsz", "wdth"],
-});
+// Arcade type: Pixelify Sans for headings, Press Start 2P for the wordmark and coin-op labels.
+const display = Pixelify_Sans({ variable: "--font-pixelify", subsets: ["latin"] });
+const arcade = Press_Start_2P({ variable: "--font-press-start", subsets: ["latin"], weight: "400" });
 
 const sans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -28,29 +26,29 @@ const NO_IOS_VIEW_TRANSITIONS = `(function(){try{var n=navigator,ios=/iP(hone|ad
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "XApps — challenge anyone on X",
-    template: "%s · XApps",
+    default: "Vibecade — the arcade where you challenge anyone on X",
+    template: "%s · Vibecade",
   },
   description:
-    "Sign in with X and go head-to-head: reflex duels, meme battles, robot brawls and more. Build your own app with the XApps SDK.",
-  applicationName: "XApps",
-  // Added to the home screen, XApps opens without Safari's bars (see app/manifest.ts).
-  appleWebApp: { capable: true, title: "XApps", statusBarStyle: "black" },
+    "An online arcade: sign in with X and go head-to-head in reflex duels, meme battles, robot brawls, pool, darts and more. Build your own game with the Vibecade SDK.",
+  applicationName: "Vibecade",
+  // Added to the home screen, Vibecade opens without Safari's bars (see app/manifest.ts).
+  appleWebApp: { capable: true, title: "Vibecade", statusBarStyle: "black" },
   openGraph: {
     type: "website",
-    siteName: "XApps",
-    title: "XApps — challenge anyone on X",
-    description: "Mini games and meme duels against anyone on X.",
+    siteName: "Vibecade",
+    title: "Vibecade — the arcade where you challenge anyone on X",
+    description: "Insert coin: arcade games and meme duels against anyone on X.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "XApps — challenge anyone on X",
-    description: "Mini games and meme duels against anyone on X.",
+    title: "Vibecade — the arcade where you challenge anyone on X",
+    description: "Insert coin: arcade games and meme duels against anyone on X.",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#05060a",
+  themeColor: "#07040f",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
@@ -59,7 +57,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable} antialiased`}>
+    <html lang="en" className={`${display.variable} ${arcade.variable} ${sans.variable} ${mono.variable} antialiased`}>
       <body className="min-h-dvh">
         <Script id="no-ios-view-transitions" strategy="beforeInteractive">
           {NO_IOS_VIEW_TRANSITIONS}

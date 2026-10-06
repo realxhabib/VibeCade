@@ -1,0 +1,8 @@
+{$SITE_DOMAIN:vibecade.si} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+www.{$SITE_DOMAIN:vibecade.si} {
+	redir https://{$SITE_DOMAIN:vibecade.si}{uri} permanent
+}

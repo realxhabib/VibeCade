@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { OFFICIAL_APPS, getOfficialApp } from "@/platform/catalog";
 
-export const alt = "An app on XApps";
+export const alt = "An app on Vibecade";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -23,12 +23,12 @@ export default async function AppOpengraphImage({ params }: { params: Promise<{ 
           flexDirection: "column",
           justifyContent: "space-between",
           padding: 72,
-          background: `radial-gradient(circle at 85% 15%, ${from} 0%, transparent 45%), radial-gradient(circle at 100% 100%, ${to} 0%, transparent 45%), #05060a`,
+          background: `radial-gradient(circle at 85% 15%, ${from} 0%, transparent 45%), radial-gradient(circle at 100% 100%, ${to} 0%, transparent 45%), #07040f`,
           color: "#f6f7fb",
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ fontSize: 30, fontWeight: 700, color: "#b8bfcf", letterSpacing: 6 }}>XAPPS · CHALLENGE ANYONE ON X</div>
+        <div style={{ fontSize: 30, fontWeight: 700, color: "#b8bfcf", letterSpacing: 6 }}>VIBECADE · THE ARCADE ON X</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
@@ -39,8 +39,8 @@ export default async function AppOpengraphImage({ params }: { params: Promise<{ 
               marginBottom: 36,
             }}
           />
-          <div style={{ fontSize: 110, fontWeight: 900, letterSpacing: -4, lineHeight: 1 }}>{app?.name ?? "XApps"}</div>
-          <div style={{ marginTop: 20, fontSize: 38, color: "#dfe3ec" }}>{app?.tagline ?? "Head-to-head apps on X."}</div>
+          <div style={{ fontSize: 110, fontWeight: 900, letterSpacing: -4, lineHeight: 1 }}>{app?.name ?? "Vibecade"}</div>
+          <div style={{ marginTop: 20, fontSize: 38, color: "#dfe3ec" }}>{app?.tagline ?? "Head-to-head arcade games on X."}</div>
         </div>
       </div>
     ),

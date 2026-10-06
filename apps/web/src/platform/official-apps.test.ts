@@ -31,7 +31,7 @@ const base: AppManifest = {
   durationLabel: "~1 min",
   howTo: ["Step one.", "Step two."],
   official: true,
-  developer: { id: null, handle: "xapps", name: "XApps Studio" },
+  developer: { id: null, handle: "xapps", name: "Vibecade Studio" },
   status: "published",
   playCount: 123,
   createdAt: "2026-09-01T00:00:00.000Z",

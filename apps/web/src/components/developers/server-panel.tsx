@@ -901,7 +901,7 @@ function SecretReveal({ reveal, onClose }: { reveal: Reveal; onClose: () => void
         {isApp
           ? reveal.rotated
             ? "The old secret has stopped working. Deploy this one now."
-            : "Your server uses it to call the XApps server API."
+            : "Your server uses it to call the Vibecade server API."
           : "Use it to verify the X-XApps-Signature header on every delivery."}
       </p>
 

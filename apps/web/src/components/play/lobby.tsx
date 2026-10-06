@@ -227,12 +227,12 @@ function DuelLobby({
           link={link}
           text={
             invited
-              ? `@${invited.profile.handle} I challenged you to ${app.name} on XApps ⚡ Accept if you dare:`
+              ? `@${invited.profile.handle} I challenged you to ${app.name} on Vibecade ⚡ Accept if you dare:`
               : typeof match.settings.topic === "string"
-                ? `Caption battle on XApps ${app.icon} Topic: "${match.settings.topic}". Think you're funnier than me?`
+                ? `Caption battle on Vibecade ${app.icon} Topic: "${match.settings.topic}". Think you're funnier than me?`
                 : match.settings.drop
-                  ? `I dropped a meme on XApps ${app.icon} Caption it better than me:`
-                  : `I challenge anyone to ${app.name} on XApps ${app.icon} Think you can beat me?`
+                  ? `I dropped a meme on Vibecade ${app.icon} Caption it better than me:`
+                  : `I challenge anyone to ${app.name} on Vibecade ${app.icon} Think you can beat me?`
           }
         />
       )}
@@ -481,8 +481,8 @@ function TableLobby({
           buttonLabel={watching ? "Share on X" : "Post the table on X"}
           text={
             watching
-              ? `A ${app.name} match is about to start on XApps ${app.icon} Come watch:`
-              : `${total - filled} seat${total - filled === 1 ? "" : "s"} left at my ${app.name} table on XApps ${app.icon} Pull up a chair:`
+              ? `A ${app.name} match is about to start on Vibecade ${app.icon} Come watch:`
+              : `${total - filled} seat${total - filled === 1 ? "" : "s"} left at my ${app.name} table on Vibecade ${app.icon} Pull up a chair:`
           }
         />
       )}

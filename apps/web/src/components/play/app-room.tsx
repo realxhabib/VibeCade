@@ -146,7 +146,7 @@ function SignInCard({ app, next }: { app: AppManifest | null; next: string }) {
       <h1 className="mt-5 font-display text-2xl font-bold">{app ? `Open ${app.name}` : "Sign in to open this app"}</h1>
       {app && <p className="mt-1 text-sm text-ink-300">by @{app.developer.handle}</p>}
       <p className="mt-4 text-sm text-ink-300">
-        Apps on XApps know who you are: sign in with X and {app?.name ?? "the app"} can greet you, save your stuff and track
+        Apps on Vibecade know who you are: sign in with X and {app?.name ?? "the app"} can greet you, save your stuff and track
         your achievements.
       </p>
       <Button
@@ -227,7 +227,7 @@ function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: str
       app: launchApp(app),
       user,
       match: standaloneMatch(user, { id: `app:${app.slug}`, seed }),
-      host: { name: "XApps", version: SDK_VERSION, origin: window.location.origin },
+      host: { name: "Vibecade", version: SDK_VERSION, origin: window.location.origin },
       locale: navigator.language,
     };
   };
@@ -373,7 +373,7 @@ function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: str
     emitRef.current = emit;
   }, [emit]);
 
-  const share = () => openXIntent(`Check out ${app.name} on XApps ${app.icon}`, `${window.location.origin}/apps/${app.slug}`);
+  const share = () => openXIntent(`Check out ${app.name} on Vibecade ${app.icon}`, `${window.location.origin}/apps/${app.slug}`);
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-ink-950">

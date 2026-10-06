@@ -1,0 +1,17 @@
+**/node_modules
+**/.next
+**/dist
+**/*.tsbuildinfo
+.git
+.github
+.vercel
+**/.env
+**/.env*.local
+deploy
+mods
+tools
+apps/web/public/sdk
+apps/web/public/examples
+apps/web/test-results
+apps/web/playwright-report
+coverage

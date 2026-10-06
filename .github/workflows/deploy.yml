@@ -1,0 +1,137 @@
+# Builds the Vibecade image, pushes it to GitHub Container Registry and rolls it out on
+# the droplet over SSH (see deploy/README.md for the one-time setup).
+#
+# Repository variables (Settings → Secrets and variables → Actions → Variables):
+#   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+#   NEXT_PUBLIC_SUPABASE_X_PROVIDER (optional), SITE_DOMAIN (default vibecade.si)
+# Repository secrets:
+#   DROPLET_HOST, DROPLET_SSH_KEY (private key for the droplet's `deploy` user),
+#   DROPLET_USER (optional, default deploy),
+#   SUPABASE_SERVICE_ROLE_KEY (optional: syncs the official apps after each deploy)
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  SITE_DOMAIN: ${{ vars.SITE_DOMAIN || 'vibecade.si' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ github.sha }}
+            ${{ steps.name.outputs.image }}:latest
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_SUPABASE_X_PROVIDER=${{ vars.NEXT_PUBLIC_SUPABASE_X_PROVIDER }}
+            NEXT_PUBLIC_SITE_URL=https://${{ env.SITE_DOMAIN }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ secrets.DROPLET_HOST }}
+      USER: ${{ secrets.DROPLET_USER || 'deploy' }}
+      IMAGE: ${{ needs.build.outputs.image }}:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy
+
+      - name: Skip when the droplet isn't configured yet
+        if: env.HOST == ''
+        run: echo "::notice::DROPLET_HOST is not set; the image was pushed but nothing was deployed."
+
+      - name: SSH key
+        if: env.HOST != ''
+        run: |
+          install -d -m 700 ~/.ssh
+          echo "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Copy compose files
+        if: env.HOST != ''
+        run: scp -i ~/.ssh/id_deploy deploy/docker-compose.yml deploy/Caddyfile "$USER@$HOST:/opt/vibecade/deploy/"
+
+      - name: Roll out
+        if: env.HOST != ''
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh -i ~/.ssh/id_deploy "$USER@$HOST" \
+            "IMAGE='$IMAGE' SITE_DOMAIN='$SITE_DOMAIN' GHCR_USER='${{ github.actor }}' GHCR_TOKEN='$GHCR_TOKEN' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/vibecade/deploy
+          touch .env
+          # Pin the image and domain in .env so a manual `docker compose up -d` keeps them.
+          sed -i '/^VIBECADE_IMAGE=/d;/^SITE_DOMAIN=/d' .env
+          printf 'VIBECADE_IMAGE=%s\nSITE_DOMAIN=%s\n' "$IMAGE" "$SITE_DOMAIN" >> .env
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          docker compose pull web
+          docker logout ghcr.io
+          docker compose up -d --remove-orphans
+          docker image prune -f
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q web)")
+            [ "$status" = healthy ] && { echo "web is healthy"; exit 0; }
+            sleep 2
+          done
+          echo "web did not become healthy" >&2
+          docker compose logs --tail 80 web
+          exit 1
+          REMOTE
+
+  sync-apps:
+    needs: deploy
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Skip without a service key
+        if: env.SUPABASE_SERVICE_ROLE_KEY == ''
+        run: echo "::notice::SUPABASE_SERVICE_ROLE_KEY is not set; official apps were not synced."
+      - uses: actions/checkout@v4
+        if: env.SUPABASE_SERVICE_ROLE_KEY != ''
+      - uses: actions/setup-node@v4
+        if: env.SUPABASE_SERVICE_ROLE_KEY != ''
+        with:
+          node-version: 22
+          cache: npm
+      - if: env.SUPABASE_SERVICE_ROLE_KEY != ''
+        run: npm ci --no-audit --no-fund && npm run sync-apps

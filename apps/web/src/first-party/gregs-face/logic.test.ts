@@ -169,7 +169,7 @@ describe("scoring", () => {
   it("formats percentages and the share line", () => {
     expect(formatPct(87)).toBe("87%");
     expect(formatPct(87.46)).toBe("87.5%");
-    expect(shareText(86.6)).toBe("I built Greg's face 87% right on XApps 🤪");
-    expect(shareText(93)).toBe("I built Greg's face 93% right on XApps 😎");
+    expect(shareText(86.6)).toBe("I built Greg's face 87% right on Vibecade 🤪");
+    expect(shareText(93)).toBe("I built Greg's face 93% right on Vibecade 😎");
   });
 });

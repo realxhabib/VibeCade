@@ -105,7 +105,7 @@ export function AppSetupFrame({
         turnDeadline: null,
         round: 0,
       },
-      host: { name: "XApps", version: SDK_VERSION, origin: window.location.origin },
+      host: { name: "Vibecade", version: SDK_VERSION, origin: window.location.origin },
       locale: navigator.language,
     };
   };

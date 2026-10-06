@@ -1,0 +1,51 @@
+# Vibecade on a droplet: the Next.js app behind Caddy, which gets and renews the
+# HTTPS certificates for SITE_DOMAIN (and redirects www) on its own.
+#
+#   cd /opt/vibecade/deploy && docker compose up -d     # run the pulled image
+#   docker compose build web && docker compose up -d    # or build on the droplet (2 GB+ RAM)
+#
+# Everything is configured in .env next to this file (see .env.example). Compose reads it
+# for the ${…} values below and passes it to the app as runtime env.
+
+services:
+  web:
+    image: ${VIBECADE_IMAGE:-vibecade-web:local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+        NEXT_PUBLIC_SUPABASE_X_PROVIDER: ${NEXT_PUBLIC_SUPABASE_X_PROVIDER:-}
+        NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN:-vibecade.si}
+    env_file: .env
+    restart: unless-stopped
+    expose:
+      - "3000"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-vibecade.si}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  caddy_data:
+  caddy_config:

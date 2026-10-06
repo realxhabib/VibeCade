@@ -3,7 +3,7 @@ import { PlayRoom } from "@/components/play/play-room";
 
 export const metadata: Metadata = {
   title: "Match",
-  description: "You've been challenged on XApps. Accept and play head-to-head.",
+  description: "You've been challenged on Vibecade. Accept and play head-to-head.",
 };
 
 export default async function PlayPage({ params }: PageProps<"/play/[matchId]">) {

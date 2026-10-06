@@ -269,7 +269,7 @@ export function toLaunchMatch(match: Match, viewerId: string): LaunchContext["ma
   };
 }
 
-const HOST = { name: "XApps", version: "0.2.0" };
+const HOST = { name: "Vibecade", version: "0.2.0" };
 
 function localeOf(): string {
   return typeof navigator !== "undefined" ? navigator.language : "en";

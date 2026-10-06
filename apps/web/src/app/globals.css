@@ -5,28 +5,28 @@
 /* ---------------------------------------------------------------------- */
 
 @theme {
-  /* Ink: blue-tinted neutrals, darkest first used for canvas */
-  --color-ink-950: #05060a;
-  --color-ink-900: #090b11;
-  --color-ink-850: #0d1018;
-  --color-ink-800: #12151f;
-  --color-ink-750: #171b27;
-  --color-ink-700: #1d2231;
-  --color-ink-600: #2a3044;
-  --color-ink-500: #3d4560;
-  --color-ink-400: #5f6883;
-  --color-ink-300: #8d96ad;
-  --color-ink-200: #b8bfcf;
-  --color-ink-100: #e1e5ee;
-  --color-ink-50: #f6f7fb;
+  /* Ink: violet-tinted arcade-cabinet neutrals, darkest first used for canvas */
+  --color-ink-950: #07040f;
+  --color-ink-900: #0c0818;
+  --color-ink-850: #110c20;
+  --color-ink-800: #161128;
+  --color-ink-750: #1c1631;
+  --color-ink-700: #241d3d;
+  --color-ink-600: #322a52;
+  --color-ink-500: #473e6b;
+  --color-ink-400: #6a6290;
+  --color-ink-300: #9a93ba;
+  --color-ink-200: #c3bedb;
+  --color-ink-100: #e6e3f2;
+  --color-ink-50: #f8f7fd;
 
-  /* Brand */
-  --color-nova-300: #a9b8ff;
-  --color-nova-400: #7f95ff;
-  --color-nova-500: #5b74ff;
-  --color-nova-600: #4453e6;
-  --color-violet-glow: #a35cff;
-  --color-flare: #ff5ca8;
+  /* Brand: neon cabinet ramp, cyan → violet → magenta */
+  --color-nova-300: #8be9ff;
+  --color-nova-400: #3fd0ff;
+  --color-nova-500: #2b7bff;
+  --color-nova-600: #1f5ee6;
+  --color-violet-glow: #b14dff;
+  --color-flare: #ff2bd6;
   --color-volt: #c6ff3d;
   --color-ember: #ff8a3d;
   --color-gold: #ffc93d;
@@ -34,7 +34,8 @@
   --color-success: #37e39b;
   --color-x-blue: #1d9bf0;
 
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-pixelify), ui-sans-serif, system-ui, sans-serif;
+  --font-arcade: var(--font-press-start), var(--font-pixelify), ui-monospace, monospace;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
@@ -60,6 +61,8 @@
   --animate-ping-soft: ping-soft 2.2s var(--ease-out-expo) infinite;
   --animate-radar: radar 2.4s linear infinite;
   --animate-gradient: gradient-pan 8s ease-in-out infinite alternate;
+  --animate-grid-scroll: grid-scroll 1.6s linear infinite;
+  --animate-blink: blink 1.1s steps(1, end) infinite;
 
   @keyframes aurora {
     0% {
@@ -112,6 +115,19 @@
       transform: rotate(360deg);
     }
   }
+  @keyframes grid-scroll {
+    from {
+      background-position: 0 0;
+    }
+    to {
+      background-position: 0 48px;
+    }
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
   @keyframes gradient-pan {
     0% {
       background-position: 0% 50%;
@@ -158,7 +174,7 @@
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--color-nova-500) 55%, transparent);
+    background: color-mix(in oklab, var(--color-flare) 55%, transparent);
     color: white;
   }
 
@@ -249,6 +265,31 @@
 
 @utility page-x {
   padding-inline: var(--page-gutter);
+}
+
+/* Neon glow for arcade lettering (the wordmark, marquee labels). */
+@utility neon-text {
+  text-shadow:
+    0 0 6px rgb(63 208 255 / 0.55),
+    0 0 18px rgb(177 77 255 / 0.45),
+    0 0 32px rgb(255 43 214 / 0.25);
+}
+
+/* Pixel type reads wrong with the tight negative tracking the old display face used,
+   so the display family resets letter-spacing. Unlayered, so it wins over tracking-*. */
+.font-display {
+  letter-spacing: 0.005em;
+}
+
+/* CRT scanlines over the whole backdrop, static (no flicker) so they never distract. */
+.crt::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px);
+  opacity: 0.5;
 }
 
 /* Film grain overlay, applied once on the body background */

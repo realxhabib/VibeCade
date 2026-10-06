@@ -358,7 +358,7 @@ export function Sandbox() {
           app: { id: "sandbox", slug: "sandbox", name: "Sandbox" },
           user: { id: me.id, handle: me.handle, name: me.name, avatarUrl: null },
           match: launchMatch(seat),
-          host: { name: "XApps Sandbox", version: "0.1.0", origin: window.location.origin },
+          host: { name: "Vibecade Sandbox", version: "0.1.0", origin: window.location.origin },
           locale: navigator.language,
         }),
         handlers,

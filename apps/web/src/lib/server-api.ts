@@ -392,7 +392,7 @@ async function execute<B>(
       throw new ServerApiError(
         501,
         "not_configured",
-        "The server API needs Supabase; this XApps host runs in demo mode (no NEXT_PUBLIC_SUPABASE_URL / key).",
+        "The server API needs Supabase; this Vibecade host runs in demo mode (no NEXT_PUBLIC_SUPABASE_URL / key).",
       );
     }
     const secret = parseBearer(request.headers.get("authorization"));

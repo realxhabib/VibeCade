@@ -7,7 +7,7 @@ export async function generateMetadata({ params }: PageProps<"/apps/[slug]/open"
   const app = getOfficialApp(slug);
   return {
     title: app?.name ?? "App",
-    description: app ? `${app.tagline} Open it on XApps.` : "Open this app on XApps, signed in with X.",
+    description: app ? `${app.tagline} Open it on Vibecade.` : "Open this app on Vibecade, signed in with X.",
     // The app page is the canonical, shareable URL.
     robots: { index: false },
   };

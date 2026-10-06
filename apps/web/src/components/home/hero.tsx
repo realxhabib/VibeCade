@@ -57,7 +57,10 @@ function GuestCopy() {
     <motion.div key="guest" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, filter: "blur(8px)" }}>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, ...spring.soft }}>
         <Badge tone="nova" pulse>
-          Sign in with X · Beta
+          <span className="font-arcade text-[9px] tracking-[0.08em]">
+            Insert coin<span className="animate-blink motion-reduce:animate-none">_</span>
+          </span>
+          <span aria-hidden>·</span> Sign in with X
         </Badge>
       </motion.div>
       <h1 className="mt-6 font-display text-[clamp(2.9rem,7.5vw,5.6rem)] font-extrabold leading-[0.92] tracking-[-0.04em]">
@@ -70,7 +73,7 @@ function GuestCopy() {
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 0.2, ...spring.soft, filter: { ...BLUR_TWEEN, delay: 0.2 } }}
         >
-          <RotatingWord words={WORDS} colors={["#a9b8ff", "#a35cff", "#ff5ca8"]} />
+          <RotatingWord words={WORDS} colors={["#8be9ff", "#b14dff", "#ff2bd6"]} />
         </motion.span>
         <motion.span className="block" initial={{ opacity: 0, y: 30, filter: "blur(12px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ delay: 0.3, ...spring.soft, filter: { ...BLUR_TWEEN, delay: 0.3 } }}>
           on <XLogo className="inline-block h-[0.7em] w-auto align-baseline" />
@@ -83,8 +86,8 @@ function GuestCopy() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, ...spring.soft }}
       >
-        Reflex duels, meme battles and robot brawls. Pick an app, send the link, settle it — the crowd keeps score
-        and the winner keeps the receipts.
+        Your arcade on X: reflex duels, meme battles, pool, darts and robot brawls. Pick a cabinet, send the link,
+        settle it — the crowd keeps score and the winner keeps the receipts.
       </motion.p>
       <motion.div
         className="mt-8 flex flex-wrap items-center gap-3"
@@ -93,7 +96,7 @@ function GuestCopy() {
         transition={{ delay: 0.6, ...spring.soft }}
       >
         <Button href="/apps" size="xl" variant="accent" magnetic iconRight={<ArrowRight className="size-5" />}>
-          Start playing
+          Press start
         </Button>
         <Button href="/developers" size="xl" variant="glass" icon={<Code2 className="size-5" />}>
           Build an app

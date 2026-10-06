@@ -145,7 +145,7 @@ async function play(move) {
 const standaloneSnippet = (origin: string) => `// manifest: kind "app" — people open it at /apps/<slug>/open, no matches.
 import { connect } from "${origin}/sdk/v1.js";
 
-const xapps = await connect({ mock: { purpose: "app" } }); // mock: outside XApps too
+const xapps = await connect({ mock: { purpose: "app" } }); // mock: outside Vibecade too
 // xapps.purpose === "app": no ready(), no onStart, no submit. Just render.
 
 hello.textContent = \`Hey @\${xapps.user.handle}\`;         // always signed in with X
@@ -176,7 +176,7 @@ async function share(canvas, score) {
   const blob = await new Promise((done) => canvas.toBlob(done, "image/png"));
   const image = await xapps.media.upload(blob, { alt: \`My \${score}% run\` });
   // X shows the uploaded image as a big card: the host posts it via a page with card tags.
-  await xapps.social.share(\`I scored \${score}% on XApps\`, image.url);
+  await xapps.social.share(\`I scored \${score}% on Vibecade\`, image.url);
 }`;
 
 type SnippetTab = "react" | "vanilla" | "contest" | "turns" | "media" | "app" | "solo";
@@ -249,7 +249,7 @@ const API: { group: string; rows: [string, string][] }[] = [
     rows: [
       ["xapps.ui.setStatus(text) · setScores(map) · setTurn(id)", "Drive the host HUD above your app."],
       ["xapps.ui.toast(msg) · celebrate() · haptic(style)", "Host-rendered toasts, confetti and vibration."],
-      ["xapps.ui.lockGestures(element)", "Makes a canvas/board/slider a drag surface: no page scroll, bounce or pull-to-refresh while touching it, iOS included. Returns an undo function. React: useGestureLock(ref). connect() already stops your page from bouncing inside XApps."],
+      ["xapps.ui.lockGestures(element)", "Makes a canvas/board/slider a drag surface: no page scroll, bounce or pull-to-refresh while touching it, iOS included. Returns an undo function. React: useGestureLock(ref). connect() already stops your page from bouncing inside Vibecade."],
       ["xapps.social.share(text, url?)", "Opens the X composer, pre-filled. The user always confirms. Pass a media.upload image URL and X shows the picture as a large card."],
     ],
   },
@@ -313,7 +313,7 @@ const MANIFEST: [string, string][] = [
   ["name · tagline · description", "How your app is listed"],
   ["category", "games · contests · debates · trivia · creative · social"],
   ["icon · accent", "One emoji + a two-color gradient"],
-  ["url", "https URL of your app (must allow framing by XApps)"],
+  ["url", "https URL of your app (must allow framing by Vibecade)"],
   ["modes", "live (same time) · async (play anytime) · practice (vs bots)"],
   ["players", "{ min, max } seats per match, 2–8"],
   ["teams", "0 for free-for-all, or 2–4 teams (seat s plays for team s % teams)"],
@@ -552,7 +552,7 @@ export function Developers() {
             Build the next thing <span className="text-gradient">everyone challenges</span> their friends to.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-ink-300">
-            XApps handles identity, matchmaking, realtime rooms, results, XP and the crowd. You write the fun part — in
+            Vibecade handles identity, matchmaking, realtime rooms, results, XP and the crowd. You write the fun part — in
             any framework, hosted anywhere. It hosts both games people challenge each other to and standalone apps people
             simply open, like a news reader, a dashboard or a meme maker.
           </p>
@@ -753,7 +753,7 @@ export function Developers() {
       <section className={cn("mt-20 rounded-[2.5rem] border border-white/[0.08] bg-ink-850/80 p-8 sm:p-10")}>
         <h2 className="font-display text-3xl font-extrabold tracking-tight">Ship it</h2>
         <ol className="mt-4 space-y-2 text-ink-300">
-          <li>1. Host your app on https and allow XApps to frame it: <code className="font-mono text-sm text-ink-100">Content-Security-Policy: frame-ancestors &lt;xapps-origin&gt;</code></li>
+          <li>1. Host your app on https and allow Vibecade to frame it: <code className="font-mono text-sm text-ink-100">Content-Security-Policy: frame-ancestors &lt;xapps-origin&gt;</code></li>
           <li>2. Test both seats in the Sandbox until the log is clean.</li>
           <li>3. Register it — it&apos;s reviewed, then listed in the marketplace for everyone on X.</li>
         </ol>

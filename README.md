@@ -1,6 +1,6 @@
-# XApps
+# Vibecade
 
-**A social app marketplace on X.** Sign in with X, pick an app and go head-to-head with anyone:
+**The arcade on X** — live at [vibecade.si](https://vibecade.si). Sign in with X, pick a game and go head-to-head with anyone:
 reflex duels, meme battles judged by the crowd, strategy and 3D robot brawls.
 Anyone can build and list their own app with the `@xapps/sdk`.
 
@@ -30,7 +30,7 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-Without Supabase keys, XApps runs in **demo mode**. Everything lives in your browser: a cast of personas, bots that accept challenges and fill quick-match lobbies, and a simulated crowd that votes in the Arena. To play yourself live, sign in as one persona in one tab and as another persona in a second tab. The tabs talk through `BroadcastChannel`, just like two players on Supabase Realtime.
+Without Supabase keys, Vibecade runs in **demo mode**. Everything lives in your browser: a cast of personas, bots that accept challenges and fill quick-match lobbies, and a simulated crowd that votes in the Arena. To play yourself live, sign in as one persona in one tab and as another persona in a second tab. The tabs talk through `BroadcastChannel`, just like two players on Supabase Realtime.
 
 ## Going live: Supabase + Sign in with X
 
@@ -61,7 +61,9 @@ If the keys are set but the schema isn't installed yet, the app says so and offe
 
 ## Deploy
 
-**Vercel** (recommended): import the repo and set **Root Directory** to `apps/web`. Leave *Include files outside the root directory* on, because the app imports `packages/sdk`. [`apps/web/vercel.json`](apps/web/vercel.json) already installs from the monorepo root and runs `npm run build`, which bundles the SDK and then runs `next build`. Use Node 22 (anything from 20.9 works). Add the four variables from step 6 in *Settings → Environment Variables*, with `NEXT_PUBLIC_SITE_URL` set to your production URL. Then add `https://<your-domain>/auth/callback` to the Supabase redirect URLs. Without the Supabase variables, the deployment runs in demo mode.
+**DigitalOcean droplet** (how vibecade.si runs): a Docker image of the Next.js server behind Caddy, which handles HTTPS for the domain. GitHub Actions ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) builds the image, pushes it to GitHub Container Registry and rolls it out over SSH, then syncs the official apps. Step-by-step setup (DNS, droplet provisioning, secrets, Supabase redirect URLs) is in [`deploy/README.md`](deploy/README.md).
+
+**Vercel**: import the repo and set **Root Directory** to `apps/web`. Leave *Include files outside the root directory* on, because the app imports `packages/sdk`. [`apps/web/vercel.json`](apps/web/vercel.json) already installs from the monorepo root and runs `npm run build`, which bundles the SDK and then runs `next build`. Use Node 22 (anything from 20.9 works). Add the four variables from step 6 in *Settings → Environment Variables*, with `NEXT_PUBLIC_SITE_URL` set to your production URL. Then add `https://<your-domain>/auth/callback` to the Supabase redirect URLs. Without the Supabase variables, the deployment runs in demo mode.
 
 **Official apps.** First-party apps live in code ([`apps/web/src/platform/catalog.ts`](apps/web/src/platform/catalog.ts)), not in migrations. `npm run sync-apps` upserts every app the catalog flags `official` into `public.apps` and reports each one as inserted, updated or unchanged (`npm run sync-apps -- --dry-run` prints the rows without connecting). An official app you delete from the catalog is **retired** by the next sync: its row is set to `rejected`, so it is no longer listed or playable, and its open, pending and active matches are cancelled; the row, finished matches and earned XP stay, and old matches still render under the app's name (`src/platform/retired-apps.ts`). It needs the Supabase **service role** key, so add `SUPABASE_SERVICE_ROLE_KEY` (or the new `SUPABASE_SECRET_KEY`, `sb_secret_…`) in Vercel as a server-only variable (never `NEXT_PUBLIC_`) for the **Production** environment. Every production build then runs the sync after `next build`, and a failed sync fails the deploy. Without the key the build skips the sync. Preview builds skip it too, so a branch never publishes its catalog to your database (set `SYNC_APPS=always` if previews use their own Supabase project, or `SYNC_APPS=off` to turn the sync off). Without Vercel, run `npm run sync-apps` with the key in your environment or `apps/web/.env.local` after deploying.
 
@@ -76,7 +78,7 @@ update public.apps set status = 'published' where slug = 'their-app';
 ## Architecture
 
 ```
-┌──────────────────────────── XApps host (Next.js) ────────────────────────────┐
+┌───────────────────────── Vibecade host (Next.js) ────────────────────────────┐
 │  Marketplace · Challenges · Arena · Profiles · Developer portal              │
 │                                                                              │
 │  /play/[id]  ── Play room: VS intro, HUD, reactions, voting, results         │
