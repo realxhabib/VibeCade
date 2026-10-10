@@ -73,6 +73,20 @@ If the keys are set but the schema isn't installed yet, the app says so and offe
 update public.apps set status = 'published' where slug = 'their-app';
 ```
 
+## Playable posts on X
+
+Paste `https://<your-domain>/x` (the whole catalog) or `https://<your-domain>/x/<slug>` (one app) into a post,
+with no image attached. X reads its **player card** and runs `/x/play…` inline in the post (480×480) on desktop
+web: guests pick a game and play the practice bots on their device, no sign-in. Challenging people opens the
+site in a new tab. The mobile apps show the preview still (`/x/preview.png`, `/x/<slug>/preview.png`) and open
+the link, which forwards to the site.
+
+- Only `/x/play/*` and `/embed/*` may be framed, and only by x.com and twitter.com (`frame-ancestors` in
+  `apps/web/next.config.ts`). No `X-Frame-Options` is sent, and the player is never cached.
+- X caches a card's title, text and image for about a week, but the player is live. Add `?v=2` to force a new card.
+- Set `NEXT_PUBLIC_X_HANDLE` to name your account as `twitter:site`. Validate a link with X's card validator, or by posting it.
+- X has restricted and paused player cards before (they're meant for audio and video), so treat this as experimental.
+
 ## Architecture
 
 ```

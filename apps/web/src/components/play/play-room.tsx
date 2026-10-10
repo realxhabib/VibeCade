@@ -35,6 +35,7 @@ import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./h
 import { ImmersiveChrome, useImmersive } from "./immersive";
 import { InviteCard, Lobby } from "./lobby";
 import { isMultiplayer, ordinal, seatedPlayers, viewerIsSpectator, viewerOutcome } from "./match-view";
+import { useHostRoutes } from "./host-routes";
 import { ResultsOverlay } from "./results-overlay";
 import { TurnBanner } from "./turn-banner";
 import {
@@ -116,6 +117,7 @@ function shareText(app: AppManifest, match: Match, viewerId: string | undefined)
  */
 export function PlayRoom({ matchId }: { matchId: string }) {
   const router = useRouter();
+  const routes = useHostRoutes();
   const backend = useBackend();
   const queryClient = useQueryClient();
   const { viewer, loading: viewerLoading } = useViewer();
@@ -189,7 +191,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
           emoji={setup ? "🛠️" : "🕳️"}
           title={setup ? "Finish setting up Supabase" : "Match not found"}
           action={
-            <Button href="/" icon={<Home className="size-4" />}>
+            <Button href={routes.home} icon={<Home className="size-4" />}>
               Back home
             </Button>
           }
@@ -212,7 +214,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
     ? () => (viewer ? void lobbyCall("watch") : router.push(`/login?next=${encodeURIComponent(`/play/${match.id}`)}`))
     : undefined;
   const lobbyOpen = match.status === "open" || match.status === "pending";
-  const appHref = app.retired ? "/apps" : `/apps/${app.slug}`;
+  const appHref = app.retired ? routes.apps : routes.app(app.slug);
   let body: React.ReactNode;
 
   if (match.status === "completed") {
@@ -221,7 +223,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         app={app}
         match={match}
         viewer={viewer}
-        onShare={() => openXIntent(shareText(app, match, viewer?.id), `${window.location.origin}${appHref}`)}
+        onShare={() => openXIntent(shareText(app, match, viewer?.id), `${window.location.origin}${app.retired ? appHref : routes.share(app.slug)}`)}
         onHome={() => router.push(appHref)}
       />
     );
@@ -299,7 +301,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
                 Watch live
               </Button>
             )}
-            <Button href={`/apps/${app.slug}`} variant={onWatch ? "glass" : "primary"}>
+            <Button href={routes.app(app.slug)} variant={onWatch ? "glass" : "primary"}>
               Play {app.name}
             </Button>
           </div>
@@ -327,7 +329,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         match={match}
         viewer={viewer}
         cancelling={action.isPending}
-        onCancel={isCreator ? () => run("cancel", () => router.push(`/apps/${app.slug}`)) : undefined}
+        onCancel={isCreator ? () => run("cancel", () => router.push(routes.app(app.slug))) : undefined}
         onStart={isCreator ? () => void lobbyCall("start") : undefined}
         starting={busy === "start"}
         onPlayBot={
@@ -336,7 +338,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
                 try {
                   await backend.cancelMatch(match.id).catch(() => undefined);
                   const practice = await backend.startPractice(app.slug, match.maxPlayers > 2 ? match.maxPlayers : undefined, match.versionId);
-                  router.replace(`/play/${practice.id}`);
+                  router.replace(routes.match(practice.id));
                 } catch (error) {
                   toast(errorMessage(error), { tone: "danger" });
                 }
@@ -366,8 +368,8 @@ export function PlayRoom({ matchId }: { matchId: string }) {
       <Backdrop app={app} />
       <div className="px-3 pt-3">
         <div className="mx-auto flex h-14 max-w-5xl items-center">
-          <Button variant="ghost" size="sm" href={viewer ? "/challenges" : "/"}>
-            ← {viewer ? "Challenges" : "XApps"}
+          <Button variant="ghost" size="sm" href={viewer && !routes.guest ? "/challenges" : routes.home}>
+            ← {viewer && !routes.guest ? "Challenges" : "XApps"}
           </Button>
         </div>
       </div>
@@ -393,6 +395,7 @@ function readIntroSeen(matchId: string): boolean {
 /** The live stage: HUD + sandboxed app iframe + intro/voting/results overlays. */
 function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; viewer: Profile }) {
   const router = useRouter();
+  const routes = useHostRoutes();
   const backend = useBackend();
   const queryClient = useQueryClient();
   const action = useMatchAction();
@@ -443,8 +446,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   }, []);
 
   const testBuild = isTestBuild(match);
-  /** Practice played on this device while the database was down: nothing is saved. */
-  const offline = isOfflineMatch(match.id);
+  /** Practice played on this device while the database was down: nothing is saved. (The demo and guest engines always run here.) */
+  const offline = backend.kind === "supabase" && isOfflineMatch(match.id);
   /** Stats and achievements are shown but never saved (test builds, offline practice). */
   const unsaved = testBuild || offline;
   useEffect(() => {
@@ -920,7 +923,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       setConfirmLeave(true);
       return;
     }
-    router.push(`/apps/${app.slug}`);
+    router.push(routes.app(app.slug));
   };
 
   const react = (emoji: string) => {
@@ -946,7 +949,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
               // Same setup (template, dropped image, topic) for the rematch.
               settings: rematchSettings(match.settings),
             });
-      router.replace(`/play/${next.id}`);
+      router.replace(routes.match(next.id));
     } catch (error) {
       toast(errorMessage(error), { tone: "danger" });
       setRematching(false);
@@ -1126,8 +1129,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
             viewer={queryClient.getQueryData<Profile | null>(["viewer"]) ?? viewer}
             onRematch={spectating ? undefined : rematch}
             rematching={rematching}
-            onShare={() => openXIntent(shareText(app, match, viewer.id), `${window.location.origin}/apps/${app.slug}`)}
-            onHome={() => router.push(`/apps/${app.slug}`)}
+            onShare={() => openXIntent(shareText(app, match, viewer.id), `${window.location.origin}${routes.share(app.slug)}`)}
+            onHome={() => router.push(routes.app(app.slug))}
           />
         )}
       </AnimatePresence>
