@@ -111,6 +111,30 @@ function DrawnArt({ app, className }: { app: AppManifest; className?: string }) 
           </div>
         </div>
       );
+    case "starship-flap":
+      return (
+        <div className={className} aria-hidden>
+          <div className="relative flex size-full items-center justify-center overflow-hidden">
+            {[18, 74].map((left, i) => (
+              <span key={left} className="absolute inset-y-0 w-[11%]" style={{ left: `${left}%` }}>
+                <span className="absolute inset-x-0 top-0 rounded-b-md bg-gradient-to-r from-[#2b3040] via-[#5d6478] to-[#1d212d]" style={{ height: i ? "22%" : "38%" }} />
+                <span className="absolute inset-x-0 bottom-0 rounded-t-md bg-gradient-to-r from-[#2b3040] via-[#5d6478] to-[#1d212d]" style={{ height: i ? "46%" : "28%" }} />
+              </span>
+            ))}
+            <motion.svg
+              viewBox="-60 -24 130 48"
+              className="relative h-[34%] w-auto drop-shadow-[0_6px_16px_rgba(0,0,0,0.5)]"
+              animate={{ y: ["-14%", "10%", "-14%"], rotate: [-12, 10, -12] }}
+              transition={loop(1.6)}
+            >
+              <path d="M-31 -7 Q-50 -10 -58 0 Q-50 10 -31 7 Z" fill={a} />
+              <path d="M-27 -9.5 L-35 -19 L-15 -19 L-11 -9.5 Z M-27 9.5 L-35 19 L-15 19 L-11 9.5 Z" fill="#2c2f38" />
+              <path d="M-31 -9.5 L17 -9.5 Q35 -6 37 0 Q35 6 17 9.5 L-31 9.5 Z" fill="#d6dbe4" />
+              <path d="M-31 3.3 L17 3.3 Q33 3 36 1.4 Q35 6 17 9.5 L-31 9.5 Z" fill="#1a1c22" />
+            </motion.svg>
+          </div>
+        </div>
+      );
     case "four-in-a-row": {
       const discs = [
         [0, 5, "#ff4d5e"], [1, 5, "#ffd23d"], [1, 4, "#ff4d5e"], [2, 5, "#ffd23d"], [2, 4, "#ff4d5e"],
