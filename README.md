@@ -83,6 +83,7 @@ the link, which forwards to the site.
 
 - Only `/x/play/*` and `/embed/*` may be framed, and only by x.com and twitter.com (`frame-ancestors` in
   `apps/web/next.config.ts`). No `X-Frame-Options` is sent, and the player is never cached.
+- Try it in a browser at `/x/preview` (`?app=<slug>` for one app): the player in a 480×480 frame inside a mock post.
 - X caches a card's title, text and image for about a week, but the player is live. Add `?v=2` to force a new card.
 - Set `NEXT_PUBLIC_X_HANDLE` to name your account as `twitter:site`. Validate a link with X's card validator, or by posting it.
 - X has restricted and paused player cards before (they're meant for audio and video), so treat this as experimental.
