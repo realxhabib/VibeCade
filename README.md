@@ -190,3 +190,4 @@ Full reference: the `/developers` page in the app and [`packages/sdk/README.md`]
 - **Demo uploads live in memory.** In demo mode, `/api/demo-media` keeps files in the server process, so they're lost on restart and aren't shared across serverless instances.
 - **Crowd-judged content is user-generated.** Before a public launch, add reporting and moderation for captions and takes.
 - **Async runs aren't locked.** A player who leaves before submitting can replay the run.
+
