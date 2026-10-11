@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # One-time setup of a DigitalOcean droplet (Ubuntu) to run XApps next to whatever Caddy already serves.
 #
-#   sudo bash setup.sh <domain> "<deploy public key>"
-#   e.g. sudo bash setup.sh xapps.174-138-34-59.sslip.io "ssh-ed25519 AAAA... github-actions"
+#   sudo bash setup.sh <domain[,other domains]> "<deploy public key>"
+#   e.g. sudo bash setup.sh vibecade.si,www.vibecade.si "ssh-ed25519 AAAA... github-actions"
+# The first domain serves the site; any others redirect to it.
 #
 # Then GitHub Actions (.github/workflows/deploy-droplet.yml) builds the app and ships it here over SSH
 # as the `xapps` user. Safe to re-run: it only adds what's missing.
 set -euo pipefail
 
-DOMAIN="${1:-}"
+DOMAINS="${1:-}"
 PUBKEY="${2:-}"
+DOMAIN="${DOMAINS%%,*}"
+ALIASES="$(printf '%s' "$DOMAINS" | tr ',' '\n' | tail -n +2 | grep -v '^$' | paste -sd ' ' || true)"
 APP_USER=xapps
 APP_DIR=/opt/xapps
 PORT=3000
@@ -18,7 +21,7 @@ CADDYFILE=/etc/caddy/Caddyfile
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 [ "$(id -u)" = 0 ] || { echo "Run as root (sudo bash setup.sh ...)."; exit 1; }
-[ -n "$DOMAIN" ] || { echo "Usage: sudo bash setup.sh <domain> \"<deploy public key>\""; exit 1; }
+[ -n "$DOMAIN" ] || { echo "Usage: sudo bash setup.sh <domain[,other domains]> \"<deploy public key>\""; exit 1; }
 
 say "Packages"
 export DEBIAN_FRONTEND=noninteractive
@@ -98,7 +101,7 @@ systemctl daemon-reload
 systemctl enable xapps >/dev/null 2>&1 || true
 [ -e "$APP_DIR/current" ] && systemctl restart xapps || echo "(It starts after the first deploy.)"
 
-say "Caddy site for $DOMAIN"
+say "Caddy site for $DOMAIN${ALIASES:+ (redirecting $ALIASES)}"
 if ! command -v caddy >/dev/null; then
   apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https gnupg >/dev/null
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
@@ -117,6 +120,11 @@ $DOMAIN {
 }
 SITE
 fi
+for alias in $ALIASES; do
+  if ! grep -q "^$alias " "$CADDYFILE"; then
+    printf '\n%s {\n\tredir https://%s{uri} permanent\n}\n' "$alias" "$DOMAIN" >> "$CADDYFILE"
+  fi
+done
 caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null
 systemctl reload caddy || systemctl restart caddy
 
