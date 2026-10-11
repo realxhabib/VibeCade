@@ -96,7 +96,8 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
         )}
       </div>
 
-      <div className="flex flex-col gap-2 pt-3">
+      {/* Hidden until the card knows whether it's signed in, so the buttons don't shift under a tap. */}
+      <div className={`flex flex-col gap-2 pt-3 ${mounted ? "" : "invisible"}`}>
         {!inPost ? (
           <Button size="lg" variant="accent" href={`/apps/${app.slug}`} target="_blank" rel="noopener" iconRight={<ArrowUpRight className="size-4" />}>
             Open {app.name}

@@ -495,7 +495,7 @@ export function Editor({
 
   return (
     <motion.div
-      className="mdl-editor mx-auto flex h-full min-h-0 w-full max-w-[1180px] flex-col gap-2.5 px-4 pb-3 pt-3 md:gap-4 md:px-6 md:pb-6 md:pt-4"
+      className="mdl-editor mx-auto flex h-full min-h-0 w-full max-w-[1180px] flex-col gap-2.5 px-4 pb-3 pt-3 md:gap-4 md:px-6 md:pb-6 md:pt-4 [@media(max-height:560px)]:h-auto"
       // Phones reserve room for one input per caption slot below the canvas.
       style={
         {

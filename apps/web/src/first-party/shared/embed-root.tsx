@@ -56,7 +56,9 @@ export function EmbedRoot({
 
   return (
     <div
-      className="relative isolate flex min-h-dvh w-full flex-col overflow-hidden text-ink-50"
+      // On short screens (the 480×480 card in an X post) the app scrolls inside its frame rather than
+      // cutting off whatever doesn't fit. Full-screen games are exactly this tall, so they don't move.
+      className="relative isolate flex min-h-dvh w-full flex-col overflow-hidden text-ink-50 [@media(max-height:560px)]:h-dvh [@media(max-height:560px)]:overflow-y-auto"
       style={{ "--accent-from": app.accent[0], "--accent-to": app.accent[1] } as React.CSSProperties}
     >
       <EmbedBackdrop accent={app.accent} />

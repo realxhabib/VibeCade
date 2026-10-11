@@ -359,7 +359,7 @@ function TableLobby({
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.h1
           key={headline}
-          className="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-4xl"
+          className="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-4xl [@media(max-height:560px)]:mt-2 [@media(max-height:560px)]:text-2xl"
           initial={{ opacity: 0, y: 12, filter: "blur(6px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
@@ -391,7 +391,7 @@ function TableLobby({
 
       {/* Seat grid */}
       <LayoutGroup>
-        <div className={cn("mt-6 w-full", teams === 2 ? "grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-4" : teams ? "grid gap-4 sm:grid-cols-2" : "")}>
+        <div className={cn("mt-6 w-full [@media(max-height:560px)]:mt-3", teams === 2 ? "grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-4" : teams ? "grid gap-4 sm:grid-cols-2" : "")}>
           {columns.map((column, ci) => {
             const style = teams ? teamStyle(ci) : null;
             return (
@@ -414,7 +414,13 @@ function TableLobby({
                   <div
                     className={cn(
                       "grid gap-2 sm:gap-3",
-                      teams ? "grid-cols-1 sm:grid-cols-2" : total <= 4 ? "grid-cols-2 sm:grid-cols-4" : total <= 6 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4",
+                      teams
+                        ? "grid-cols-1 sm:grid-cols-2"
+                        : total <= 4
+                          ? "grid-cols-2 sm:grid-cols-4 [@media(max-height:560px)]:grid-cols-4"
+                          : total <= 6
+                            ? "grid-cols-3"
+                            : "grid-cols-2 sm:grid-cols-4 [@media(max-height:560px)]:grid-cols-4",
                       teams === 2 && column.length <= 2 && "sm:grid-cols-1",
                     )}
                   >
@@ -525,7 +531,8 @@ function SeatCard({
       layout
       transition={spring.layout}
       className={cn(
-        "relative flex min-h-36 flex-col items-center justify-center overflow-hidden rounded-3xl px-2 py-4",
+        // Short screens (the card in an X post): compact seats, so the share link and Start stay in view.
+        "relative flex min-h-36 flex-col items-center justify-center overflow-hidden rounded-3xl px-2 py-4 [@media(max-height:560px)]:min-h-0 [@media(max-height:560px)]:rounded-2xl [@media(max-height:560px)]:py-2",
         state === "filled" && "glass",
         state === "invited" && "border border-dashed border-white/20 bg-white/[0.03]",
         state === "open" && "border border-dashed border-white/12 bg-white/[0.015]",
@@ -547,7 +554,7 @@ function SeatCard({
             aria-label={`Seat ${slot.seat + 1} is open`}
           >
             <motion.span
-              className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-white/20"
+              className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-white/20 [@media(max-height:560px)]:size-9"
               animate={reduced ? undefined : { scale: [1, 1.05, 1], borderColor: ["rgb(255 255 255 / 0.18)", "rgb(255 255 255 / 0.32)", "rgb(255 255 255 / 0.18)"] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: slot.seat * 0.2 }}
             >

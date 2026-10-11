@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
 /** `/x/play…`: what X frames inside a playable post (480×480 on desktop web). */
 export default function XPlayerLayout({ children }: LayoutProps<"/x/play">) {
   return (
-    <div className="min-h-dvh touch-manipulation overscroll-none bg-ink-950">
+    // The page scrolls inside its own box: X may frame the card with scrolling turned off.
+    <div className="h-dvh touch-manipulation overflow-y-auto overscroll-contain bg-ink-950">
       <XPlayerShell>{children}</XPlayerShell>
     </div>
   );

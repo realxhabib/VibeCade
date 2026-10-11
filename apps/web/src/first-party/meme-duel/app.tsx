@@ -40,7 +40,8 @@ const APP_FONT =
 export function MemeDuelApp() {
   const xapps = useXApps();
   return (
-    <div className="relative flex h-dvh w-full flex-col overflow-hidden" style={{ fontFamily: APP_FONT }}>
+    // Short screens (the 480×480 card in an X post) scroll instead of cutting off the editor's captions and Submit.
+    <div className="relative flex h-dvh w-full flex-col overflow-hidden [@media(max-height:560px)]:overflow-y-auto" style={{ fontFamily: APP_FONT }}>
       {xapps.purpose === "setup" ? <MemeSetup /> : <MemeDuelMatch />}
     </div>
   );
