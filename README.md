@@ -73,6 +73,8 @@ If the keys are set but the schema isn't installed yet, the app says so and offe
 update public.apps set status = 'published' where slug = 'their-app';
 ```
 
+**DigitalOcean droplet:** GitHub Actions builds a standalone server and deploys it over SSH; see [`deploy/droplet/README.md`](deploy/droplet/README.md).
+
 ## Playable posts on X
 
 Paste `https://<your-domain>/x` (the whole catalog) or `https://<your-domain>/x/<slug>` (one app) into a post,
