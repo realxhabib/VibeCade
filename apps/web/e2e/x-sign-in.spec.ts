@@ -1,4 +1,4 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test, type BrowserContext, type Route } from "@playwright/test";
 
 // The card's popup sign-in against a stand-in Supabase (and X). Opt-in: build and serve the app with
 //   NEXT_PUBLIC_SUPABASE_URL=https://fake-supa.test NEXT_PUBLIC_SUPABASE_ANON_KEY=fake NEXT_PUBLIC_SUPABASE_X_PROVIDER=x
@@ -13,7 +13,8 @@ const jwt = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: USER_ID, role: "a
 const user = { id: USER_ID, aud: "authenticated", role: "authenticated", app_metadata: { provider: "x" }, user_metadata: { user_name: "tess_test" }, created_at: new Date().toISOString() };
 const profile = { id: USER_ID, handle: "tess_test", name: "Tess Test", avatar_url: null, bio: "", xp: 0, wins: 0, losses: 0, draws: 0, streak: 0, best_streak: 0, created_at: user.created_at, is_bot: false, is_admin: false };
 
-test("signs the card in through the popup and the hand-off, then out", async ({ page, context }) => {
+/** Stands in for Supabase (and X): sign-in, the session hand-off RPCs and the profile. */
+async function fakeSupabase(context: BrowserContext): Promise<Map<string, object>> {
   const parked = new Map<string, object>();
   await context.route(`${FAKE}/**`, async (route: Route) => {
     const req = route.request();
@@ -50,18 +51,38 @@ test("signs the card in through the popup and the hand-off, then out", async ({ 
         return json([]);
     }
   });
+  return parked;
+}
 
-  await page.setViewportSize({ width: 480, height: 480 });
-  await page.goto("/x/play/four-in-a-row");
-  const signIn = page.getByRole("button", { name: /Sign in with X to challenge/ });
+test("framed in a post (desktop): signs in through the popup and the hand-off, then out", async ({ page, context }) => {
+  const parked = await fakeSupabase(context);
+  // The post preview frames the card at 480×480, like X does.
+  await page.goto("/x/preview?app=four-in-a-row");
+  const card = page.frameLocator("iframe");
+  const signIn = card.getByRole("button", { name: /Sign in with X to challenge/ });
   const [popup] = await Promise.all([context.waitForEvent("page"), signIn.click()]);
   await popup.waitForEvent("close");
-  await expect(page.getByText("@tess_test")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Post a challenge/ })).toBeVisible();
+  await expect(card.getByText("@tess_test")).toBeVisible();
+  await expect(card.getByRole("button", { name: /Post a challenge/ })).toBeVisible();
   expect(parked.size).toBe(0);
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await card.getByRole("button", { name: "Sign out" }).click();
   await expect(signIn).toBeVisible();
+});
+
+test("the whole page (the X phone apps): signs in with a redirect in the same tab, no popup, no code", async ({ page, context }) => {
+  const parked = await fakeSupabase(context);
+  let popups = 0;
+  context.on("page", () => popups++);
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto("/x/play/four-in-a-row");
+  await page.getByRole("button", { name: /Sign in with X to challenge/ }).click();
+  // Back on the card, signed in.
+  await expect(page).toHaveURL(/\/x\/play\/four-in-a-row$/);
+  await expect(page.getByText("@tess_test")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Post a challenge/ })).toBeVisible();
+  expect(popups).toBe(0);
+  expect(parked.size).toBe(0);
 });
 
 test("a sign-in link opened any other way asks to match the card's code first", async ({ page, context }) => {

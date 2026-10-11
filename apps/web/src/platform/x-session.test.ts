@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NONCE_PATTERN, confirmCode, newNonce, nonceFromHash, openedByOurSite, toHandoffTokens } from "./x-session";
+import { NONCE_PATTERN, confirmCode, newNonce, nonceFromHash, openedByOurSite, safeBackPath, toHandoffTokens } from "./x-session";
 
 describe("sign-in codes", () => {
   it("are 43 base64url characters that the RPCs accept", () => {
@@ -52,5 +52,18 @@ describe("toHandoffTokens", () => {
     expect(toHandoffTokens({ access_token: "", refresh_token: "r" })).toBeNull();
     expect(toHandoffTokens(null)).toBeNull();
     expect(toHandoffTokens("tokens")).toBeNull();
+  });
+});
+
+describe("safeBackPath", () => {
+  it("only comes back to card pages on this site", () => {
+    expect(safeBackPath("/x/play/four-in-a-row")).toBe("/x/play/four-in-a-row");
+    expect(safeBackPath("/x/play")).toBe("/x/play");
+    expect(safeBackPath("/x/play/match/m-1?x=1")).toBe("/x/play/match/m-1?x=1");
+    expect(safeBackPath("https://evil.example/x/play")).toBe("/x/play");
+    expect(safeBackPath("//evil.example/x/play")).toBe("/x/play");
+    expect(safeBackPath("/x/playground")).toBe("/x/play");
+    expect(safeBackPath("/admin")).toBe("/x/play");
+    expect(safeBackPath(undefined)).toBe("/x/play");
   });
 });

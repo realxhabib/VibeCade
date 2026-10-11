@@ -5,7 +5,17 @@ import { LogoMark } from "@/components/chrome/logo";
 import { Spinner } from "@/components/ui/spinner";
 import { isSupabaseConfigured } from "@/lib/env";
 import { resolveXProvider } from "@/platform/supabase/supabase-backend";
-import { POPUP_NONCE_KEY, clearPopupSession, confirmCode, getPopupSupabase, nonceFromHash, openedByOurSite } from "@/platform/x-session";
+import {
+  POPUP_NONCE_KEY,
+  clearPopupSession,
+  confirmCode,
+  forgetSameTabSignIn,
+  getPopupSupabase,
+  getXPlayerSupabase,
+  nonceFromHash,
+  openedByOurSite,
+  sameTabSignIn,
+} from "@/platform/x-session";
 
 type Status =
   | { kind: "working"; text: string }
@@ -28,7 +38,7 @@ function PopupFrame({ status }: { status: Status }) {
           <p className="rounded-2xl bg-white/10 px-5 py-2 font-mono text-3xl font-bold tracking-[0.3em] text-ink-50">{status.code}</p>
           <p className="max-w-xs text-sm text-ink-300">Only continue if the XApps post you&apos;re playing shows this code. If you didn&apos;t start this, close the window.</p>
           <div className="flex gap-2">
-            <button type="button" onClick={() => window.close()} className="rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-ink-50">
+            <button type="button" onClick={closeOrBack} className="rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-ink-50">
               Close
             </button>
             <button type="button" onClick={status.onContinue} className="rounded-full bg-ink-50 px-5 py-2 text-sm font-semibold text-ink-950">
@@ -47,13 +57,19 @@ function PopupFrame({ status }: { status: Status }) {
         <>
           <p className="font-display text-xl font-extrabold text-ink-50">Sign-in didn&apos;t work</p>
           <p className="max-w-xs text-sm text-ink-300">{status.text}</p>
-          <button type="button" onClick={() => window.close()} className="rounded-full bg-ink-50 px-5 py-2 text-sm font-semibold text-ink-950">
+          <button type="button" onClick={closeOrBack} className="rounded-full bg-ink-50 px-5 py-2 text-sm font-semibold text-ink-950">
             Close
           </button>
         </>
       )}
     </main>
   );
+}
+
+/** Closes the popup, or (signing in in the card's own tab, or opened from a link) goes back to the games. */
+function closeOrBack(): void {
+  if (window.opener) window.close();
+  else window.location.assign(new URL("/x/play", window.location.href));
 }
 
 function message(error: unknown): string {
@@ -86,7 +102,8 @@ export function XAuthStart() {
       } catch {
         throw new Error("Your browser blocked this window's storage, so sign-in can't finish.");
       }
-      if (openedByOurSite()) return goToX();
+      // Opened by our card (desktop popup), or started by this same tab (the card as a whole page).
+      if (openedByOurSite() || sameTabSignIn(nonce)) return goToX();
       setStatus({ kind: "confirm", code: confirmCode(nonce), onContinue: () => void goToX().catch(fail) });
     })().catch(fail);
   }, []);
@@ -115,6 +132,16 @@ export function XAuthCallback() {
       const { data, error } = await sb.auth.exchangeCodeForSession(code);
       if (error) throw error;
       const session = data.session;
+      // Started in this tab (the card as a whole page): adopt the session and go back to the card.
+      const sameTab = sameTabSignIn(nonce);
+      if (sameTab) {
+        const { error: adoptError } = await getXPlayerSupabase().auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+        if (adoptError) throw adoptError;
+        clearPopupSession();
+        forgetSameTabSignIn();
+        window.location.replace(sameTab.back);
+        return;
+      }
       const { error: parkError } = await sb.rpc("put_x_auth_handoff", {
         p_nonce: nonce,
         p_access_token: session.access_token,
@@ -126,6 +153,7 @@ export function XAuthCallback() {
       setTimeout(() => window.close(), 1200);
     })().catch((error: unknown) => {
       clearPopupSession();
+      forgetSameTabSignIn();
       fail(message(error));
     });
   }, []);

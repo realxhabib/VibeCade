@@ -118,6 +118,57 @@ export function confirmCode(nonce: string): string {
   return code;
 }
 
+/**
+ * Signing in when the card is the whole page (the X phone apps open the player
+ * in their browser, unframed): no popup or hand-off, just a redirect in the same
+ * tab. The card notes the code and where to come back to in this tab's
+ * sessionStorage; the sign-in page trusts a code only this tab started.
+ */
+const SAME_TAB_KEY = "xapps:x-auth-same-tab";
+
+export interface SameTabSignIn {
+  nonce: string;
+  /** The card page to come back to (a /x/play path). */
+  back: string;
+}
+
+/** Only card pages on this site are places to come back to. */
+export function safeBackPath(path: unknown): string {
+  return typeof path === "string" && /^\/x\/play(?:[/?#]|$)/.test(path) && !path.startsWith("//") ? path : "/x/play";
+}
+
+export function rememberSameTabSignIn(signIn: SameTabSignIn): void {
+  window.sessionStorage.setItem(SAME_TAB_KEY, JSON.stringify(signIn));
+}
+
+/** The same-tab sign-in this tab started for `nonce`, if any. */
+export function sameTabSignIn(nonce: string | null): SameTabSignIn | null {
+  if (!nonce) return null;
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(SAME_TAB_KEY) ?? "null") as Partial<SameTabSignIn> | null;
+    return saved && saved.nonce === nonce ? { nonce, back: safeBackPath(saved.back) } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function forgetSameTabSignIn(): void {
+  try {
+    window.sessionStorage.removeItem(SAME_TAB_KEY);
+  } catch {
+    // Nothing stored.
+  }
+}
+
+/** Whether this page runs inside a frame (the card in a post on desktop web). */
+export function isFramed(win: Window = window): boolean {
+  try {
+    return win.top !== win;
+  } catch {
+    return true;
+  }
+}
+
 /** Whether this popup was opened by a page on our own site (the card), as far as the browser lets us see. */
 export function openedByOurSite(win: Window = window): boolean {
   try {

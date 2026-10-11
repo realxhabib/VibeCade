@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isSupabaseConfigured } from "@/lib/env";
-import { HANDOFF_TTL_MS, X_PLAYER_STORAGE_KEY, claimHandoff, confirmCode, getXPlayerSupabase, newNonce } from "@/platform/x-session";
+import {
+  HANDOFF_TTL_MS,
+  X_PLAYER_STORAGE_KEY,
+  claimHandoff,
+  confirmCode,
+  getXPlayerSupabase,
+  isFramed,
+  newNonce,
+  rememberSameTabSignIn,
+} from "@/platform/x-session";
 
 /** How often the card checks whether the popup has finished. */
 const POLL_MS = 1500;
@@ -12,7 +21,9 @@ export type XSignInState = "idle" | "waiting" | "blocked";
 /**
  * Sign in with X from inside the post: opens the popup with a fresh code, waits
  * for the session it parks (see platform/x-session.ts), adopts it and reloads
- * the card so it runs signed in. Call `start` from a click (popups need one).
+ * the card so it runs signed in. When the card is the whole page (the X phone
+ * apps), it signs in with a redirect in the same tab instead. Call `start` from
+ * a click (popups need one).
  */
 export function useXSignIn() {
   const [state, setState] = useState<XSignInState>("idle");
@@ -28,6 +39,17 @@ export function useXSignIn() {
   const start = useCallback(() => {
     stop();
     const nonce = newNonce();
+    // The whole page (the X phone apps' browser): sign in with a redirect in this tab and come back.
+    if (!isFramed()) {
+      try {
+        rememberSameTabSignIn({ nonce, back: `${window.location.pathname}${window.location.search}` });
+        setState("waiting");
+        window.location.assign(new URL(`/x/auth#n=${nonce}`, window.location.href));
+        return;
+      } catch {
+        // No sessionStorage: fall back to the popup.
+      }
+    }
     // Not "noopener": that always returns null, and null is how we spot a blocked popup.
     const popup = window.open(`/x/auth#n=${nonce}`, "xapps-sign-in", "popup,width=520,height=720");
     if (!popup) {
