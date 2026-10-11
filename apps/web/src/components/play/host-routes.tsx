@@ -15,6 +15,12 @@ export interface HostRoutes {
   match(id: string): string;
   /** The page a results post links to. */
   share(slug: string): string;
+  /** The link people pass around to join a match. */
+  matchLink(id: string): string;
+  /** Where declining or finishing elsewhere goes (the viewer's challenges). */
+  challenges: string;
+  /** The crowd vote for contests. */
+  arena: string;
   /** The viewer is the X player's guest: matches run on this device by design and earn nothing. */
   guest: boolean;
 }
@@ -25,6 +31,9 @@ export const SITE_ROUTES: HostRoutes = {
   app: (slug) => `/apps/${slug}`,
   match: (id) => `/play/${id}`,
   share: (slug) => `/apps/${slug}`,
+  matchLink: (id) => `/play/${id}`,
+  challenges: "/challenges",
+  arena: "/arena",
   guest: false,
 };
 

@@ -19,6 +19,7 @@ import { MODE_LABEL } from "@/platform/match-utils";
 import { useBackend } from "@/platform/client";
 import { useSearchProfiles } from "@/platform/queries";
 import type { AppManifest, Match, MatchPlayer, Profile } from "@/platform/types";
+import { useHostRoutes } from "./host-routes";
 import { maxSeats, SEAT_COLORS, seatedPlayers, tableSizeLabelForMatch, teamStyle } from "./match-view";
 import { TestBuildBadge } from "./test-build-badge";
 
@@ -34,7 +35,8 @@ function useElapsed(since: string): string {
 
 function Radar({ viewer, target, accent }: { viewer: Profile; target?: MatchPlayer; accent: [string, string] }) {
   return (
-    <div className="relative mx-auto flex size-64 items-center justify-center sm:size-72">
+    // Short screens (the 480×480 card in an X post, phones in landscape) skip it, so the share box stays in view.
+    <div className="relative mx-auto flex size-64 items-center justify-center sm:size-72 [@media(max-height:560px)]:hidden">
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
@@ -183,7 +185,8 @@ function DuelLobby({
   const quick = match.settings.quick === true;
   const [showBot, setShowBot] = useState(false);
   const mounted = useMounted();
-  const link = mounted ? `${window.location.origin}/play/${match.id}` : "";
+  const routes = useHostRoutes();
+  const link = mounted ? `${window.location.origin}${routes.matchLink(match.id)}` : "";
 
   useEffect(() => {
     const t = setTimeout(() => setShowBot(true), 8000);
@@ -198,7 +201,7 @@ function DuelLobby({
 
   return (
     <motion.div
-      className="mx-auto flex w-full max-w-xl flex-col items-center px-4 pt-6 text-center"
+      className="mx-auto flex w-full max-w-xl flex-col items-center px-4 pt-6 text-center [@media(max-height:560px)]:pt-0"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.soft}
@@ -210,7 +213,7 @@ function DuelLobby({
         <TestBuildBadge match={match} />
       </div>
       <Radar viewer={viewer} target={invited} accent={app.accent} />
-      <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{headline}</h1>
+      <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl [@media(max-height:560px)]:mt-4 [@media(max-height:560px)]:text-2xl">{headline}</h1>
       <p className="mt-2 font-mono text-sm text-ink-400 tabular">{elapsed}</p>
       {invited ? (
         <p className="mt-3 max-w-sm text-sm text-ink-300">
@@ -297,7 +300,8 @@ function TableLobby({
   const reduced = useReducedMotion();
   const elapsed = useElapsed(match.createdAt);
   const mounted = useMounted();
-  const link = mounted ? `${window.location.origin}/play/${match.id}` : "";
+  const routes = useHostRoutes();
+  const link = mounted ? `${window.location.origin}${routes.matchLink(match.id)}` : "";
   const slots = buildSlots(match);
   const total = slots.length;
   const filled = slots.filter((s) => s.player && s.player.state !== "invited").length;

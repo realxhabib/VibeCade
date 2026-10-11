@@ -35,7 +35,7 @@ import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./h
 import { ImmersiveChrome, useImmersive } from "./immersive";
 import { InviteCard, Lobby } from "./lobby";
 import { isMultiplayer, ordinal, seatedPlayers, viewerIsSpectator, viewerOutcome } from "./match-view";
-import { useHostRoutes } from "./host-routes";
+import { SITE_ROUTES, useHostRoutes } from "./host-routes";
 import { ResultsOverlay } from "./results-overlay";
 import { TurnBanner } from "./turn-banner";
 import {
@@ -249,7 +249,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         match={match}
         viewerId={viewer?.id}
         onShare={() => openXIntent(`Help me win ${app.name} on XApps — vote for the best entry ${app.icon}`, `${window.location.origin}/arena`)}
-        onLeave={() => router.push("/arena")}
+        onLeave={() => router.push(routes.arena)}
       />
     );
   } else if (app.retired) {
@@ -319,7 +319,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         viewer={viewer}
         accepting={action.isPending}
         onAccept={() => run("join")}
-        onDecline={() => run("decline", () => router.push("/challenges"))}
+        onDecline={() => run("decline", () => router.push(routes.challenges))}
       />
     );
   } else if (lobbyOpen && me.state === "joined") {
@@ -356,7 +356,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         emoji="⏳"
         title={pending.length > 1 ? `Waiting for ${pending.length} players` : `Waiting for @${first?.profile.handle ?? "your opponent"}`}
         className="mx-auto mt-24 max-w-md"
-        action={<Button href="/challenges">Back to challenges</Button>}
+        action={<Button href={routes.challenges}>{routes.challenges === SITE_ROUTES.challenges ? "Back to challenges" : "Back"}</Button>}
       >
         Your result is locked in. We&apos;ll let you know the moment {pending.length > 1 ? "everyone has played" : "they play"}.
       </EmptyState>
@@ -368,8 +368,8 @@ export function PlayRoom({ matchId }: { matchId: string }) {
       <Backdrop app={app} />
       <div className="px-3 pt-3">
         <div className="mx-auto flex h-14 max-w-5xl items-center">
-          <Button variant="ghost" size="sm" href={viewer && !routes.guest ? "/challenges" : routes.home}>
-            ← {viewer && !routes.guest ? "Challenges" : "XApps"}
+          <Button variant="ghost" size="sm" href={viewer && !routes.guest ? routes.challenges : routes.home}>
+            ← {viewer && !routes.guest && routes.challenges === SITE_ROUTES.challenges ? "Challenges" : "XApps"}
           </Button>
         </div>
       </div>
@@ -980,7 +980,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
           onReact={react}
           onForfeit={!spectating && match.status === "active" && seated.length > 1 && me?.state === "joined" ? () => setConfirmLeave(true) : undefined}
           onCopyLink={async () => {
-            const ok = await copyText(`${window.location.origin}/play/${match.id}`);
+            const ok = await copyText(`${window.location.origin}${routes.matchLink(match.id)}`);
             toast(ok ? "Match link copied" : "Couldn't copy the link", { tone: ok ? "success" : "danger" });
           }}
           immersive={immersive}
@@ -1094,7 +1094,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
             viewerId={viewer.id}
             spectating={spectating}
             enabled={started && overlay === "none" && match.status === "active"}
-            onLeave={() => router.push("/challenges")}
+            onLeave={() => router.push(routes.challenges)}
           />
         </motion.div>
       </div>
@@ -1119,7 +1119,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
             match={match}
             viewerId={viewer.id}
             onShare={() => openXIntent(`Vote for the best entry in my ${app.name} ${multiplayer ? "match" : "duel"} on XApps ${app.icon}`, `${window.location.origin}/arena`)}
-            onLeave={() => router.push("/arena")}
+            onLeave={() => router.push(routes.arena)}
           />
         )}
         {overlay === "results" && match.status === "completed" && (

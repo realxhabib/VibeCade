@@ -122,7 +122,7 @@ function fail(error: PostgrestError | Error | null | undefined, fallback = "Some
  * picks one explicitly. Otherwise use `twitter` when the auth settings say it's on
  * (those settings don't report `x` at all), and `x` in every other case.
  */
-async function resolveXProvider(): Promise<"x" | "twitter"> {
+export async function resolveXProvider(): Promise<"x" | "twitter"> {
   if (env.xProvider) return env.xProvider;
   try {
     const res = await fetch(`${env.supabaseUrl}/auth/v1/settings`, { headers: { apikey: env.supabaseKey } });

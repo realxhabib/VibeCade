@@ -5,9 +5,11 @@ import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { LogoMark } from "@/components/chrome/logo";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
+import { isSupabaseConfigured } from "@/lib/env";
 import { fadeUp, staggerChildren } from "@/lib/motion";
 import { playsInPost, xPlayerPath } from "@/lib/x-player";
 import type { AppManifest } from "@/platform/types";
+import { XAccount } from "./account";
 
 /** `/x/play`: every app as a tile, sized for the 480×480 frame (and phones). */
 export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
@@ -19,16 +21,22 @@ export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
           <LogoMark size={26} />
           <span className="font-display text-[17px] font-extrabold tracking-tight text-ink-50">Apps</span>
         </a>
-        <a
-          href="/"
-          target="_blank"
-          rel="noopener"
-          className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-200 hover:bg-white/[0.06] hover:text-ink-50"
-        >
-          Challenge people <ArrowUpRight className="size-3.5" />
-        </a>
+        {isSupabaseConfigured ? (
+          <XAccount />
+        ) : (
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener"
+            className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-200 hover:bg-white/[0.06] hover:text-ink-50"
+          >
+            Open XApps <ArrowUpRight className="size-3.5" />
+          </a>
+        )}
       </header>
-      <p className="mb-3 text-[13px] text-ink-300">Pick a game and play the bots right here. No sign-in.</p>
+      <p className="mb-3 text-[13px] text-ink-300">
+        {isSupabaseConfigured ? "Pick a game: play the bots, or sign in to challenge people right here." : "Pick a game and play right here."}
+      </p>
       <motion.ul className="grid grid-cols-3 gap-2" variants={staggerChildren(0.03)} initial="hidden" animate="show">
         {ordered.map((app) => {
           const inPost = playsInPost(app);

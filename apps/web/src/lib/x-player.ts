@@ -32,6 +32,15 @@ export function xPlayerPath(slug?: string): string {
   return slug ? `/x/play/${slug}` : "/x/play";
 }
 
+/** A match's playable link (an open challenge posted on X) and the player X frames for it. */
+export function xMatchSharePath(matchId: string): string {
+  return `/x/m/${encodeURIComponent(matchId)}`;
+}
+
+export function xMatchPlayerPath(matchId: string): string {
+  return `/x/play/match/${encodeURIComponent(matchId)}`;
+}
+
 export function xPreviewPath(slug?: string): string {
   return slug ? `/x/${slug}/preview.png` : "/x/preview.png";
 }

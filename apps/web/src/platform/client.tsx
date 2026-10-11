@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { isSupabaseConfigured } from "@/lib/env";
 import type { Backend } from "./backend";
 import { DemoBackend } from "./demo/demo-backend";
-import { getGuestBackend } from "./guest";
+import { getPlayerBackend } from "./guest";
 import { SupabaseBackend } from "./supabase/supabase-backend";
 import type { Profile } from "./types";
 
@@ -40,7 +40,7 @@ function getBackend(): Backend {
   return singleton;
 }
 
-/** `guest`: the X player's local, signed-in-as-guest backend (see `guest.ts`) instead of the site's. */
+/** `guest`: the X player's backend (its own session, or a local guest: see `guest.ts`) instead of the site's. */
 export function PlatformProvider({ children, guest = false }: { children: ReactNode; guest?: boolean }) {
   const [queryClient] = useState(
     () =>
@@ -50,7 +50,7 @@ export function PlatformProvider({ children, guest = false }: { children: ReactN
         },
       }),
   );
-  const [backend] = useState(guest ? getGuestBackend : getBackend);
+  const [backend] = useState(guest ? getPlayerBackend : getBackend);
   return (
     <BackendContext.Provider value={backend}>
       <QueryClientProvider client={queryClient}>

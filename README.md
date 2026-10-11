@@ -81,6 +81,12 @@ web: guests pick a game and play the practice bots on their device, no sign-in. 
 site in a new tab. The mobile apps show the preview still (`/x/preview.png`, `/x/<slug>/preview.png`) and open
 the link, which forwards to the site.
 
+- **Challenging people from the post:** the card signs in with X through a popup (`/x/auth`), on its own session
+  kept in the frame's storage (X's login page can't load in a frame and your session cookie isn't sent there). Then
+  people quick-match, challenge an @handle, or post an open challenge whose link (`/x/m/<match>`) is itself a
+  playable post: whoever sees it signs in and takes the seat inside the post. Add
+  `https://<your-domain>/x/auth/callback` to Supabase's redirect URLs (Authentication → URL Configuration; for
+  Vercel previews a wildcard like `https://*-<team>.vercel.app/**`), and apply the `x_auth_handoff` migration.
 - Only `/x/play/*` and `/embed/*` may be framed, and only by x.com and twitter.com (`frame-ancestors` in
   `apps/web/next.config.ts`). No `X-Frame-Options` is sent, and the player is never cached.
 - Try it in a browser at `/x/preview` (`?app=<slug>` for one app): the player in a 480×480 frame inside a mock post.

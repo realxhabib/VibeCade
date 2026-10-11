@@ -1,7 +1,7 @@
-import { PlayRoom } from "@/components/play/play-room";
+import { XPlayerMatch } from "@/components/x/player-match";
 
-/** A guest practice match inside the post. */
+/** A match inside the post: practice, or (signed in) a real one. */
 export default async function XPlayerMatchPage({ params }: PageProps<"/x/play/match/[matchId]">) {
   const { matchId } = await params;
-  return <PlayRoom matchId={matchId} />;
+  return <XPlayerMatch matchId={matchId} />;
 }
