@@ -37,6 +37,7 @@ import type {
   WebhookDelivery,
 } from "../types";
 import { getBrowserSupabase } from "./client";
+import { createLiveRoom } from "./live-room";
 import {
   appInsert,
   challengeArgs,
@@ -793,9 +794,11 @@ export class SupabaseBackend implements Backend {
     };
   }
 
-  openRoom(matchId: string, viewerId: string): RoomTransport {
+  openRoom(matchId: string, viewerId: string, appSlug?: string): RoomTransport {
     const local = this.localFor(matchId);
     if (local) return local.openRoom(matchId, viewerId);
+    // Fast first-party games use the live server when there is one (AppManifest.liveServer).
+    if (env.liveServerUrl && appSlug && getOfficialApp(appSlug)?.liveServer) return createLiveRoom(this.sb, env.liveServerUrl, matchId);
     return createSupabaseRoom(this.sb, matchId, viewerId);
   }
 

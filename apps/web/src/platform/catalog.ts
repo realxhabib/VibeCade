@@ -198,6 +198,8 @@ export const OFFICIAL_APPS: AppManifest[] = [
     spectators: true,
     setup: false,
     turnBased: false,
+    // Fast real-time: its room runs on the live server (AppManifest.liveServer).
+    liveServer: true,
     scoring: "high",
     durationLabel: "2:30",
     howTo: [
@@ -620,6 +622,8 @@ export const OFFICIAL_APPS: AppManifest[] = [
     spectators: true,
     setup: true,
     turnBased: false,
+    // Fast real-time: its room runs on the live server (AppManifest.liveServer).
+    liveServer: true,
     scoring: "high",
     durationLabel: "~6 min",
     howTo: [
@@ -676,6 +680,8 @@ export const OFFICIAL_APPS: AppManifest[] = [
     spectators: true,
     setup: false,
     turnBased: false,
+    // Fast real-time: its room runs on the live server (AppManifest.liveServer).
+    liveServer: true,
     scoring: "high",
     durationLabel: "~7 min",
     howTo: [

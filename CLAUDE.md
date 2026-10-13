@@ -20,6 +20,9 @@ Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind
 - Playable posts (`/x`, `/x/<slug>` share links → `/x/play…` player cards, `src/lib/x-player.ts`): guests play
   practice on a local engine (`platform/guest.ts`); signing in goes through a popup and the `x_auth_handoff` RPCs
   onto the card's own session (`platform/x-session.ts`); the match host takes its links from `play/host-routes.tsx`.
+- Live server: fast first-party games (`liveServer: true` in the catalog) open their match room on the
+  Claude Arcade server (`NEXT_PUBLIC_LIVE_SERVER_URL`, `platform/supabase/live-room.ts`; the server side is
+  `server/rooms.mjs` in realxhabib/ClaudeArcade) instead of Supabase Realtime. Match state and results stay in Supabase.
 - Lint uses the React Compiler rules: no setState in effect bodies, no ref access during render.
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e` (demo mode),

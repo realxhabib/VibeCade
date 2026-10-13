@@ -104,6 +104,12 @@ export interface AppManifest {
   setup?: boolean;
   /** Players take turns (live or over days); the host shows turn UI and "your turn" inbox items. */
   turnBased?: boolean;
+  /**
+   * First-party fast games: live match traffic goes through the XApps live server (the arcade
+   * server on the droplet, NEXT_PUBLIC_LIVE_SERVER_URL) instead of Supabase Realtime, whose
+   * message quota they outgrow. Set in the catalog only; ignored when no live server is configured.
+   */
+  liveServer?: boolean;
   /** Who settles matches: players' clients (default) or the app's server via the server API. */
   authority?: AppAuthority;
   /** Per-player stats with leaderboards (Stage 3). */

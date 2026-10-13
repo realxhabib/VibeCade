@@ -775,7 +775,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
   useEffect(() => {
     if (!live) return;
-    const room = backend.openRoom(match.id, viewer.id);
+    const room = backend.openRoom(match.id, viewer.id, match.appSlug);
     roomRef.current = room;
     room.track({ ready: false });
     const offPresence = room.onPresence(setPeers);

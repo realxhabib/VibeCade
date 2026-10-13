@@ -91,6 +91,19 @@ the link, which forwards to the site.
 - Set `NEXT_PUBLIC_X_HANDLE` to name your account as `twitter:site`. Validate a link with X's card validator, or by posting it.
 - X has restricted and paused player cards before (they're meant for audio and video), so treat this as experimental.
 
+## Live server for fast games
+
+Frontline, Nova Rally and Wedge Wars send their live match traffic through the [Claude Arcade](https://github.com/realxhabib/ClaudeArcade)
+server on your droplet instead of Supabase Realtime, whose message quota they outgrow. Match state, scores and results stay
+in Supabase; turn-based games keep Supabase Realtime.
+
+1. On the droplet, create `/etc/claudearcade.env` (see the Claude Arcade README, *XApps match rooms*) with your Supabase
+   project URL, its anon / publishable key and `XAPPS_ORIGINS=https://<your-domain>`, re-run the arcade's install command,
+   then `systemctl restart claudearcade`.
+2. On Vercel, set `NEXT_PUBLIC_LIVE_SERVER_URL` to the arcade's address (e.g. `https://174-138-34-59.sslip.io`) and redeploy.
+
+Unset, every game uses Supabase Realtime as before.
+
 ## Architecture
 
 ```

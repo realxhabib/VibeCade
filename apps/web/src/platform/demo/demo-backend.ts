@@ -2058,6 +2058,7 @@ export class DemoBackend implements Backend {
     return subscribe(handler);
   }
 
+  // Demo rooms are local (BroadcastChannel) whatever the app: no live server here.
   openRoom(matchId: string, viewerId: string): RoomTransport {
     return createDemoRoom(matchId, viewerId);
   }
