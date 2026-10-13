@@ -22,6 +22,16 @@ export function playsInPost(app: Pick<AppManifest, "kind" | "modes">): boolean {
   return (app.kind ?? "game") === "game" && app.modes.includes("practice");
 }
 
+/** Standalone apps (`kind: "app"`) run in the post too, once signed in: `xAppPlayerPath`. */
+export function opensInPost(app: Pick<AppManifest, "kind" | "modes">): boolean {
+  return playsInPost(app) || app.kind === "app";
+}
+
+/** The player's page that runs a standalone app inside the post. */
+export function xAppPlayerPath(slug: string): string {
+  return `/x/play/${slug}/open`;
+}
+
 /** The link to paste into a post. */
 export function xSharePath(slug?: string): string {
   return slug ? `/x/${slug}` : "/x";

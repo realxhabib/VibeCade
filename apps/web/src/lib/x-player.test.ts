@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLAYER_SIZE, X_FRAME_ANCESTORS, playerCardTags, playsInPost, requestOrigin, xPlayerPath, xPreviewPath, xSharePath, xSiteHandle } from "./x-player";
+import { PLAYER_SIZE, X_FRAME_ANCESTORS, opensInPost, playerCardTags, playsInPost, requestOrigin, xAppPlayerPath, xPlayerPath, xPreviewPath, xSharePath, xSiteHandle } from "./x-player";
 
 const headers = (values: Record<string, string>) => ({ get: (name: string) => values[name] ?? null });
 
@@ -74,5 +74,12 @@ describe("playsInPost", () => {
     expect(playsInPost({ modes: ["live", "practice"] })).toBe(true);
     expect(playsInPost({ kind: "game", modes: ["live"] })).toBe(false);
     expect(playsInPost({ kind: "app", modes: ["live", "practice"] })).toBe(false);
+  });
+
+  it("opens standalone apps in the post too", () => {
+    expect(opensInPost({ kind: "app", modes: ["live"] })).toBe(true);
+    expect(opensInPost({ modes: ["live", "practice"] })).toBe(true);
+    expect(opensInPost({ kind: "game", modes: ["live"] })).toBe(false);
+    expect(xAppPlayerPath("perfect-circle")).toBe("/x/play/perfect-circle/open");
   });
 });

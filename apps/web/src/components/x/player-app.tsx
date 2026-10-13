@@ -9,7 +9,7 @@ import { AppGlyph } from "@/components/marketplace/app-glyph";
 import { Button } from "@/components/ui/button";
 import { goToHost } from "@/lib/host-nav";
 import { useMounted } from "@/lib/use-mounted";
-import { playsInPost, xMatchPlayerPath, xPlayerPath } from "@/lib/x-player";
+import { playsInPost, xAppPlayerPath, xMatchPlayerPath, xPlayerPath } from "@/lib/x-player";
 import { useCreateChallenge, usePractice, useQuickMatch } from "@/platform/queries";
 import type { AppManifest, Match } from "@/platform/types";
 import { XAccount, XSignInButton, usePlaysForReal } from "./account";
@@ -27,7 +27,7 @@ function errorText(error: unknown, fallback: string): string {
  * `/x/play/<slug>`: one app inside the post. Anyone can play the bots (guests
  * on this device). Signed in through the card's popup, people also quick-match,
  * post an open challenge (its link is a playable post) or challenge an @handle,
- * all without leaving the post. Apps that aren't games open the full site.
+ * all without leaving the post. Standalone apps open in the post as well.
  */
 export function XPlayerApp({ app }: { app: AppManifest }) {
   const router = useRouter();
@@ -98,7 +98,11 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
 
       {/* Hidden until the card knows whether it's signed in, so the buttons don't shift under a tap. */}
       <div className={`flex flex-col gap-2 pt-3 ${mounted ? "" : "invisible"}`}>
-        {!inPost ? (
+        {app.kind === "app" ? (
+          <Button size="lg" variant="accent" href={xAppPlayerPath(app.slug)}>
+            Open {app.name}
+          </Button>
+        ) : !inPost ? (
           <Button size="lg" variant="accent" href={`/apps/${app.slug}`} target="_blank" rel="noopener" iconRight={<ArrowUpRight className="size-4" />}>
             Open {app.name}
           </Button>

@@ -7,13 +7,13 @@ import { LogoMark } from "@/components/chrome/logo";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
 import { isSupabaseConfigured } from "@/lib/env";
 import { fadeUp, staggerChildren } from "@/lib/motion";
-import { playsInPost, xPlayerPath } from "@/lib/x-player";
+import { opensInPost, xPlayerPath } from "@/lib/x-player";
 import type { AppManifest } from "@/platform/types";
 import { XAccount } from "./account";
 
 /** `/x/play`: every app as a tile, sized for the 480×480 frame (and phones). */
 export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
-  const ordered = [...apps.filter(playsInPost), ...apps.filter((app) => !playsInPost(app))];
+  const ordered = [...apps.filter(opensInPost), ...apps.filter((app) => !opensInPost(app))];
   return (
     <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col px-3 pb-3">
       <header className="flex h-12 shrink-0 items-center justify-between">
@@ -39,7 +39,7 @@ export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
       </p>
       <motion.ul className="grid grid-cols-3 gap-2" variants={staggerChildren(0.03)} initial="hidden" animate="show">
         {ordered.map((app) => {
-          const inPost = playsInPost(app);
+          const inPost = opensInPost(app);
           return (
             <motion.li key={app.slug} variants={fadeUp}>
               <Link

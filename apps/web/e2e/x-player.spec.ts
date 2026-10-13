@@ -39,6 +39,24 @@ test("X may frame the player, which runs a guest practice match", async ({ page,
   await expect(page.getByText("Offline practice")).toHaveCount(0);
 });
 
+test("standalone apps open inside the card, not a new tab", async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 480 });
+  await page.goto("/x/play");
+  await page.getByRole("link", { name: /Perfect Circle/ }).click();
+  await page.getByRole("link", { name: "Open Perfect Circle" }).click();
+  await expect(page).toHaveURL(/\/x\/play\/perfect-circle\/open$/);
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    // A guest signs in through the card's popup first: apps get a real X identity.
+    await expect(page.getByRole("button", { name: "Sign in with X" })).toBeInViewport();
+  } else {
+    await expect(page.frameLocator("iframe").locator("canvas").first()).toBeVisible();
+    await expect(page.locator("iframe")).toBeInViewport({ ratio: 1 });
+  }
+  await expect(page.getByRole("button", { name: "Full screen" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Back to Perfect Circle" }).or(page.getByRole("link", { name: "Back" })).click();
+  await expect(page).toHaveURL(/\/x\/play\/perfect-circle$/);
+});
+
 test("in the card, people post a challenge whose link is a playable post", async ({ page }) => {
   // Demo mode: the card plays real (local) matches without signing in. With Supabase it needs the popup sign-in.
   test.skip(!!process.env.NEXT_PUBLIC_SUPABASE_URL, "demo mode only");
