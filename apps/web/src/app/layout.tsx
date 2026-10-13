@@ -28,23 +28,23 @@ const NO_IOS_VIEW_TRANSITIONS = `(function(){try{var n=navigator,ios=/iP(hone|ad
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "XApps — challenge anyone on X",
-    template: "%s · XApps",
+    default: "VibeCade — challenge anyone on X",
+    template: "%s · VibeCade",
   },
   description:
-    "Sign in with X and go head-to-head: reflex duels, meme battles, robot brawls and more. Build your own app with the XApps SDK.",
-  applicationName: "XApps",
+    "Sign in with X and go head-to-head: reflex duels, meme battles, robot brawls and more. Build your own app with the VibeCade SDK.",
+  applicationName: "VibeCade",
   // Added to the home screen, XApps opens without Safari's bars (see app/manifest.ts).
-  appleWebApp: { capable: true, title: "XApps", statusBarStyle: "black" },
+  appleWebApp: { capable: true, title: "VibeCade", statusBarStyle: "black" },
   openGraph: {
     type: "website",
-    siteName: "XApps",
-    title: "XApps — challenge anyone on X",
+    siteName: "VibeCade",
+    title: "VibeCade — challenge anyone on X",
     description: "Mini games against anyone on X, right in your posts.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "XApps — challenge anyone on X",
+    title: "VibeCade — challenge anyone on X",
     description: "Mini games against anyone on X, right in your posts.",
   },
 };

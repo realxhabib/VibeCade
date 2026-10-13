@@ -36,7 +36,7 @@ function PopupFrame({ status }: { status: Status }) {
         <>
           <p className="font-display text-xl font-extrabold text-ink-50">Sign in to the post showing</p>
           <p className="rounded-2xl bg-white/10 px-5 py-2 font-mono text-3xl font-bold tracking-[0.3em] text-ink-50">{status.code}</p>
-          <p className="max-w-xs text-sm text-ink-300">Only continue if the XApps post you&apos;re playing shows this code. If you didn&apos;t start this, close the window.</p>
+          <p className="max-w-xs text-sm text-ink-300">Only continue if the VibeCade post you&apos;re playing shows this code. If you didn&apos;t start this, close the window.</p>
           <div className="flex gap-2">
             <button type="button" onClick={closeOrBack} className="rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-ink-50">
               Close

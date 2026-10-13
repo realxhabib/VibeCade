@@ -219,9 +219,9 @@ export function ResultsOverlay({
               />
             </div>
             {guest ? (
-              <p className="mt-2 text-xs text-ink-300">Played as a guest. Sign in on XApps to earn XP and climb the leaderboards.</p>
+              <p className="mt-2 text-xs text-ink-300">Played as a guest. Sign in on VibeCade to earn XP and climb the leaderboards.</p>
             ) : offline ? (
-              <p className="mt-2 text-xs text-gold">Offline practice — played on your device while XApps&apos; database was down. XP, stats and records aren&apos;t saved.</p>
+              <p className="mt-2 text-xs text-gold">Offline practice — played on your device while VibeCade&apos; database was down. XP, stats and records aren&apos;t saved.</p>
             ) : testBuild ? (
               <p className="mt-2 text-xs text-gold">
                 Test build — no rank change{match.versionLabel ? ` (v${match.versionLabel})` : ""}. XP, stats and records aren&apos;t touched.

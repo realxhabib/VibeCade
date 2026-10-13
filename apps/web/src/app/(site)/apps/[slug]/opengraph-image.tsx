@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
+import { brandMarkSrc } from "@/lib/brand-image";
 import { OFFICIAL_APPS, getOfficialApp } from "@/platform/catalog";
 
-export const alt = "An app on XApps";
+export const alt = "An app on VibeCade";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -12,6 +13,7 @@ export function generateStaticParams() {
 export default async function AppOpengraphImage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const app = getOfficialApp(slug);
+  const mark = await brandMarkSrc();
   const [from, to] = app?.accent ?? ["#5b74ff", "#a35cff"];
   return new ImageResponse(
     (
@@ -28,7 +30,10 @@ export default async function AppOpengraphImage({ params }: { params: Promise<{ 
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ fontSize: 30, fontWeight: 700, color: "#b8bfcf", letterSpacing: 6 }}>XAPPS · CHALLENGE ANYONE ON X</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 30, fontWeight: 700, color: "#b8bfcf", letterSpacing: 6 }}>
+          <img src={mark} width={64} height={64} alt="" />
+          VIBECADE · CHALLENGE ANYONE ON X
+        </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
@@ -39,7 +44,7 @@ export default async function AppOpengraphImage({ params }: { params: Promise<{ 
               marginBottom: 36,
             }}
           />
-          <div style={{ fontSize: 110, fontWeight: 900, letterSpacing: -4, lineHeight: 1 }}>{app?.name ?? "XApps"}</div>
+          <div style={{ fontSize: 110, fontWeight: 900, letterSpacing: -4, lineHeight: 1 }}>{app?.name ?? "VibeCade"}</div>
           <div style={{ marginTop: 20, fontSize: 38, color: "#dfe3ec" }}>{app?.tagline ?? "Head-to-head apps on X."}</div>
         </div>
       </div>

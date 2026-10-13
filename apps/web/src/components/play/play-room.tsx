@@ -91,24 +91,24 @@ function shareText(app: AppManifest, match: Match, viewerId: string | undefined)
   if (isMultiplayer(match)) {
     const outcome = viewerOutcome(match, viewerId);
     const table = seatedPlayers(match).length;
-    if (outcome.kind === "spectator") return `Just watched a ${table}-player ${app.name} match on XApps ${app.icon}`;
+    if (outcome.kind === "spectator") return `Just watched a ${table}-player ${app.name} match on VibeCade ${app.icon}`;
     if (match.teams >= 2) {
       return outcome.kind === "win"
-        ? `Team win in ${app.name} on XApps ${app.icon} 🏆 Who wants the rematch?`
-        : `Tough team loss in ${app.name} on XApps ${app.icon} Rematch incoming.`;
+        ? `Team win in ${app.name} on VibeCade ${app.icon} 🏆 Who wants the rematch?`
+        : `Tough team loss in ${app.name} on VibeCade ${app.icon} Rematch incoming.`;
     }
-    if (outcome.rank === 1) return `Took 1st of ${table} in ${app.name} on XApps ${app.icon} 🏆 Who's next?`;
-    return `Placed ${ordinal(outcome.rank ?? table)} of ${table} in ${app.name} on XApps ${app.icon} Next time it's mine.`;
+    if (outcome.rank === 1) return `Took 1st of ${table} in ${app.name} on VibeCade ${app.icon} 🏆 Who's next?`;
+    return `Placed ${ordinal(outcome.rank ?? table)} of ${table} in ${app.name} on VibeCade ${app.icon} Next time it's mine.`;
   }
   const opponent = opponentOf(match, viewerId);
   const them = opponent && !opponent.isBot ? `@${opponent.profile.handle}` : "the bot";
-  if (!match.winnerId) return `Dead even with ${them} in ${app.name} on XApps ${app.icon} Who breaks the tie?`;
+  if (!match.winnerId) return `Dead even with ${them} in ${app.name} on VibeCade ${app.icon} Who breaks the tie?`;
   if (match.winnerId === viewerId) {
     return match.scoring === "votes"
-      ? `The crowd picked my entry over ${them} in ${app.name} on XApps ${app.icon} 🏆`
-      : `Just beat ${them} in ${app.name} on XApps ${app.icon} Who's next?`;
+      ? `The crowd picked my entry over ${them} in ${app.name} on VibeCade ${app.icon} 🏆`
+      : `Just beat ${them} in ${app.name} on VibeCade ${app.icon} Who's next?`;
   }
-  return `${them} got me in ${app.name} on XApps ${app.icon} Rematch incoming.`;
+  return `${them} got me in ${app.name} on VibeCade ${app.icon} Rematch incoming.`;
 }
 
 /**
@@ -248,7 +248,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         app={app}
         match={match}
         viewerId={viewer?.id}
-        onShare={() => openXIntent(`Help me win ${app.name} on XApps — vote for the best entry ${app.icon}`, `${window.location.origin}/arena`)}
+        onShare={() => openXIntent(`Help me win ${app.name} on VibeCade — vote for the best entry ${app.icon}`, `${window.location.origin}/arena`)}
         onLeave={() => router.push(routes.arena)}
       />
     );
@@ -260,7 +260,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         action={<Button href="/apps">Browse apps</Button>}
         className="mx-auto mt-24 max-w-md"
       >
-        This app is no longer on XApps, so this match can&apos;t go on. Earlier results and the XP they earned stay on
+        This app is no longer on VibeCade, so this match can&apos;t go on. Earlier results and the XP they earned stay on
         your profile.
       </EmptyState>
     );
@@ -369,7 +369,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
       <div className="px-3 pt-3">
         <div className="mx-auto flex h-14 max-w-5xl items-center">
           <Button variant="ghost" size="sm" href={viewer && !routes.guest ? routes.challenges : routes.home}>
-            ← {viewer && !routes.guest && routes.challenges === SITE_ROUTES.challenges ? "Challenges" : "XApps"}
+            ← {viewer && !routes.guest && routes.challenges === SITE_ROUTES.challenges ? "Challenges" : "VibeCade"}
           </Button>
         </div>
       </div>
@@ -453,7 +453,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   useEffect(() => {
     if (!offline) return;
     toast("Offline practice", {
-      description: "XApps can't reach its database, so this practice runs on your device. Results, XP and stats aren't saved.",
+      description: "VibeCade can't reach its database, so this practice runs on your device. Results, XP and stats aren't saved.",
       tone: "info",
       duration: 8000,
     });
@@ -1118,7 +1118,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
             app={app}
             match={match}
             viewerId={viewer.id}
-            onShare={() => openXIntent(`Vote for the best entry in my ${app.name} ${multiplayer ? "match" : "duel"} on XApps ${app.icon}`, `${window.location.origin}/arena`)}
+            onShare={() => openXIntent(`Vote for the best entry in my ${app.name} ${multiplayer ? "match" : "duel"} on VibeCade ${app.icon}`, `${window.location.origin}/arena`)}
             onLeave={() => router.push(routes.arena)}
           />
         )}

@@ -16,7 +16,7 @@ test("the share link describes a player card", async ({ page, request }) => {
   expect(meta("twitter:player")).toMatch(/^https?:\/\/[^/]+\/x\/play\/four-in-a-row$/);
   expect([meta("twitter:player:width"), meta("twitter:player:height")]).toEqual(["480", "480"]);
   expect(meta("twitter:image")).toMatch(/\/x\/four-in-a-row\/preview\.png$/);
-  expect(meta("og:title")).toBe("Play Four in a Row on XApps");
+  expect(meta("og:title")).toBe("Play Four in a Row on VibeCade");
   expect(html).not.toContain("twitter:player:stream");
 
   const preview = await request.get("/x/four-in-a-row/preview.png");

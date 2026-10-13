@@ -167,7 +167,7 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
               mounted &&
               app.modes.some((m) => m !== "practice") && (
                 <Button size="md" variant="glass" href={`/apps/${app.slug}`} target="_blank" rel="noopener" iconRight={<ArrowUpRight className="size-4" />}>
-                  Challenge someone on XApps
+                  Challenge someone on VibeCade
                 </Button>
               )
             )}

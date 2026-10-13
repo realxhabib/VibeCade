@@ -46,7 +46,7 @@ export function retiredAppManifest(slug: string): AppManifest {
   return {
     slug,
     name: known?.name ?? "Retired app",
-    tagline: "No longer on XApps.",
+    tagline: "No longer on VibeCade.",
     description: "",
     category: known?.category ?? "games",
     icon: known?.icon ?? "🗃️",
@@ -66,7 +66,7 @@ export function retiredAppManifest(slug: string): AppManifest {
     durationLabel: "",
     howTo: [],
     official: !!known,
-    developer: { id: null, handle: "xapps", name: "XApps Studio" },
+    developer: { id: null, handle: "xapps", name: "VibeCade Studio" },
     status: "rejected",
     retired: true,
     playCount: 0,

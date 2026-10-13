@@ -1,8 +1,10 @@
-# XApps
+# VibeCade
 
-**A social app marketplace on X.** Sign in with X, pick an app and go head-to-head with anyone:
+<img src="apps/web/public/brand/vibecade-logo.png" alt="VibeCade" width="240">
+
+**A social arcade on X.** Sign in with X, pick an app and go head-to-head with anyone:
 reflex duels, rocket runs, strategy and 3D robot brawls.
-Anyone can build and list their own app with the `@xapps/sdk`.
+Anyone can build and list their own app with the `@xapps/sdk`. (The code and SDK keep their original XApps names.)
 
 - **Marketplace**: browse, search and filter apps. Each app card is a live animated vignette.
 - **Challenges**: quick match, invite one or several `@handles`, or post an open challenge link to your timeline. Tables seat 2–8 players, with teams and spectators.

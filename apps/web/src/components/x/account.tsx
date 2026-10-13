@@ -20,7 +20,7 @@ export function XSignInButton({ label = "Sign in with X", size = "md", className
   if (state === "blocked") {
     return (
       <Button size={size} variant="glass" href="/login" target="_blank" rel="noopener" iconRight={<ArrowUpRight className="size-4" />} className={className}>
-        Popup blocked: sign in on XApps
+        Popup blocked: sign in on VibeCade
       </Button>
     );
   }

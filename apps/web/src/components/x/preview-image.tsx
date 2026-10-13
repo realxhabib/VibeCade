@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { X_MARK_PATH } from "@/components/ui/x-logo";
+import { brandMarkSrc } from "@/lib/brand-image";
 import { PREVIEW_SIZE, playsInPost } from "@/lib/x-player";
 import type { AppManifest } from "@/platform/types";
 
@@ -7,10 +7,11 @@ import type { AppManifest } from "@/platform/types";
  * The still X shows for a playable post before the player loads, and in the
  * mobile apps (no emoji or web fonts: rendered without network access).
  */
-export function xPreviewImage(app?: AppManifest, more: AppManifest[] = []): ImageResponse {
-  const [from, to] = app?.accent ?? ["#5b3cff", "#ff3d8b"];
+export async function xPreviewImage(app?: AppManifest, more: AppManifest[] = []): Promise<ImageResponse> {
+  const mark = await brandMarkSrc();
+  const [from, to] = app?.accent ?? ["#00a8e8", "#e600e6"];
   const games = more.filter(playsInPost);
-  const title = app ? app.name : "Play XApps right here";
+  const title = app ? app.name : "Play VibeCade right here";
   const subtitle = app ? app.tagline : `${games.length} games you can play inside this post.`;
   return new ImageResponse(
     (
@@ -28,23 +29,9 @@ export function xPreviewImage(app?: AppManifest, more: AppManifest[] = []): Imag
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 22,
-              background: "#000",
-              border: "2px solid rgba(255,255,255,0.18)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg width="44" height="44" viewBox="0 0 24 24">
-              <path fill="#fff" d={X_MARK_PATH} />
-            </svg>
-          </div>
-          <div style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>Apps</div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain img */}
+          <img src={mark} width={100} height={100} alt="" />
+          <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1 }}>VibeCade</div>
         </div>
 
         {!app && (

@@ -41,12 +41,12 @@ describe("requestOrigin", () => {
 
 describe("playerCardTags", () => {
   const card = {
-    title: "Play XApps",
+    title: "Play VibeCade",
     description: "Games in a post",
     url: "https://xapps.example/x",
     player: "https://xapps.example/x/play",
     image: "https://xapps.example/x/preview.png",
-    imageAlt: "XApps",
+    imageAlt: "VibeCade",
     site: "@xapps",
   };
   const byName = (tags: ReturnType<typeof playerCardTags>) => Object.fromEntries(tags.map((t) => [t.name ?? t.property, t.content]));

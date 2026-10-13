@@ -17,9 +17,9 @@ export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col px-3 pb-3">
       <header className="flex h-12 shrink-0 items-center justify-between">
-        <a href="/" target="_blank" rel="noopener" className="flex items-center gap-2" aria-label="Open XApps in a new tab">
+        <a href="/" target="_blank" rel="noopener" className="flex items-center gap-2" aria-label="Open VibeCade in a new tab">
           <LogoMark size={26} />
-          <span className="font-display text-[17px] font-extrabold tracking-tight text-ink-50">Apps</span>
+          <span className="font-display text-[17px] font-extrabold tracking-tight text-ink-50">VibeCade</span>
         </a>
         {isSupabaseConfigured ? (
           <XAccount />
@@ -30,7 +30,7 @@ export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
             rel="noopener"
             className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-200 hover:bg-white/[0.06] hover:text-ink-50"
           >
-            Open XApps <ArrowUpRight className="size-3.5" />
+            Open VibeCade <ArrowUpRight className="size-3.5" />
           </a>
         )}
       </header>
@@ -49,7 +49,7 @@ export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
                 <AppGlyph app={app} size={48} />
                 <span className="line-clamp-1 text-[13px] font-semibold text-ink-50">{app.name}</span>
                 <span className="flex items-center gap-0.5 text-[11px] text-ink-400">
-                  {inPost ? app.durationLabel : "Opens XApps"}
+                  {inPost ? app.durationLabel : "Opens VibeCade"}
                   {!inPost && <ArrowUpRight className="size-3" />}
                 </span>
               </Link>

@@ -41,7 +41,7 @@ function practiceBot(id: string, handle: string, name: string, bio: string): Pro
 export const PRACTICE_BOT: Profile = practiceBot(
   PRACTICE_BOT_ID,
   "xapps_bot",
-  "XApps Bot",
+  "VibeCade Bot",
   "I practice so you don't have to lose in public.",
 );
 

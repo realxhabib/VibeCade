@@ -274,7 +274,7 @@ export function BuildTeaser() {
             Your idea, their timeline.
           </h2>
           <p className="mt-4 max-w-md text-ink-300">
-            Build a mini game, a contest or something nobody&apos;s thought of yet. XApps gives you X identity, realtime
+            Build a mini game, a contest or something nobody&apos;s thought of yet. VibeCade gives you X identity, realtime
             rooms, matchmaking, crowd judging, a VS intro and a results screen — you bring the fun.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">

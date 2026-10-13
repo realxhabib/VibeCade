@@ -4,7 +4,7 @@ import { PlayerCardTags } from "@/components/x/player-card-tags";
 import { ShareLanding } from "@/components/x/share-landing";
 import { requestOrigin, xPlayerPath, xPreviewPath, xSharePath, xSiteHandle } from "@/lib/x-player";
 
-const TITLE = "Play XApps right here";
+const TITLE = "Play VibeCade right here";
 const DESCRIPTION = "Reflex duels, pool, darts, mini golf and more. Play inside this post, then challenge anyone on X.";
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default async function XSharePage() {
           url: `${origin}${xSharePath()}`,
           player: `${origin}${xPlayerPath()}`,
           image: `${origin}${xPreviewPath()}`,
-          imageAlt: "XApps: games you can play inside this post",
+          imageAlt: "VibeCade: games you can play inside this post",
           site: xSiteHandle(),
         }}
       />

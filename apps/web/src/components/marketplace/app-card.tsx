@@ -64,7 +64,7 @@ export function AppCard({
                 <div className="min-w-0 flex-1">
                   <h3 className={cn("truncate font-display font-extrabold tracking-tight", large ? "text-3xl" : "text-xl")}>{app.name}</h3>
                   <p className="truncate text-xs text-ink-400">
-                    {app.official ? "XApps Studio" : `by @${app.developer.handle}`}
+                    {app.official ? "VibeCade Studio" : `by @${app.developer.handle}`}
                   </p>
                 </div>
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-ink-200 transition-all duration-300 group-hover:rotate-45 group-hover:bg-ink-50 group-hover:text-ink-950">

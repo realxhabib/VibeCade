@@ -4,7 +4,7 @@ import { PlayerCardTags } from "@/components/x/player-card-tags";
 import { ShareLanding } from "@/components/x/share-landing";
 import { requestOrigin, xMatchPlayerPath, xMatchSharePath, xPreviewPath, xSiteHandle } from "@/lib/x-player";
 
-const TITLE = "You've been challenged on XApps";
+const TITLE = "You've been challenged on VibeCade";
 const DESCRIPTION = "Take the seat and play right here in this post. Sign in with X to accept.";
 
 export const metadata: Metadata = { title: { absolute: TITLE }, description: DESCRIPTION, openGraph: null, twitter: null, robots: { index: false } };
@@ -26,7 +26,7 @@ export default async function XMatchSharePage({ params }: PageProps<"/x/m/[match
           url: `${origin}${xMatchSharePath(matchId)}`,
           player: `${origin}${xMatchPlayerPath(matchId)}`,
           image: `${origin}${xPreviewPath()}`,
-          imageAlt: "A challenge on XApps",
+          imageAlt: "A challenge on VibeCade",
           site: xSiteHandle(),
         }}
       />

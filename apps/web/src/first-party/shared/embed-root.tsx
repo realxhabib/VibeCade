@@ -68,7 +68,7 @@ export function EmbedRoot({
         errorFallback={(error) => (
           <div className="m-auto max-w-xs p-6 text-center text-sm text-ink-300">
             <p className="text-3xl">🔌</p>
-            <p className="mt-3 font-semibold text-ink-50">Couldn&apos;t reach XApps</p>
+            <p className="mt-3 font-semibold text-ink-50">Couldn&apos;t reach VibeCade</p>
             <p className="mt-1">{error.message}</p>
           </div>
         )}

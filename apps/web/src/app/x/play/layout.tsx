@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { XPlayerShell } from "@/components/x/player-shell";
 
 export const metadata: Metadata = {
-  title: { absolute: "XApps" },
+  title: { absolute: "VibeCade" },
   // The share pages (`/x`, `/x/<slug>`) are the public links.
   robots: { index: false },
 };

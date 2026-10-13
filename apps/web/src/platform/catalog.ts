@@ -1,7 +1,7 @@
 import { LIMITS } from "@xapps/sdk";
 import type { AchievementDef, AppManifest, StatDef } from "./types";
 
-const OFFICIAL_DEV = { id: null, handle: "xapps", name: "XApps Studio" };
+const OFFICIAL_DEV = { id: null, handle: "xapps", name: "VibeCade Studio" };
 const LAUNCH = "2026-09-01T00:00:00.000Z";
 
 /**

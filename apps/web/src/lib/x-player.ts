@@ -88,7 +88,7 @@ export function playerCardTags(card: PlayerCard): { property?: string; name?: st
   if (card.site) tags.push({ name: "twitter:site", content: card.site });
   tags.push(
     { property: "og:type", content: "website" },
-    { property: "og:site_name", content: "XApps" },
+    { property: "og:site_name", content: "VibeCade" },
     { property: "og:title", content: card.title },
     { property: "og:description", content: card.description },
     { property: "og:url", content: card.url },

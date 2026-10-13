@@ -6,7 +6,7 @@ import { getOfficialApp } from "@/platform/catalog";
 import { officialCatalogApps } from "@/platform/official-apps";
 
 export const metadata: Metadata = {
-  title: { absolute: "Post preview · XApps" },
+  title: { absolute: "Post preview · VibeCade" },
   robots: { index: false },
   openGraph: null,
   twitter: null,
@@ -27,7 +27,7 @@ export default async function XPreviewPage({ searchParams }: PageProps<"/x/previ
         <header className="mb-2 flex items-center gap-2.5">
           <LogoMark size={36} />
           <div className="text-[15px] leading-tight">
-            <p className="font-bold text-ink-50">XApps</p>
+            <p className="font-bold text-ink-50">VibeCade</p>
             <p className="text-ink-400">Post preview</p>
           </div>
         </header>
@@ -42,7 +42,7 @@ export default async function XPreviewPage({ searchParams }: PageProps<"/x/previ
             className="block max-w-full"
             style={{ aspectRatio: `${PLAYER_SIZE.width} / ${PLAYER_SIZE.height}`, height: "auto" }}
             allow="autoplay; fullscreen; clipboard-write"
-            title="XApps player"
+            title="VibeCade player"
           />
         </div>
         <p className="mt-2 text-[13px] text-ink-400">Link to post: {xSharePath(app?.slug)}</p>
