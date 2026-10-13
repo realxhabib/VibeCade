@@ -69,6 +69,18 @@ test("in the card, people post a challenge whose link is a playable post", async
   await expect(page.getByRole("button", { name: /Post the challenge on X/ })).toBeInViewport();
 });
 
+test("games with their own setup screen set up the challenge inside the card", async ({ page }) => {
+  test.skip(!!process.env.NEXT_PUBLIC_SUPABASE_URL, "demo mode only");
+  await page.setViewportSize({ width: 480, height: 480 });
+  await page.goto("/x/play/nova-rally");
+  await expect(page.locator("a[target=_blank]")).toHaveCount(0);
+  await page.getByRole("button", { name: /Post a challenge/ }).click();
+  const setup = page.frameLocator("iframe[title='Nova Rally setup']");
+  await expect(setup.getByText("Set up the race")).toBeVisible();
+  await setup.getByRole("button", { name: /^Challenge/ }).click();
+  await expect(page).toHaveURL(/\/x\/play\/match\//);
+});
+
 test("a posted challenge's link describes a player card for the match", async ({ request }) => {
   const html = await (await request.get("/x/m/some-match")).text();
   expect(html).toMatch(/<meta name="twitter:card" content="player"/);

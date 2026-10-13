@@ -1,22 +1,24 @@
 "use client";
 
-import { ArrowLeft, ArrowUpRight, AtSign, Bot, Clock, Megaphone, Users, Zap } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, AtSign, Bot, Clock, Megaphone, Users, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "@/components/chrome/toasts";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
+import { AppSetupFrame, type AppSetupResult } from "@/components/marketplace/app-setup-frame";
 import { Button } from "@/components/ui/button";
 import { goToHost } from "@/lib/host-nav";
 import { useMounted } from "@/lib/use-mounted";
 import { playsInPost, xAppPlayerPath, xMatchPlayerPath, xPlayerPath } from "@/lib/x-player";
+import { useViewer } from "@/platform/client";
 import { useCreateChallenge, usePractice, useQuickMatch } from "@/platform/queries";
 import type { AppManifest, Match } from "@/platform/types";
 import { XAccount, XSignInButton, usePlaysForReal } from "./account";
 
-/** Games people can challenge each other to from the card (apps with their own setup screen need the site). */
+/** Games people can challenge each other to from the card (apps with a setup screen show it in the card first). */
 export function challengeableInPost(app: AppManifest): boolean {
-  return playsInPost(app) && !app.setup && app.modes.some((mode) => mode === "live" || mode === "async");
+  return playsInPost(app) && app.modes.some((mode) => mode === "live" || mode === "async");
 }
 
 function errorText(error: unknown, fallback: string): string {
@@ -38,6 +40,9 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
   const challenge = useCreateChallenge();
   const [handleOpen, setHandleOpen] = useState(false);
   const [handle, setHandle] = useState("");
+  const { viewer } = useViewer();
+  /** A challenge waiting on the app's own setup screen (`setup: true` apps): who it's for. */
+  const [setupFor, setSetupFor] = useState<{ opponentHandle?: string } | null>(null);
   const inPost = playsInPost(app);
   const canChallenge = mounted && challengeableInPost(app);
   const mode = app.modes.includes("live") ? "live" : "async";
@@ -52,6 +57,14 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
       toast(errorText(error, fallback), { tone: "danger" });
     }
   };
+
+  const sendChallenge = (opponentHandle?: string, settings?: AppSetupResult["settings"]) =>
+    go(
+      () => challenge.mutateAsync({ appSlug: app.slug, mode, opponentHandle, settings }),
+      opponentHandle ? "Couldn't send the challenge" : "Couldn't create the challenge",
+    );
+  // Apps with a setup screen (Nova Rally's track and laps) show it before the challenge goes out.
+  const startChallenge = (opponentHandle?: string) => (app.setup ? setSetupFor({ opponentHandle }) : void sendChallenge(opponentHandle));
 
   return (
     <main
@@ -114,7 +127,7 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
               icon={<Megaphone className="size-5" />}
               loading={challenge.isPending && !handleOpen}
               disabled={busy}
-              onClick={() => void go(() => challenge.mutateAsync({ appSlug: app.slug, mode }), "Couldn't create the challenge")}
+              onClick={() => startChallenge()}
             >
               Post a challenge
             </Button>
@@ -125,7 +138,7 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
                   e.preventDefault();
                   const who = handle.trim().replace(/^@/, "");
                   if (!who) return;
-                  void go(() => challenge.mutateAsync({ appSlug: app.slug, mode, opponentHandle: who }), "Couldn't send the challenge");
+                  startChallenge(who);
                 }}
               >
                 <label className="flex h-10 min-w-0 flex-1 items-center gap-1 rounded-full glass px-3">
@@ -178,6 +191,35 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
           </>
         )}
       </div>
+
+      {setupFor && viewer && (
+        <div className="fixed inset-0 z-40 flex flex-col gap-2 bg-ink-950 p-3">
+          <div className="flex shrink-0 items-center justify-between">
+            <p className="font-display text-[15px] font-bold text-ink-50">{setupFor.opponentHandle ? `Challenge @${setupFor.opponentHandle}` : "Post a challenge"}</p>
+            <button
+              type="button"
+              onClick={() => setSetupFor(null)}
+              aria-label="Cancel"
+              className="rounded-full p-1.5 text-ink-300 hover:bg-white/[0.06] hover:text-ink-50"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <AppSetupFrame
+            app={app}
+            viewer={viewer}
+            mode={mode}
+            rivals={[]}
+            tableSize={app.players.max}
+            className="min-h-0 flex-1"
+            onSubmit={(result) => {
+              setSetupFor(null);
+              void sendChallenge(setupFor.opponentHandle, result.settings);
+            }}
+            onCancel={() => setSetupFor(null)}
+          />
+        </div>
+      )}
     </main>
   );
 }

@@ -483,7 +483,12 @@ function TimeTrials({ onTrial }: { onTrial: (track: string) => void }) {
 /* ------------------------------------------------------------------ */
 
 function Setup() {
+  const xapps = useXApps();
   const { submit, cancel, settings: initial } = useSetup();
+  // The host shows the setup screen once it's ready.
+  useEffect(() => {
+    xapps.ready().catch((error: unknown) => console.warn("[nova-rally] setup ready failed", error));
+  }, [xapps]);
   const start = parseSettings(initial);
   const [cup, setCup] = useState<string>(start.cup.id.startsWith("single:") ? start.cup.id.slice(7) : start.cup.id);
   const [cc, setCc] = useState<SpeedClass>(start.cc);
