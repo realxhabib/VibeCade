@@ -1,4 +1,3 @@
-import path from "node:path";
 import type { NextConfig } from "next";
 import { X_FRAME_ANCESTORS } from "./src/lib/x-player";
 
@@ -6,13 +5,8 @@ import { X_FRAME_ANCESTORS } from "./src/lib/x-player";
 // (frame-ancestors checks every ancestor). No X-Frame-Options anywhere: it would override this.
 const xFrameable = [{ key: "Content-Security-Policy", value: `frame-ancestors ${X_FRAME_ANCESTORS}` }];
 
-// NEXT_OUTPUT=standalone builds a self-contained server for hosts without Vercel (deploy/droplet).
-// Tracing starts at the monorepo root, so the SDK (imported from source) comes along.
-const standalone = process.env.NEXT_OUTPUT === "standalone";
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  ...(standalone ? { output: "standalone" as const, outputFileTracingRoot: path.resolve(process.cwd(), "../..") } : {}),
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "pbs.twimg.com" },
