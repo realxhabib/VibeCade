@@ -14,41 +14,9 @@ const LAUNCH = "2026-09-01T00:00:00.000Z";
  * next of FEATURED_FALLBACK takes its place.
  */
 export const FEATURED_APPS = ["starship-league", "wedge-wars"];
-export const FEATURED_FALLBACK = ["meme-duel", "four-in-a-row"];
+export const FEATURED_FALLBACK = ["four-in-a-row", "starship-flap"];
 
 export const OFFICIAL_APPS: AppManifest[] = [
-  {
-    slug: "meme-duel",
-    name: "Meme Duel",
-    tagline: "Same template. Two captions. The crowd decides.",
-    description:
-      "Both players get the same template and a stack of stickers. Write the funniest caption, drag stickers into place, and submit. Your entry goes to the Arena where the crowd votes — first to the vote target wins.",
-    category: "contests",
-    icon: "🖼️",
-    accent: ["#ff5ca8", "#8b5cff"],
-    url: "/embed/meme-duel",
-    modes: ["async", "live", "practice"],
-    players: { min: 2, max: 2 },
-    teams: 0,
-    spectators: true,
-    // The app renders its own challenge setup (template, trending, drop, topic) in setup purpose.
-    setup: true,
-    turnBased: false,
-    scoring: "votes",
-    votesToWin: 5,
-    durationLabel: "2 min + voting",
-    howTo: [
-      "You and your opponent get the same meme template.",
-      "Write captions and drag up to three stickers onto the canvas.",
-      "Submit — the Arena crowd votes until someone hits 5 votes.",
-    ],
-    official: true,
-    developer: OFFICIAL_DEV,
-    status: "published",
-    playCount: 0,
-    createdAt: LAUNCH,
-    tags: ["memes", "creative", "crowd-judged"],
-  },
   {
     slug: "quick-draw",
     name: "Reflexes",

@@ -1,19 +1,18 @@
 # XApps
 
 **A social app marketplace on X.** Sign in with X, pick an app and go head-to-head with anyone:
-reflex duels, meme battles judged by the crowd, strategy and 3D robot brawls.
+reflex duels, rocket runs, strategy and 3D robot brawls.
 Anyone can build and list their own app with the `@xapps/sdk`.
 
 - **Marketplace**: browse, search and filter apps. Each app card is a live animated vignette.
 - **Challenges**: quick match, invite one or several `@handles`, or post an open challenge link to your timeline. Tables seat 2–8 players, with teams and spectators.
 - **Play room**: every app runs inside a host that adds the drama: a VS intro, a 3-2-1 countdown, a HUD with presence and turn indicators, emoji reactions, results with XP and level-ups, rematch and share.
-- **The Arena**: the crowd judges meme duels and other crowd-voted contests. Entries stay anonymous until you vote, and every vote earns XP.
+- **The Arena**: the crowd judges crowd-voted contests. Entries stay anonymous until you vote, and every vote earns XP.
 - **Profiles and leaderboards**: XP, levels, streaks, and rankings overall and per app.
 - **Developer portal**: SDK docs, app registration with a live preview, and a **Sandbox** that runs two copies of your app side by side with a live protocol log.
 
 | Default app | Format | Scoring |
 | --- | --- | --- |
-| 🖼️ Meme Duel | Caption the same real meme template, or an image the challenger drops (upload or an X post's photo), optionally on a topic; add stickers and let the crowd vote | votes |
 | ⚡ Reflexes | Best-of-five reflex duel, with reaction times measured on each device | rounds won |
 | 🔴 Four in a Row | Connect-four with physics and a minimax bot; play live or turn by turn over days | win/draw/loss |
 | 🛻 Wedge Wars | 3D arena brawl for 2–4 players: armored wedge trucks with spinners, flippers, hammers and flamethrowers, with saws, flame vents and a KO pit | placement + damage |
@@ -54,8 +53,6 @@ Without Supabase keys, XApps runs in **demo mode**. Everything lives in your bro
    ```
 
 **App servers & webhooks (optional).** Apps can have their own server settle results through `/api/v1` and receive signed webhooks. Webhooks are sent from the database, so enable the **pg_net** and **pg_cron** extensions in Supabase (*Database → Extensions*) before running `20261001000000_trust.sql`. The migration schedules the jobs itself; if an extension is missing it skips that step and tells you. Developers manage secrets, webhooks and authority from the **Server** panel on their app's page.
-
-**Trending memes (optional).** Add a server-only `XAI_API_KEY` from [console.x.ai](https://console.x.ai) and Meme Duel's *Trending* tab shows images going viral on X, found by Grok's X Search. Grok's X Search bills per post it reads, so the list refreshes every `TRENDING_MEMES_REFRESH_HOURS` (default 6), roughly 20–60 posts per refresh. Without a key, *Trending* shows imgflip's currently popular templates.
 
 If the keys are set but the schema isn't installed yet, the app says so and offers a one-click switch to demo mode.
 

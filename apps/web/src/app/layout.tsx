@@ -40,12 +40,12 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "XApps",
     title: "XApps — challenge anyone on X",
-    description: "Mini games and meme duels against anyone on X.",
+    description: "Mini games against anyone on X, right in your posts.",
   },
   twitter: {
     card: "summary_large_image",
     title: "XApps — challenge anyone on X",
-    description: "Mini games and meme duels against anyone on X.",
+    description: "Mini games against anyone on X, right in your posts.",
   },
 };
 

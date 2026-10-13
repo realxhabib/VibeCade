@@ -267,33 +267,6 @@ function DrawnArt({ app, className }: { app: AppManifest; className?: string }) 
           </div>
         </div>
       );
-    case "meme-duel":
-      return (
-        <div className={className} aria-hidden>
-          <div className="relative flex size-full items-center justify-center">
-            {[-1, 1].map((side) => (
-              <motion.div
-                key={side}
-                className="absolute flex h-[70%] w-[38%] flex-col items-center justify-between rounded-2xl p-2 shadow-2xl ring-1 ring-white/20"
-                style={{ background: side < 0 ? `linear-gradient(160deg, ${a}, #2a1030)` : `linear-gradient(160deg, ${b}, #150f30)` }}
-                animate={{ x: side * 42, rotate: side * 8, y: [0, -6, 0] }}
-                transition={{ x: { duration: 0 }, rotate: { duration: 0 }, y: loop(2.6, side > 0 ? 0.4 : 0) }}
-              >
-                <span className="h-1.5 w-3/4 rounded-full bg-white/80" />
-                <span className="text-3xl">{side < 0 ? "🗿" : "😰"}</span>
-                <span className="h-1.5 w-2/3 rounded-full bg-white/80" />
-              </motion.div>
-            ))}
-            <motion.span
-              className="relative rounded-full bg-ink-950 px-2.5 py-1 font-display text-sm font-extrabold italic"
-              animate={{ scale: [1, 1.15, 1] }}
-              transition={loop(1.4)}
-            >
-              VS
-            </motion.span>
-          </div>
-        </div>
-      );
     case "gregs-face":
       return (
         <div className={className} aria-hidden>

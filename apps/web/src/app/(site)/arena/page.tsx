@@ -3,7 +3,7 @@ import { Arena } from "@/components/pages/arena";
 
 export const metadata: Metadata = {
   title: "Arena",
-  description: "Judge meme duels and hot takes. Every vote earns XP.",
+  description: "Judge crowd-voted contests. Every vote earns XP.",
 };
 
 export default function ArenaPage() {

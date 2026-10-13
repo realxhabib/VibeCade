@@ -49,8 +49,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Skip static assets, the SDK bundle, examples, first-party app frames and the
-    // server API (/api/v1: app servers authenticate with a secret, not a session) and
+    // server API (/api/v1: app servers authenticate with a secret, not a session),
     // demo-mode uploads (/api/demo-media) and the X player (/x/: guests, no session).
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sdk/|examples/|embed/|x/|api/meme-image|api/x-media|api/trending-memes|api/demo-media|api/v1/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|map)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sdk/|examples/|embed/|x/|api/demo-media|api/v1/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|map)$).*)",
   ],
 };

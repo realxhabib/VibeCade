@@ -1,5 +1,5 @@
 import { appImageKeyError, blobToDataUrl, type AppImageKind } from "@/lib/app-images";
-import { LIMITS, createRandom, randomId } from "@xapps/sdk";
+import { LIMITS, randomId } from "@xapps/sdk";
 import { byteLength } from "@xapps/sdk/protocol";
 import { isBlobLike } from "@xapps/sdk/host";
 import { absoluteMediaUrl, displayProblem, mediaKindOf, mediaProblem, mediaQuotaProblem, postDemoMedia, probeMedia } from "@/lib/media";
@@ -73,7 +73,7 @@ import type {
 import { UPVOTES_PER_MINUTE } from "../upvotes";
 import { computeAnalytics } from "./analytics";
 import { createDemoRoom } from "./room";
-import { addPersonaContest, applySettlement, buildSeed, ensureShowcase, isPracticeBot, newMatchId, PRACTICE_BOTS, upgradeDb } from "./seed";
+import { applySettlement, buildSeed, ensureShowcase, isPracticeBot, newMatchId, PRACTICE_BOTS, upgradeDb } from "./seed";
 import {
   credentialsFor,
   deliveriesFor,
@@ -2394,16 +2394,6 @@ export class DemoBackend implements Backend {
           applySettlement(draft, row);
           changed = true;
         }
-      }
-
-      // Keep the Arena stocked with fresh persona contests.
-      const background = Object.values(draft.matches).filter(
-        (m) => m.status === "voting" && !seatRows(m).some((p) => !p.isBot),
-      ).length;
-      if (background < 4) {
-        const rng = createRandom(randomId(8));
-        addPersonaContest(draft, rng, 0, true);
-        changed = true;
       }
 
       // Once per session, a persona challenges the newcomer so invites can be seen live.

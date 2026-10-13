@@ -660,9 +660,9 @@ describe("demo backend: retired apps", () => {
     await expectCode(backend.registerApp(appInput("trivia-royale")), "conflict");
   });
 
-  it("stocks the Arena with Meme Duels only", () => {
-    const voting = Object.values(load().matches).filter((m) => m.status === "voting");
-    expect(voting.length).toBeGreaterThan(0);
-    expect(voting.every((m) => m.appSlug === "meme-duel")).toBe(true);
+  it("retired Meme Duel: gone from the catalog, unplayable, its history kept", async () => {
+    expect((await backend.listApps()).some((a) => a.slug === "meme-duel")).toBe(false);
+    expect(await backend.getApp("meme-duel")).toBeNull();
+    expect(Object.values(load().matches).some((m) => m.status === "voting" && m.appSlug === "meme-duel")).toBe(false);
   });
 });

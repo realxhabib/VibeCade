@@ -1,6 +1,4 @@
 import { createRandom, randomId } from "@xapps/sdk";
-import { BOT_CAPTIONS, MEME_TEMPLATES, STICKERS } from "@/first-party/meme-duel/templates";
-import { renderMemeSvg } from "@/first-party/meme-duel/render";
 import { OFFICIAL_APPS } from "../catalog";
 import { settle } from "../scoring";
 import type { AppManifest, Profile } from "../types";
@@ -252,13 +250,7 @@ export function buildSeed(): DemoDb {
     db.matches[match.id] = match;
   }
 
-  // 2) Crowd-judged Meme Duels, some finished and some still collecting votes.
-  const voting = [true, true, true, true, true, true, false, false];
-  voting.forEach((stillVoting, i) => {
-    addPersonaContest(db, rng, (i + 1) * rng.int(9, 40) * 60_000, stillVoting, i);
-  });
-
-  // 3) Perfect Circle (a standalone app, no matches): personas' own circles, so its worldwide board isn't empty.
+  // 2) Perfect Circle (a standalone app, no matches): personas' own circles, so its worldwide board isn't empty.
   db.userStats ??= {};
   for (const id of ids) {
     const at = iso(rng.int(1, 96) * 3_600_000);
@@ -269,7 +261,7 @@ export function buildSeed(): DemoDb {
     if (best >= 98) db.userStats[`perfect-circle:${id}:perfect_circles`] = { value: rng.int(1, Math.min(6, drawn)), updatedAt: at };
   }
 
-  // 4) Greg's Face (a standalone app too): personas' best faces, so its global board isn't empty.
+  // 3) Greg's Face (a standalone app too): personas' best faces, so its global board isn't empty.
   for (const [i, id] of ids.entries()) {
     const at = iso(rng.int(1, 120) * 3_600_000);
     const built = rng.int(2, 140);
@@ -283,74 +275,7 @@ export function buildSeed(): DemoDb {
   return db;
 }
 
-const PERSONA_IDS = PERSONAS.map((p) => p.id);
 
-/**
- * A finished or still-voting Meme Duel between two personas, with real entries
- * rendered by the app's own content code. Used by the seed and to keep the
- * Arena stocked while the demo runs.
- */
-export function addPersonaContest(
-  db: DemoDb,
-  rng: ReturnType<typeof createRandom>,
-  agoMs: number,
-  voting: boolean,
-  variant = rng.int(0, 999),
-): MatchRow {
-  const [a, b] = rng.shuffle(PERSONA_IDS).slice(0, 2) as [string, string];
-  const players = [player(a, 0, { state: "submitted" }), player(b, 1, { state: "submitted" })];
-  const template = MEME_TEMPLATES[variant % MEME_TEMPLATES.length]!;
-  const bank = BOT_CAPTIONS[template.id] ?? [];
-  const settings: MatchRow["settings"] = { templateId: template.id };
-  players.forEach((p, seat) => {
-    const captions = bank[(variant + seat) % Math.max(1, bank.length)] ?? {};
-    const entry = {
-      templateId: template.id,
-      captions,
-      stickers: [
-        { emoji: rng.pick(STICKERS), x: rng.float(0.15, 0.85), y: rng.float(0.25, 0.75), scale: rng.float(0.8, 1.3), rotate: rng.float(-20, 20) },
-      ],
-    };
-    p.submission = {
-      data: entry,
-      display: { kind: "svg", svg: renderMemeSvg(entry), alt: `Meme: ${Object.values(captions).join(" / ")}` },
-    };
-  });
-
-  const votesNeeded = 5;
-  const va = voting ? rng.int(0, 3) : votesNeeded;
-  const vb = voting ? rng.int(0, 3) : rng.int(1, 4);
-  const match: MatchRow = {
-    id: `seed-${randomIdFrom(rng)}`,
-    appSlug: "meme-duel",
-    mode: "async",
-    status: voting ? "voting" : "completed",
-    scoring: "votes",
-    seed: randomIdFrom(rng),
-    createdBy: a,
-    createdAt: iso(agoMs + 3_600_000),
-    updatedAt: iso(agoMs),
-    startedAt: iso(agoMs + 3_500_000),
-    endedAt: voting ? null : iso(agoMs),
-    winnerId: null,
-    isOpen: false,
-    settings,
-    votes: { [a]: va, [b]: vb },
-    votesNeeded,
-    votingEndsAt: voting ? new Date(Date.now() + 36 * 3_600_000).toISOString() : null,
-    simulatedVotes: false,
-    ...MATCH_V2_DEFAULTS,
-    players,
-  };
-  const voters = PERSONA_IDS.filter((id) => id !== a && id !== b);
-  rng
-    .shuffle(voters)
-    .slice(0, Math.min(voters.length, va + vb))
-    .forEach((voterId, n) => db.votes.push({ matchId: match.id, voterId, choiceId: n < va ? a : b, at: iso(agoMs - n * 60_000) }));
-  if (!voting) applySettlement(db, match);
-  db.matches[match.id] = match;
-  return match;
-}
 
 function randomIdFrom(rng: ReturnType<typeof createRandom>): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";

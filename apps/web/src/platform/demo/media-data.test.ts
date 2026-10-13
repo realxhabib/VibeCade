@@ -78,7 +78,7 @@ describe("manifest stats & achievements", () => {
     const app = await backend.getApp("progress");
     expect(app?.stats).toEqual(STATS);
     expect(app?.achievements).toEqual(ACHIEVEMENTS);
-    expect((await backend.getApp("meme-duel"))?.stats).toEqual([]);
+    expect((await backend.getApp("rps-showdown"))?.stats).toEqual([]);
   });
 
   it("rejects invalid definitions like the database", async () => {

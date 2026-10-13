@@ -231,11 +231,7 @@ function DuelLobby({
           text={
             invited
               ? `@${invited.profile.handle} I challenged you to ${app.name} on XApps ⚡ Accept if you dare:`
-              : typeof match.settings.topic === "string"
-                ? `Caption battle on XApps ${app.icon} Topic: "${match.settings.topic}". Think you're funnier than me?`
-                : match.settings.drop
-                  ? `I dropped a meme on XApps ${app.icon} Caption it better than me:`
-                  : `I challenge anyone to ${app.name} on XApps ${app.icon} Think you can beat me?`
+              : `I challenge anyone to ${app.name} on XApps ${app.icon} Think you can beat me?`
           }
         />
       )}

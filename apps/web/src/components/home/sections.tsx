@@ -93,7 +93,7 @@ export function FeaturedApps() {
   // Two big cards (skipping featured apps this deployment doesn't list yet), then a row of favorites.
   const big = apps ? [...FEATURED_APPS, ...FEATURED_FALLBACK].filter((slug) => byslug(slug)).slice(0, 2) : FEATURED_APPS;
   // Favorites fill whole rows next to "Your app here": five (two rows) or two (one).
-  const favorites = ["meme-duel", "quick-draw", "four-in-a-row", "gregs-face", "perfect-circle"].filter((slug) => !big.includes(slug));
+  const favorites = ["starship-flap", "quick-draw", "four-in-a-row", "gregs-face", "perfect-circle"].filter((slug) => !big.includes(slug));
   const rest = favorites.slice(0, favorites.length >= 5 ? 5 : 2);
   const layout: { slug: string; className: string; size?: "lg" }[] = [
     ...big.map((slug) => ({ slug, className: "md:col-span-3", size: "lg" as const })),
@@ -165,7 +165,7 @@ export function ArenaTeaser() {
               Who did it better?
             </h2>
             <p className="mt-4 max-w-md text-ink-300">
-              Meme duels and every other crowd-judged contest are decided by you. Every vote earns XP, and every verdict
+              Crowd-judged contests are decided by you. Every vote earns XP, and every verdict
               lands on someone&apos;s timeline.
             </p>
             <div className="mt-6 flex items-center gap-3">

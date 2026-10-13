@@ -166,7 +166,7 @@ export function AppSetupFrame({
       return null;
     },
     "storage.list": ({ prefix, scope }) => backend.storageList(app.slug, prefix, scope ?? "user").catch(rethrow),
-    // Setup screens upload drops (e.g. Meme Duel's image) before the match exists.
+    // Setup screens upload drops (e.g. an image to play on) before the match exists.
     "media.upload": async ({ file }) => {
       try {
         return await backend.uploadMedia(app.slug, file);

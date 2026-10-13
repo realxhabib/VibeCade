@@ -161,8 +161,8 @@ export function Arena() {
                 >
                   Check again
                 </Button>
-                <Button href="/apps/meme-duel" variant="accent">
-                  Start a meme duel
+                <Button href="/apps" variant="accent">
+                  Browse apps
                 </Button>
               </div>
             }
