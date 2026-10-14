@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowUpRight, AtSign, Bot, Clock, Megaphone, Users, X, Zap } from "lucide-react";
+import { ArrowLeft, AtSign, Bot, Clock, Megaphone, Users, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -20,7 +20,7 @@ import { useCardApp } from "./card-catalog";
 
 /** Games people can challenge each other to from the card (apps with a setup screen show it in the card first). */
 export function challengeableInPost(app: AppManifest): boolean {
-  return playsInPost(app) && app.modes.some((mode) => mode === "live" || mode === "async");
+  return (app.kind ?? "game") === "game" && app.modes.some((mode) => mode === "live" || mode === "async");
 }
 
 function errorText(error: unknown, fallback: string): string {
@@ -51,7 +51,8 @@ export function XPlayerAppBySlug({ slug }: { slug: string }) {
  * `/x/play/<slug>`: one app inside the post. Anyone can play the bots (guests
  * on this device). Signed in through the card's popup, people also quick-match,
  * post an open challenge (its link is a playable post) or challenge an @handle,
- * all without leaving the post. Standalone apps open in the post as well.
+ * all without leaving the post. Games without bots are played against people
+ * once signed in, and standalone apps open in the post as well.
  */
 export function XPlayerApp({ app }: { app: AppManifest }) {
   const router = useRouter();
@@ -113,7 +114,7 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
           <span className="flex items-center gap-1 rounded-full glass px-2.5 py-1">
             <Clock className="size-3.5" /> {app.durationLabel}
           </span>
-          {inPost && (
+          {app.kind !== "app" && (
             <span className="flex items-center gap-1 rounded-full glass px-2.5 py-1">
               <Users className="size-3.5" /> {players}
             </span>
@@ -135,10 +136,6 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
       <div className={`flex flex-col gap-2 pt-3 ${mounted ? "" : "invisible"}`}>
         {app.kind === "app" ? (
           <Button size="lg" variant="accent" href={xAppPlayerPath(app.slug)}>
-            Open {app.name}
-          </Button>
-        ) : !inPost ? (
-          <Button size="lg" variant="accent" href={`/apps/${app.slug}`} target="_blank" rel="noopener" iconRight={<ArrowUpRight className="size-4" />}>
             Open {app.name}
           </Button>
         ) : canChallenge && forReal ? (
@@ -182,34 +179,29 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
                 </Button>
               </form>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className={`grid gap-2 ${inPost ? "grid-cols-3" : "grid-cols-2"}`}>
                 <Button size="md" variant="glass" icon={<Zap className="size-4" />} loading={quick.isPending} disabled={busy} onClick={() => void go(() => quick.mutateAsync(app.slug), "Couldn't find a match")}>
                   Quick match
                 </Button>
                 <Button size="md" variant="glass" icon={<AtSign className="size-4" />} disabled={busy} onClick={() => setHandleOpen(true)}>
                   Friend
                 </Button>
-                <Button size="md" variant="glass" icon={<Bot className="size-4" />} loading={practice.isPending} disabled={busy} onClick={() => void go(() => practice.mutateAsync(app.slug), "Couldn't start the game")}>
-                  Bots
-                </Button>
+                {inPost && (
+                  <Button size="md" variant="glass" icon={<Bot className="size-4" />} loading={practice.isPending} disabled={busy} onClick={() => void go(() => practice.mutateAsync(app.slug), "Couldn't start the game")}>
+                    Bots
+                  </Button>
+                )}
               </div>
             )}
           </>
         ) : (
           <>
-            <Button size="lg" variant="accent" icon={<Bot className="size-5" />} loading={practice.isPending} onClick={() => void go(() => practice.mutateAsync(app.slug), "Couldn't start the game")}>
-              Play vs bots
-            </Button>
-            {canChallenge ? (
-              <XSignInButton label="Sign in with X to challenge people" />
-            ) : (
-              mounted &&
-              app.modes.some((m) => m !== "practice") && (
-                <Button size="md" variant="glass" href={`/apps/${app.slug}`} target="_blank" rel="noopener" iconRight={<ArrowUpRight className="size-4" />}>
-                  Challenge someone on VibeCade
-                </Button>
-              )
+            {inPost && (
+              <Button size="lg" variant="accent" icon={<Bot className="size-5" />} loading={practice.isPending} onClick={() => void go(() => practice.mutateAsync(app.slug), "Couldn't start the game")}>
+                Play vs bots
+              </Button>
             )}
+            {canChallenge && <XSignInButton size={inPost ? "md" : "lg"} label="Sign in with X to challenge people" />}
           </>
         )}
       </div>

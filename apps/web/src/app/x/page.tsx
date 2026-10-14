@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 /**
  * The link to paste into a post: X reads the player card and plays the whole
- * XApps hub (`/x/play`) inside the post. People who open the link go to the site.
+ * VibeCade hub (`/x/play`) inside the post. People who open the link (the X phone apps do) get the same player, full screen.
  */
 export default async function XSharePage() {
   const origin = requestOrigin(await headers());
@@ -34,7 +34,7 @@ export default async function XSharePage() {
           site: xSiteHandle(),
         }}
       />
-      <ShareLanding to="/" />
+      <ShareLanding to={xPlayerPath()} />
     </>
   );
 }

@@ -7,8 +7,8 @@ test("the share link describes a player card", async ({ page, request }) => {
   const response = await request.get("/x/four-in-a-row");
   expect(response.headers()["content-security-policy"]).toBe("frame-ancestors 'self'");
   await page.goto("/x/four-in-a-row");
-  // People who open the link go on to the app's page.
-  await expect(page).toHaveURL(/\/apps\/four-in-a-row$/);
+  // People who open the link get the same player, full screen.
+  await expect(page).toHaveURL(/\/x\/play\/four-in-a-row$/);
 
   const html = await response.text();
   const meta = (name: string) => html.match(new RegExp(`<meta (?:name|property)="${name}" content="([^"]*)"`))?.[1];

@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: { absolute: TITLE }, description: DES
 /**
  * A posted challenge (the lobby's "Post the challenge on X" link from inside a
  * playable post): X frames the match itself, so whoever sees it can sign in and
- * take the seat in the post. People who open the link go to the match on the site.
+ * take the seat in the post. People who open the link (the X phone apps do) get the same player, full screen.
  */
 export default async function XMatchSharePage({ params }: PageProps<"/x/m/[matchId]">) {
   const { matchId } = await params;
@@ -30,7 +30,7 @@ export default async function XMatchSharePage({ params }: PageProps<"/x/m/[match
           site: xSiteHandle(),
         }}
       />
-      <ShareLanding to={`/play/${encodeURIComponent(matchId)}`} />
+      <ShareLanding to={xMatchPlayerPath(matchId)} />
     </>
   );
 }

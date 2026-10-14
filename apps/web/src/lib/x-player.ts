@@ -22,9 +22,12 @@ export function playsInPost(app: Pick<AppManifest, "kind" | "modes">): boolean {
   return (app.kind ?? "game") === "game" && app.modes.includes("practice");
 }
 
-/** Standalone apps (`kind: "app"`) run in the post too, once signed in: `xAppPlayerPath`. */
+/**
+ * Everything opens in the post: games with practice for anyone, games played
+ * only against people once signed in, and standalone apps (`xAppPlayerPath`).
+ */
 export function opensInPost(app: Pick<AppManifest, "kind" | "modes">): boolean {
-  return playsInPost(app) || app.kind === "app";
+  return playsInPost(app) || app.kind === "app" || app.modes.some((mode) => mode === "live" || mode === "async");
 }
 
 /** The player's page that runs a standalone app inside the post. */
