@@ -1,4 +1,4 @@
-// create-vibecade: scaffolds an VibeCade app from the templates shipped in this
+// create-vibecade: scaffolds a VibeCade app from the templates shipped in this
 // package. Zero dependencies; everything here runs offline.
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";

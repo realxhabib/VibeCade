@@ -1,4 +1,4 @@
-# XApps — notes for coding agents
+# VibeCade (formerly XApps) — notes for coding agents
 
 Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind v4, `motion/react`),
 `packages/sdk` (`vibecade-sdk`), `supabase/` (migrations + SQL tests), `examples/rps`.

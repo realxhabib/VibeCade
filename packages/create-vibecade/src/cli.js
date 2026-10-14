@@ -8,7 +8,7 @@ import { DEFAULT_TEMPLATE, TEMPLATES, isEmptyDir, scaffold, titleFromSlug, valid
 const HELP = `
 Usage: npx create-vibecade <project-name> [options]
 
-Scaffolds an VibeCade app: a ready project using vibecade-sdk, an
+Scaffolds a VibeCade app: a ready project using vibecade-sdk, an
 xapps.manifest.json and a README with the path to launch.
 
 Options:
