@@ -77,18 +77,20 @@ export const OFFICIAL_APPS: AppManifest[] = [
   },
   {
     slug: "starship-flap",
+    kind: "app",
     name: "Starship Flap",
     tagline: "Tap to thrust. Thread the towers. Don't explode.",
     description:
-      "Flappy flying with a stainless-steel rocket. Every tap fires the engines; gravity does the rest. You and your opponent fly the exact same course of launch towers, and the gaps get tighter and the ship faster the further you go. Touch anything and it's a rapid unscheduled disassembly. Most towers cleared wins. Live, you see your rival's ship as a ghost.",
+      "Flappy flying with a stainless-steel rocket. Every tap fires the engines; gravity does the rest. Thread the launch towers: the gaps get tighter and the ship faster the further you go, and a fresh course rolls out every flight. Touch anything and it's a rapid unscheduled disassembly. Fly as often as you like: your best run goes on the worldwide leaderboard, and you see where you stand after every crash.",
     category: "games",
     icon: "🚀",
     accent: ["#ff7a2b", "#7a5cff"],
     url: "/embed/starship-flap",
-    modes: ["live", "async", "practice"],
+    // A standalone app: no matches. These are the harmless defaults the manifest still carries.
+    modes: ["live"],
     players: { min: 2, max: 2 },
     teams: 0,
-    spectators: true,
+    spectators: false,
     setup: false,
     turnBased: false,
     scoring: "high",
@@ -96,7 +98,7 @@ export const OFFICIAL_APPS: AppManifest[] = [
     howTo: [
       "Tap (or press Space) to fire the engines. Let go and you fall.",
       "Fly through the gaps between the launch towers. Touch a tower, the sky or the sea and you explode.",
-      "You both fly the same course. Most towers cleared wins.",
+      "Fly again as often as you like. Your best run is ranked on the worldwide leaderboard.",
     ],
     official: true,
     developer: OFFICIAL_DEV,

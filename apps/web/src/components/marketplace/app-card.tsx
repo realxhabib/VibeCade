@@ -1,6 +1,6 @@
 "use client";
 
-import { AppWindow, ArrowUpRight, Clock3, Users } from "lucide-react";
+import { AppWindow, ArrowUpRight, Clock3, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { TiltCard } from "@/components/motion/tilt-card";
 import { Badge } from "@/components/ui/badge";
@@ -79,9 +79,16 @@ export function AppCard({
                   </Badge>
                 )}
                 {app.kind === "app" ? (
-                  <span className="flex items-center gap-1">
-                    <AppWindow className="size-3.5" /> App
-                  </span>
+                  app.category === "games" ? (
+                    // A solo game: starts right away, no matchmaking.
+                    <span className="flex items-center gap-1 font-semibold text-[#ffd25a]">
+                      <Zap className="size-3.5" /> Solo · play now
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <AppWindow className="size-3.5" /> App
+                    </span>
+                  )
                 ) : (
                   <>
                     <span className="flex items-center gap-1">

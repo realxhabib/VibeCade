@@ -272,6 +272,16 @@ export function buildSeed(): DemoDb {
     if (perfect > 0) db.userStats[`gregs-face:${id}:perfect_parts`] = { value: perfect, updatedAt: at };
   }
 
+  // 4) Starship Flap (a standalone app too): personas' best flights, so its worldwide board isn't empty.
+  for (const [i, id] of ids.entries()) {
+    const at = iso(rng.int(1, 120) * 3_600_000);
+    const flights = rng.int(3, 180);
+    const best = Math.max(1, 46 - i * 3 - rng.int(0, 3));
+    db.userStats[`starship-flap:${id}:best_gates`] = { value: best, updatedAt: at };
+    db.userStats[`starship-flap:${id}:flights`] = { value: flights, updatedAt: at };
+    db.userStats[`starship-flap:${id}:total_gates`] = { value: best * rng.int(2, 9), updatedAt: at };
+  }
+
   return db;
 }
 

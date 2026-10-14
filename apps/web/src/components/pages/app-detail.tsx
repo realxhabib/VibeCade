@@ -135,9 +135,15 @@ export function AppDetail({ slug }: { slug: string }) {
               transition={{ delay: 0.25 }}
             >
               {standalone ? (
-                <span className="flex items-center gap-1.5">
-                  <AppWindow className="size-4" /> App · opens right here
-                </span>
+                app.category === "games" ? (
+                  <span className="flex items-center gap-1.5 font-semibold text-[#ffd25a]">
+                    <Zap className="size-4" /> Solo · play now, no waiting
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <AppWindow className="size-4" /> App · opens right here
+                  </span>
+                )
               ) : (
                 <>
                   <span className="flex items-center gap-1.5">
