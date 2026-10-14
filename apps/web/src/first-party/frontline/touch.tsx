@@ -12,7 +12,7 @@
  */
 
 import { useGestureLock } from "@xapps/sdk/react";
-import { ArrowUpFromLine, Bomb, ChevronsDown, Crosshair, Scan } from "lucide-react";
+import { ArrowUpFromLine, Bomb, ChevronsDown, Crosshair } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Engine } from "./engine";
@@ -191,7 +191,7 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
         {/* Only with the sniper: scope in to look around without shooting. */}
         {sniper ? (
           <Btn
-            label={scopedIn ? "Lower scope" : "Scope in"}
+            label={scopedIn ? "Aim: on (tap to lower the scope)" : "Aim: scope in"}
             size="sm"
             on={scopedIn}
             {...tap(() => {
@@ -199,7 +199,7 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
               setScoped(!scopedIn);
             })}
           >
-            <Scan className="size-5" />
+            <span className="text-[11px] font-black uppercase tracking-wider">Aim</span>
           </Btn>
         ) : (
           <div />

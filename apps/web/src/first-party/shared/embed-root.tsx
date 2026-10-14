@@ -81,7 +81,8 @@ export function EmbedRoot({
 
 export function EmbedBackdrop({ accent }: { accent: [string, string] }) {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-ink-950">
+    // Clipped here: the glows reach past the edges and would otherwise make a short (scrollable) root scroll sideways.
+    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-ink-950">
       <div
         className="absolute -left-1/4 -top-1/3 size-[80vmax] rounded-full opacity-25"
         style={{ background: `radial-gradient(circle, ${accent[0]}, transparent 70%)` }}
