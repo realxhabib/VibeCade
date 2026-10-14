@@ -35,6 +35,14 @@ export function xAppPlayerPath(slug: string): string {
   return `/x/play/${slug}/open`;
 }
 
+/** The card's own inbox and profile (signed in). */
+export function xChallengesPath(): string {
+  return "/x/play/challenges";
+}
+export function xProfilePath(): string {
+  return "/x/play/me";
+}
+
 /** The link to paste into a post. */
 export function xSharePath(slug?: string): string {
   return slug ? `/x/${slug}` : "/x";

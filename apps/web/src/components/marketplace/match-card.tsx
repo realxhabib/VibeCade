@@ -4,6 +4,7 @@ import { animate, motion, useMotionValue, useTransform, type PanInfo } from "mot
 import { Check, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useHostRoutes } from "@/components/play/host-routes";
 import { TestBuildBadge } from "@/components/play/test-build-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +95,7 @@ export function MatchCard({
   /** Describe the match from this player's side, in third person (profile pages). */
   subject?: { id: string; handle: string };
 }) {
+  const routes = useHostRoutes();
   const app = appForSlug(match.appSlug, apps);
   const swipeable = !!onAccept && !!onDecline;
   const x = useMotionValue(0);
@@ -138,7 +140,7 @@ export function MatchCard({
   if (!swipeable) {
     return (
       <Link
-        href={`/play/${match.id}`}
+        href={routes.match(match.id)}
         className="group block rounded-3xl border border-white/[0.07] bg-ink-850/70 transition hover:border-white/15 hover:bg-ink-800/80"
       >
         {content}
@@ -162,7 +164,7 @@ export function MatchCard({
         style={{ x, rotate }}
         className="relative cursor-grab rounded-3xl border border-volt/25 bg-ink-850 active:cursor-grabbing"
       >
-        <Link href={`/play/${match.id}`} draggable={false} className="block" onClick={(e) => Math.abs(x.get()) > 5 && e.preventDefault()}>
+        <Link href={routes.match(match.id)} draggable={false} className="block" onClick={(e) => Math.abs(x.get()) > 5 && e.preventDefault()}>
           {content}
         </Link>
         <div className="flex gap-2 px-3.5 pb-3.5">
@@ -189,6 +191,7 @@ export function MatchCard({
 
 /** "⚡ @maya beat @leo in Reflexes" pill for tickers. */
 export function ActivityPill({ match, apps }: { match: Match; apps?: AppManifest[] }) {
+  const routes = useHostRoutes();
   const app = appForSlug(match.appSlug, apps);
   const seated = seatedPlayers(match);
   const winner = match.players.find((p) => p.userId === match.winnerId);
@@ -237,7 +240,7 @@ export function ActivityPill({ match, apps }: { match: Match; apps?: AppManifest
   }
   return (
     <Link
-      href={match.status === "voting" ? "/arena" : match.status === "active" ? `/play/${match.id}` : `/apps/${match.appSlug}`}
+      href={match.status === "voting" ? routes.arena : match.status === "active" ? routes.match(match.id) : routes.app(match.appSlug)}
       className="flex h-11 min-w-0 max-w-full shrink-0 items-center gap-2.5 rounded-full border border-white/[0.07] bg-ink-850/80 py-1 pl-1.5 pr-4 text-sm text-ink-200 transition hover:border-white/20 hover:text-ink-50"
     >
       {app && <AppGlyph app={app} size={30} />}
