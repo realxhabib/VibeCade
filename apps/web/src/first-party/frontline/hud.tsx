@@ -11,7 +11,7 @@
  */
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeftRight, Bomb, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeftRight, Bomb, Package, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { isSoundEnabled, onSoundChange, setSoundEnabled } from "@/lib/sfx";
@@ -320,6 +320,13 @@ function CalloutText({ c }: { c: Callout }) {
     return (
       <span className="inline-flex items-center gap-1.5">
         <Radar className="size-4" /> Radar sweep online
+      </span>
+    );
+  if (c.kind === "ammo")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[#ffd25a]">
+        <Package className="size-4" /> {c.rounds > 0 ? `+${c.rounds} ammo` : "Ammo full"}
+        {c.nades > 0 && " · +1 grenade"}
       </span>
     );
   if (c.kind === "first_blood") return <span className="text-[#ff6a5a]">First blood</span>;

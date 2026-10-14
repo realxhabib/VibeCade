@@ -42,6 +42,7 @@ import { Input } from "./input";
 import { lineOfSight, raycastMap, rayPlayer, viewDir, type Vec3 } from "./physics";
 import { FrameGovernor, TIERS, type Tier } from "./quality";
 import type { Settings } from "./settings";
+import { AmmoFx } from "./ammofx";
 import { NadeFx } from "./nadefx";
 import { fireTexture, flashTexture, holeTexture, scorchTexture, smokeTexture, softDot, streakTexture } from "./textures";
 import { Vfx } from "./vfx";
@@ -66,6 +67,7 @@ export interface Overlay {
 export type Callout =
   | { kind: "kill"; name: string; headshot: boolean; streak: number }
   | { kind: "radar" }
+  | { kind: "ammo"; rounds: number; nades: number }
   | { kind: "first_blood" }
   | { kind: "spawn" };
 
@@ -116,6 +118,7 @@ export class Engine {
   flashAmount = 0;
   private readonly vm: ViewModel;
   private readonly nadeFx: NadeFx;
+  private readonly ammoFx: AmmoFx;
   private readonly vfx: Vfx;
   private readonly textures: Texture[];
   private readonly governor: FrameGovernor;
@@ -223,6 +226,7 @@ export class Engine {
     if (t.ambience) this.vfx.setAmbient(map.plumes, map.fires);
     this.vfx.onDistant = () => this.audio.distant();
     this.nadeFx = new NadeFx(this.scene);
+    this.ammoFx = new AmmoFx(this.scene);
     this.game.fx = this.fx;
     this.input.attach(o.host);
     // Desktop spectators lock the mouse to look around in free camera.
@@ -689,6 +693,8 @@ export class Engine {
     const me = g.me;
     const aiming = !!me && me.alive && me.nadeHeld && me.nades > 0 && g.phase === "live";
     this.nadeFx.update(g, now, aiming && me ? g.previewNade(me) : null, (x, z) => this.audio.clink(x, z));
+    // Your kills' ammo drops (only yours: only you can take them).
+    this.ammoFx.update(g, now, me && !this.spectating() ? me.seat : null);
   }
 
   private readonly fx: GameFx = {
@@ -813,6 +819,12 @@ export class Engine {
     },
     dry: (s: Soldier) => {
       if (s.isMe) this.audio.dry();
+    },
+    pickup: (s: Soldier, got: { rounds: number; nades: number }) => {
+      if (!s.isMe || this.spectating()) return;
+      this.audio.swap();
+      this.call({ kind: "ammo", ...got });
+      this.opts.haptic("light");
     },
     streak: (kind) => {
       if (kind === "radar") {
@@ -1027,6 +1039,7 @@ export class Engine {
     this.audio.dispose();
     this.vfx.dispose();
     this.nadeFx.dispose();
+    this.ammoFx.dispose();
     this.vm.dispose();
     this.world.dispose();
     this.kit.dispose();
