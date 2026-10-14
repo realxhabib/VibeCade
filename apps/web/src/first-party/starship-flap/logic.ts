@@ -276,7 +276,7 @@ export function flightStats(score: number): { best_gates: number; flights: numbe
   return { best_gates: score, flights: 1, total_gates: score };
 }
 
-/** "12 gates" / "1 gate". */
+/** "12 towers" / "1 tower" (what the game calls its gates). */
 export function gatesLabel(score: number): string {
-  return `${score} gate${score === 1 ? "" : "s"}`;
+  return `${score} tower${score === 1 ? "" : "s"}`;
 }

@@ -42,8 +42,9 @@ test("X may frame the player, which runs a guest practice match", async ({ page,
 test("standalone apps open inside the card, not a new tab", async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 480 });
   await page.goto("/x/play");
+  // Solo apps lead the list and open straight away: no matchmaking.
+  await expect(page.getByRole("heading", { name: /Play now · no waiting/i })).toBeVisible();
   await page.getByRole("link", { name: /Perfect Circle/ }).click();
-  await page.getByRole("link", { name: "Open Perfect Circle" }).click();
   await expect(page).toHaveURL(/\/x\/play\/perfect-circle\/open$/);
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     // A guest signs in through the card's popup first: apps get a real X identity.

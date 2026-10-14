@@ -273,6 +273,11 @@ export const RETIRED_STATUS = "rejected" as const satisfies AppStatus;
  */
 export const RETIRED_MATCH_STATUSES = ["open", "pending", "active"] as const;
 
+/** Catalog apps with no matches (kind "app"): their leftover lobbies and invites are cancelled too (say a game turned solo). */
+export function standaloneSlugs(apps: readonly AppManifest[] = OFFICIAL_APPS): string[] {
+  return apps.filter((app) => app.kind === "app").map((app) => app.slug);
+}
+
 export interface RetireStep {
   slug: string;
   /** `retire`: set the status; `retired`: already done (its matches are still swept). */

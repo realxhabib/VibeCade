@@ -121,6 +121,6 @@ describe("progress", () => {
     expect(earnedAchievements(0)).toEqual([]);
     expect(earnedAchievements(12)).toEqual(["liftoff", "orbit"]);
     expect(earnedAchievements(50)).toEqual(["liftoff", "orbit", "booster_catch", "mars"]);
-    expect([gatesLabel(1), gatesLabel(3)]).toEqual(["1 gate", "3 gates"]);
+    expect([gatesLabel(1), gatesLabel(3)]).toEqual(["1 tower", "3 towers"]);
   });
 });
