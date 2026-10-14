@@ -632,7 +632,8 @@ export class RaceRuntime {
     this.audio.music(track.def.theme);
     this.audio.setIntensity(false);
     if (!this.trial) {
-      this.xapps.ui.setStatus(`${this.settings.cup.name} · Race ${index + 1}/${this.raceCount} · ${track.def.name}`).catch(ignore);
+      const event = this.raceCount > 1 ? `${this.settings.cup.name} · Race ${index + 1}/${this.raceCount}` : this.settings.cup.name;
+      this.xapps.ui.setStatus(`${event} · ${track.def.name}`).catch(ignore);
     }
     this.pushScores();
     this.emit(true);
