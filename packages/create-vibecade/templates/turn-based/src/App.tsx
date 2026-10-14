@@ -26,7 +26,7 @@ const BOT_DELAY_MS = 700;
  * - Game over: every player submits 1 for a win, 0.5 for a draw, 0 for a loss.
  */
 export function App() {
-  const xapps = useVibeCade();
+  const vibecade = useVibeCade();
   const log = useLogger();
   const started = useMatchStarted();
   const result = useMatchResult();
@@ -52,8 +52,8 @@ export function App() {
   const submitted = useRef(false);
 
   useEffect(() => {
-    xapps.ready().catch((error: unknown) => log.error("ready failed", { error: String(error) }));
-  }, [xapps, log]);
+    vibecade.ready().catch((error: unknown) => log.error("ready failed", { error: String(error) }));
+  }, [vibecade, log]);
 
   /** Writes a move for `seat` (us, or the bot we drive), then passes the turn. */
   const move = async (cell: number, seat: Seat) => {
@@ -84,20 +84,20 @@ export function App() {
     const seat = seatOf(bot.id);
     if (seat === null) return;
     const timer = setTimeout(() => {
-      const cell = botMove(board, seat, xapps.random.fork(`bot:${board.cells.join(",")}`));
+      const cell = botMove(board, seat, vibecade.random.fork(`bot:${board.cells.join(",")}`));
       if (cell !== null) void move(cell, seat);
     }, BOT_DELAY_MS);
     return () => clearTimeout(timer);
     // `move`, `seatOf` and `turnAgrees` only read values listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, over, bot, board, turn.turn, xapps]);
+  }, [started, over, bot, board, turn.turn, vibecade]);
 
   // Host HUD status line.
   useEffect(() => {
     if (!started || isSpectator) return;
     const text = over ? "Game over" : myMove ? "Your turn" : `Waiting for @${mover?.handle ?? "…"}`;
-    xapps.ui.setStatus(text).catch(() => {});
-  }, [started, isSpectator, over, myMove, mover, xapps]);
+    vibecade.ui.setStatus(text).catch(() => {});
+  }, [started, isSpectator, over, myMove, mover, vibecade]);
 
   // Game over: submit once (and for the bot in practice).
   useEffect(() => {
@@ -111,14 +111,14 @@ export function App() {
     });
     if (mySeat !== null) {
       log.info("game over", { winner: board.winner });
-      xapps.submit({ score: scoreFor(mySeat), data: board, display: display(mySeat) }).catch((error: unknown) =>
+      vibecade.submit({ score: scoreFor(mySeat), data: board, display: display(mySeat) }).catch((error: unknown) =>
         log.error("submit failed", { error: String(error) }),
       );
     }
     for (const [seat, p] of players.slice(0, 2).entries()) {
-      if (p.isBot) xapps.submitFor(p.id, { score: scoreFor(seat as Seat) }).catch(() => {});
+      if (p.isBot) vibecade.submitFor(p.id, { score: scoreFor(seat as Seat) }).catch(() => {});
     }
-  }, [over, isSpectator, board, mySeat, players, xapps, log]);
+  }, [over, isSpectator, board, mySeat, players, vibecade, log]);
 
   const status = result
     ? result.winnerId === null
@@ -141,7 +141,7 @@ export function App() {
   return (
     <main className="app">
       <header>
-        <h1>{xapps.context.app.name}</h1>
+        <h1>{vibecade.context.app.name}</h1>
         <p className="players">
           {players.slice(0, 2).map((p, seat) => (
             <span key={p.id} className={toMove === seat && !over ? "active" : undefined}>

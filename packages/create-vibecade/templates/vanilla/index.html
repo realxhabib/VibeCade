@@ -9,7 +9,7 @@
     • ui.setScores / ui.setStatus       the host's HUD
     • log.info / log.error              your app's log (uncaught errors are captured automatically)
 
-  ⚠ Replace YOUR-XAPPS-HOST below with your VibeCade host (e.g. xapps.example.com).
+  ⚠ Replace vibecade.si below with your VibeCade host (vibecade.si, or your own VibeCade deployment).
     Every VibeCade host serves the SDK bundle at /sdk/v1.js. Opened directly
     (not inside VibeCade), the bundle starts a mock host: you vs a practice bot.
     Serve this folder over http(s) (e.g. `npx serve .`), not file://.
@@ -62,20 +62,20 @@
     </main>
 
     <script type="module">
-      import { connect } from "https://YOUR-XAPPS-HOST/sdk/v1.js";
+      import { connect } from "https://vibecade.si/sdk/v1.js";
 
       const DURATION_MS = 10_000;
       const $ = (id) => document.getElementById(id);
 
-      const xapps = await connect();
-      const me = xapps.me;
-      const bots = xapps.isSpectator ? [] : xapps.opponents.filter((p) => p.isBot);
-      const taps = Object.fromEntries(xapps.players.map((p) => [p.id, 0]));
+      const vibecade = await connect();
+      const me = vibecade.me;
+      const bots = vibecade.isSpectator ? [] : vibecade.opponents.filter((p) => p.isBot);
+      const taps = Object.fromEntries(vibecade.players.map((p) => [p.id, 0]));
       let endsAt = null;
       let submitted = false;
 
       // One lane per seated player.
-      for (const p of xapps.players) {
+      for (const p of vibecade.players) {
         const lane = document.createElement("div");
         lane.className = "lane";
         lane.innerHTML = `<div class="head"><span></span><strong id="count-${p.id}">0</strong></div><div class="bar"><div class="fill" id="fill-${p.id}"></div></div>`;
@@ -85,38 +85,38 @@
 
       const render = () => {
         const leader = Math.max(20, ...Object.values(taps));
-        for (const p of xapps.players) {
+        for (const p of vibecade.players) {
           $(`count-${p.id}`).textContent = String(taps[p.id]);
           $(`fill-${p.id}`).style.width = `${Math.min(100, (taps[p.id] / leader) * 100)}%`;
         }
-        xapps.ui.setScores({ ...taps }).catch(() => {});
+        vibecade.ui.setScores({ ...taps }).catch(() => {});
       };
       const status = (text) => {
         $("status").textContent = text;
-        xapps.ui.setStatus(text).catch(() => {});
+        vibecade.ui.setStatus(text).catch(() => {});
       };
 
       // Live taps from the other players.
-      xapps.room.on("taps", ({ count }, from) => {
+      vibecade.room.on("taps", ({ count }, from) => {
         if (typeof count !== "number" || !(from in taps)) return;
         taps[from] = Math.max(taps[from], count);
         render();
       });
 
       $("tap").addEventListener("pointerdown", () => {
-        if (endsAt === null || Date.now() >= endsAt || xapps.isSpectator) return;
+        if (endsAt === null || Date.now() >= endsAt || vibecade.isSpectator) return;
         taps[me.id] += 1;
         render();
-        xapps.room.send("taps", { count: taps[me.id] }).catch(() => {}); // > 30/s is rate limited; the next tap catches up
+        vibecade.room.send("taps", { count: taps[me.id] }).catch(() => {}); // > 30/s is rate limited; the next tap catches up
       });
 
-      xapps.onStart(() => {
+      vibecade.onStart(() => {
         endsAt = Date.now() + DURATION_MS;
-        $("tap").disabled = xapps.isSpectator;
-        status(xapps.isSpectator ? "Race on!" : "TAP! TAP! TAP!");
-        xapps.log.info("race started", { practice: bots.length > 0 });
+        $("tap").disabled = vibecade.isSpectator;
+        status(vibecade.isSpectator ? "Race on!" : "TAP! TAP! TAP!");
+        vibecade.log.info("race started", { practice: bots.length > 0 });
         // Practice bots, seeded so every client would agree.
-        const rngs = bots.map((b) => [b.id, xapps.random.fork(`bot:${b.id}`)]);
+        const rngs = bots.map((b) => [b.id, vibecade.random.fork(`bot:${b.id}`)]);
         const clock = setInterval(() => {
           const left = endsAt - Date.now();
           $("clock").textContent = `${Math.max(0, Math.ceil(left / 1000))}s`;
@@ -133,28 +133,28 @@
 
       async function finish() {
         $("tap").disabled = true;
-        if (xapps.isSpectator || submitted) return;
+        if (vibecade.isSpectator || submitted) return;
         submitted = true;
         status("Time! Waiting for the result…");
         try {
-          await xapps.submit({ score: taps[me.id], display: { kind: "text", title: "Tap race", body: `${taps[me.id]} taps in 10 s` } });
-          for (const b of bots) await xapps.submitFor(b.id, { score: taps[b.id] });
+          await vibecade.submit({ score: taps[me.id], display: { kind: "text", title: "Tap race", body: `${taps[me.id]} taps in 10 s` } });
+          for (const b of bots) await vibecade.submitFor(b.id, { score: taps[b.id] });
         } catch (error) {
-          xapps.log.error("submit failed", { error: String(error) });
+          vibecade.log.error("submit failed", { error: String(error) });
         }
       }
 
-      xapps.onEnd((result) => {
+      vibecade.onEnd((result) => {
         if (result.winnerId === null) status("It's a draw!");
         else if (result.winnerId === me.id) {
           status("You win! 🎉");
-          xapps.ui.celebrate("big").catch(() => {});
-        } else status(`@${xapps.player(result.winnerId)?.handle ?? "?"} wins`);
+          vibecade.ui.celebrate("big").catch(() => {});
+        } else status(`@${vibecade.player(result.winnerId)?.handle ?? "?"} wins`);
       });
 
       render();
-      status(xapps.isSpectator ? "Waiting for the race to start…" : "Get ready…");
-      await xapps.ready();
+      status(vibecade.isSpectator ? "Waiting for the race to start…" : "Get ready…");
+      await vibecade.ready();
     </script>
   </body>
 </html>

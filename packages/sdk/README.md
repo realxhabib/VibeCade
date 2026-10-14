@@ -1,5 +1,7 @@
 # vibecade-sdk
 
+> New to VibeCade? [Build your first game](https://github.com/realxhabib/VibeCade/blob/HEAD/docs/build-a-game.md) walks through it all: `npm create vibecade`, playing it locally, hosting, registering, review, and sharing it as a playable post on X.
+
 Build multiplayer apps for **VibeCade**, the social app marketplace on X: 1v1 duels, 2–8 player tables, team games, turn-based games that last days, and games with their own challenge setup. The SDK is a small bridge (~66 KB minified / ~22 KB gzipped including the standalone mock host and WebRTC mesh, zero dependencies) between your app, running in a sandboxed iframe, and the VibeCade host. The host gives your app:
 
 - **Identity**: every player is signed in with X (`handle`, `name`, `avatarUrl`).
@@ -563,7 +565,7 @@ Hosts (`vibecade-sdk/host`) receive entries through the `log` handler (alias `lo
 - **Standalone**: open your app directly (not in an iframe), and `connect()` starts a mock host where you play against a bot.
 - **Standalone, N players**: see [Testing multiplayer locally](#testing-multiplayer-locally) for more seats, teams, turns, spectating and setup mode.
 - **Sandbox**: `/developers/sandbox` on any VibeCade host runs two seats side by side with a protocol log.
-- **Framing**: your server must allow VibeCade to embed you, e.g. `Content-Security-Policy: frame-ancestors https://<xapps-host>`.
+- **Framing**: your server must allow VibeCade to embed you, and X too: a playable post on X frames VibeCade's player card, which frames your app, and `frame-ancestors` is checked against every one of them. Send no `frame-ancestors` (and no `X-Frame-Options`) at all, or list them all: `Content-Security-Policy: frame-ancestors https://vibecade.si https://x.com https://*.x.com https://twitter.com https://*.twitter.com`. See [Build your first game](https://github.com/realxhabib/VibeCade/blob/HEAD/docs/build-a-game.md).
 
 ## Trust model
 

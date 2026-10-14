@@ -31,19 +31,19 @@ How it works:
 | `src/main.tsx` | `<VibeCadeProvider>` connects to the host (or the mock, with turns on) |
 | `src/App.tsx` | Board, moves, the practice bot, submitting |
 | `src/game.ts` | Pure game rules (easy to unit test) |
-| `xapps.manifest.json` | Your listing and capabilities (`turnBased: true`, modes, players…) |
+| `vibecade.manifest.json` | Your listing and capabilities (`turnBased: true`, modes, players…) |
 
 ## Ship it
 
 1. **Deploy** `npm run build` (the `dist/` folder) to any HTTPS static host. Allow VibeCade to frame it,
-   e.g. `Content-Security-Policy: frame-ancestors https://<xapps-host>`.
-2. **Register** the app at `https://<xapps-host>/developers/new`. Copy the fields from
-   `xapps.manifest.json` and set the URL to your deployment. This creates version `1.0.0`.
-3. **Sandbox**: `https://<xapps-host>/developers/sandbox` plays both seats side by side with a live
+   e.g. `Content-Security-Policy: frame-ancestors https://vibecade.si https://x.com https://*.x.com https://twitter.com https://*.twitter.com` (VibeCade, and X, whose posts frame VibeCade's player card; or send no `frame-ancestors` at all).
+2. **Register** the app at `https://vibecade.si/developers/new`. Copy the fields from
+   `vibecade.manifest.json` and set the URL to your deployment. This creates version `1.0.0`.
+3. **Sandbox**: `https://vibecade.si/developers/sandbox` plays both seats side by side with a live
    protocol log. Invite **testers** from your app's console so they can play test builds.
 4. **Versions**: every change players should get is a new version on the Versions tab of
-   `https://<xapps-host>/developers/apps/{{slug}}`.
+   `https://vibecade.si/developers/apps/{{slug}}`.
 5. **Review**: submit the version; once approved, publish it.
 
 Your app's console also has **Analytics** and **Logs** (everything sent with `useLogger()` /
-`xapps.log.*`, plus uncaught errors).
+`vibecade.log.*`, plus uncaught errors).

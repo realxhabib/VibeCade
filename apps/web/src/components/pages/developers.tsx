@@ -3,6 +3,8 @@
 import { motion } from "motion/react";
 import {
   ArrowRight,
+  ArrowUpRight,
+  BookOpen,
   Boxes,
   KeyRound,
   ServerCog,
@@ -531,6 +533,21 @@ function TrustSection() {
   );
 }
 
+const GUIDE_URL = "https://github.com/realxhabib/VibeCade/blob/HEAD/docs/build-a-game.md";
+
+/** "Build your first game": the short version of docs/build-a-game.md. */
+const SHIP_STEPS: { title: string; body: string; code?: (origin: string) => string }[] = [
+  { title: "Create it", body: "A starter game with the SDK wired in; npm run dev plays it against a practice bot.", code: () => "npm create vibecade@latest my-game" },
+  {
+    title: "Host it",
+    body: "Any static host with https. Allow this site and X to frame it (posts on X frame the player card, which frames your game), or send no frame-ancestors at all:",
+    code: (origin) => `Content-Security-Policy: frame-ancestors ${origin || "https://vibecade.si"} https://x.com https://*.x.com https://twitter.com https://*.twitter.com`,
+  },
+  { title: "Test it", body: "Play both seats in the Sandbox until its log is clean." },
+  { title: "Register it", body: "Sign in with X and fill in your listing from vibecade.manifest.json. It's reviewed, then you publish it." },
+  { title: "Share it", body: "Post its link on X: people play it right inside the post, and challenge each other from there.", code: (origin) => `${origin || "https://vibecade.si"}/x/<your-game>` },
+];
+
 export function Developers() {
   const [tab, setTab] = useState<SnippetTab>("react");
   const origin = useOrigin();
@@ -566,7 +583,10 @@ export function Developers() {
           </div>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 30, rotate: 2 }} animate={{ opacity: 1, y: 0, rotate: 0 }} transition={{ delay: 0.1, ...spring.soft }}>
-          <CodeBlock filename="terminal" code={`npm install vibecade-sdk\n\n// or, no build step at all:\nimport { connect } from "${origin}/sdk/v1.js";`} />
+          <CodeBlock
+            filename="terminal"
+            code={`# a new game, ready to run\nnpm create vibecade@latest my-game\n\n# or add the SDK to your own app\nnpm install vibecade-sdk\n\n// or, no build step at all:\nimport { connect } from "${origin}/sdk/v1.js";`}
+          />
         </motion.div>
       </section>
 
@@ -750,15 +770,25 @@ export function Developers() {
         })}
       </section>
 
-      <section className={cn("mt-20 rounded-[2.5rem] border border-white/[0.08] bg-ink-850/80 p-8 sm:p-10")}>
-        <h2 className="font-display text-3xl font-extrabold tracking-tight">Ship it</h2>
-        <ol className="mt-4 space-y-2 text-ink-300">
-          <li>1. Host your app on https and allow VibeCade to frame it: <code className="font-mono text-sm text-ink-100">Content-Security-Policy: frame-ancestors &lt;xapps-origin&gt;</code></li>
-          <li>2. Test both seats in the Sandbox until the log is clean.</li>
-          <li>3. Register it — it&apos;s reviewed, then listed in the marketplace for everyone on X.</li>
+      <section id="first-game" className={cn("mt-20 rounded-[2.5rem] border border-white/[0.08] bg-ink-850/80 p-8 sm:p-10")}>
+        <h2 className="font-display text-3xl font-extrabold tracking-tight">Build your first game</h2>
+        <p className="mt-2 max-w-2xl text-ink-300">From an empty folder to a game people play inside a post on X.</p>
+        <ol className="mt-5 space-y-3 text-ink-300">
+          {SHIP_STEPS.map((step, i) => (
+            <li key={step.title} className="flex gap-3">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-ink-50">{i + 1}</span>
+              <span>
+                <span className="font-semibold text-ink-50">{step.title}.</span> {step.body}
+                {step.code && <code className="mt-1 block overflow-x-auto font-mono text-[13px] text-ink-100">{step.code(origin)}</code>}
+              </span>
+            </li>
+          ))}
         </ol>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button href="/developers/new" size="lg" variant="primary" icon={<Plus className="size-4" />}>
+          <Button href={GUIDE_URL} target="_blank" rel="noopener" size="lg" variant="primary" icon={<BookOpen className="size-4" />} iconRight={<ArrowUpRight className="size-4" />}>
+            Read the full guide
+          </Button>
+          <Button href="/developers/new" size="lg" variant="glass" icon={<Plus className="size-4" />}>
             Register an app
           </Button>
           <Button href="/developers/sandbox" size="lg" variant="glass" icon={<FlaskConical className="size-4" />}>
