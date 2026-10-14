@@ -84,6 +84,13 @@ export function tuningFor(stats: ShipStats): Tuning {
   };
 }
 
+/** Grip steering turns this much harder than `turn` (the rate drifts are measured in). */
+const GRIP_TURN = 1.4;
+/** How much grip steering fades from 15% to full speed (keep it small: fast corners need the bite). */
+const HIGH_SPEED_FADE = 0.12;
+/** Edge assist (the player's ship): seconds from the road's edge it starts easing the nose parallel, and its strongest yaw (rad/s). */
+const EDGE_ASSIST = { horizon: 0.75, yaw: 1.3 } as const;
+
 /** Drift charge needed for each mini-turbo tier (seconds of drifting, faster when steering into it). */
 export const DRIFT_TIERS = [0.75, 1.55, 2.5] as const;
 const TURBO_TIME = [0, 0.55, 1.0, 1.5] as const;
@@ -135,6 +142,8 @@ export class Ship {
   steerVis = 0;
   /** Last safe spot for tow-backs. */
   safeS = 0;
+  /** Ease the nose away from the road's edge when heading off it (human pilots; CPUs steer the line). */
+  edgeAssist = false;
   private fallDir = 0;
   events: PhysEvent[] = [];
   private readonly tmp = new Vector3();
@@ -328,9 +337,10 @@ export class Ship {
         }
       }
     } else {
-      const agility = speedFrac < 0.15 ? speedFrac / 0.15 : 1 - 0.28 * (speedFrac - 0.15);
-      yawRate = steer * this.tune.turn * agility * (this.speed < 0 ? -1 : 1);
-      if (this.airborne) yawRate *= 0.6;
+      const agility = speedFrac < 0.15 ? speedFrac / 0.15 : 1 - HIGH_SPEED_FADE * (speedFrac - 0.15);
+      yawRate = steer * this.tune.turn * GRIP_TURN * agility * (this.speed < 0 ? -1 : 1);
+      if (this.airborne) yawRate *= 0.75;
+      if (this.edgeAssist && this.state === "drive" && this.speed > 8) yawRate += this.edgeYaw(F, yawRate);
     }
     this.fwd.applyAxisAngle(F.up, -yawRate * dt);
 
@@ -350,7 +360,8 @@ export class Ship {
     if (this.driftDir !== 0) this.speed -= this.speed * 0.035 * dt;
 
     /* Grip: travel direction follows heading */
-    const grip = this.state === "spin" ? 1.2 : this.driftDir !== 0 ? 4.2 : this.airborne ? 1.5 : 9;
+    // Some grip in the air too, so a ship off a ramp onto a curving road can be steered onto it.
+    const grip = this.state === "spin" ? 1.2 : this.driftDir !== 0 ? 4.2 : this.airborne ? 5 : 13;
     const g = 1 - Math.exp(-grip * dt);
     const dirSign = this.speed < 0 ? -1 : 1;
     this.tmp.copy(this.fwd).multiplyScalar(dirSign);
@@ -475,6 +486,24 @@ export class Ship {
     this.lean += (targetLean - this.lean) * (1 - Math.exp(-8 * dt));
     this.steerVis += (steer - this.steerVis) * (1 - Math.exp(-10 * dt));
     this.updatePos();
+  }
+
+  /**
+   * Edge assist: when the travel direction will carry the ship off the road within a moment (on the ground or
+   * coming down off a ramp), ease the nose back toward parallel with it (never past). It fades in as the edge
+   * nears, so it only catches slides the pilot would otherwise ride into the rail; steering still corners.
+   */
+  private edgeYaw(F: Frame, yawRate: number): number {
+    const lat = this.vdir.dot(F.right);
+    const side = lat > 0 ? 1 : -1;
+    const closing = Math.abs(lat) * this.speed;
+    if (closing < 0.5) return 0;
+    const room = Math.max(0, F.halfWidth + 0.4 - this.d * side);
+    const urgency = Math.min(1, 1 - room / (closing * EDGE_ASSIST.horizon));
+    // How far the nose (after this step's steering) still points toward that edge.
+    const outward = this.headingError * side + yawRate * side * DT;
+    if (urgency <= 0 || outward <= 0) return 0;
+    return -side * Math.min(EDGE_ASSIST.yaw * urgency, (outward * 0.5) / DT);
   }
 
   private startFall(): void {

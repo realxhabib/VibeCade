@@ -493,6 +493,7 @@ export class RaceRuntime {
     this.racers.forEach((r, slot) => {
       const g = this.track.grid(slot);
       r.ship = new Ship(this.track, tuningFor(r.stats), g.s, g.d);
+      r.ship.edgeAssist = r.isMe;
       r.prevPos.copy(r.ship.pos);
     });
     this.snapshot = this.buildSnapshot();
@@ -589,6 +590,7 @@ export class RaceRuntime {
       tune.top *= this.scale.speed;
       tune.accel *= this.scale.accel;
       r.ship = new Ship(track, tune, g.s, g.d);
+      r.ship.edgeAssist = r.isMe;
       r.prevPos.copy(r.ship.pos);
       r.lap = -1;
       r.halfway = false;

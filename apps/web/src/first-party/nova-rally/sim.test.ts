@@ -147,3 +147,56 @@ describe("drifting into the rail", () => {
     });
   }
 });
+
+describe("a keyboard player keeps it on the road", () => {
+  for (const def of TRACKS) {
+    it(def.name, () => {
+      const track = compileTrack(def);
+      const ship = new Ship(track, tuningFor({ speed: 3, accel: 3, handling: 3, weight: 3 }), track.grid(0).s, 0);
+      ship.edgeAssist = true;
+      const f = newFrame();
+      const target = new Vector3();
+      const cross = new Vector3();
+      // Arrow keys only, no drifting, no braking: aim for the middle of the road ~0.5 s ahead, react 0.2 s late
+      // (allowing for how fast the aim is moving) and tap a key while it's off, smoothed like the real input.
+      const seen: number[] = [];
+      let key = 0;
+      let steer = 0;
+      let progress = 0;
+      let hits = 0;
+      let lastHit = -99;
+      let offroad = 0;
+      let falls = 0;
+      const frames = 120 * 60;
+      for (let i = 0; i < frames; i++) {
+        const look = 10 + Math.max(0, ship.speed) * 0.5;
+        trackPoint(track, ship.s + look, 0, 0, target, f);
+        target.sub(ship.pos);
+        const up = ship.frame.up;
+        target.addScaledVector(up, -target.dot(up));
+        seen.push(Math.atan2(-cross.crossVectors(ship.fwd, target).dot(up), ship.fwd.dot(target)));
+        const now = seen[Math.max(0, seen.length - 13)]!;
+        const before = seen[Math.max(0, seen.length - 19)]!;
+        const aim = now + ((now - before) / (6 * DT)) * 0.15;
+        key = key !== 0 ? (aim * key > 0.015 ? key : 0) : Math.abs(aim) > 0.06 ? Math.sign(aim) : 0;
+        steer += (key - steer) * Math.min(1, DT * (key === 0 ? 14 : 9));
+        const prev = ship.s;
+        ship.step({ steer, throttle: 1, brake: 0, drift: false });
+        for (const e of ship.events) {
+          if (e.type === "wall") {
+            if (i - lastHit > 20) hits++;
+            lastHit = i;
+          }
+          if (e.type === "fall") falls++;
+        }
+        if (ship.offroad) offroad++;
+        if (ship.state !== "tow" && ship.state !== "fall") progress += deltaS(prev, ship.s, track.length);
+      }
+      const laps = progress / track.length;
+      expect(laps).toBeGreaterThan(3);
+      expect(hits / laps, "rail hits per lap").toBeLessThanOrEqual(1.5);
+      expect(offroad / frames, "share of the race off the road").toBeLessThan(0.02);
+      expect(falls).toBe(0);
+    });
+  }
+});
