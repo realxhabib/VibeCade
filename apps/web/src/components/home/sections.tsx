@@ -254,7 +254,7 @@ export function HowItWorks() {
   );
 }
 
-const SNIPPET = `import { connect } from "@xapps/sdk";
+const SNIPPET = `import { connect } from "vibecade-sdk";
 
 const xapps = await connect();          // who's playing, the shared seed…
 xapps.room.on("move", (move, from) => apply(move));

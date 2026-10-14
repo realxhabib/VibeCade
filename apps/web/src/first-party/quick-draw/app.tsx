@@ -1,7 +1,7 @@
 "use client";
 
-import type { Json, PlayerInfo, XAppsClient } from "@xapps/sdk";
-import { useMatch, useMatchResult, useMatchStarted, useRoomEvent, useXApps } from "@xapps/sdk/react";
+import type { Json, PlayerInfo, VibeCadeClient } from "vibecade-sdk";
+import { useMatch, useMatchResult, useMatchStarted, useRoomEvent, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -47,7 +47,7 @@ const GHOST: PlayerInfo = {
   score: null,
 };
 
-type HapticStyle = Parameters<XAppsClient["ui"]["haptic"]>[0];
+type HapticStyle = Parameters<VibeCadeClient["ui"]["haptic"]>[0];
 
 function displayName(player: PlayerInfo): string {
   return player.name?.trim() || `@${player.handle}`;
@@ -65,7 +65,7 @@ function quietly(promise: Promise<unknown>): void {
 }
 
 async function submitDuel(
-  xapps: XAppsClient,
+  xapps: VibeCadeClient,
   botId: string | null,
   score: Score,
   outcomes: readonly RoundOutcome[],
@@ -88,7 +88,7 @@ async function submitDuel(
 }
 
 export function QuickDraw() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const result = useMatchResult();
   const match = useMatch();

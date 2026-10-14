@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { LIMITS, type Json } from "@xapps/sdk";
+import { LIMITS, type Json } from "vibecade-sdk";
 import { env, isSupabaseConfigured } from "@/lib/env";
 
 /**

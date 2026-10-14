@@ -269,7 +269,7 @@ export function mediaProblem(file: unknown, alt?: unknown): string | null {
  * Why `url` can't be used as media in an entry, or `null`. Accepts absolute
  * http(s) URLs, same-origin paths (`/api/demo-media/…`) and `blob:` URLs (the
  * mock host's uploads). Hosts decide which of those they actually accept
- * (XApps only takes its own media storage).
+ * (VibeCade only takes its own media storage).
  */
 export function mediaUrlProblem(url: unknown, label = "url"): string | null {
   if (typeof url !== "string" || !url || url.length > MEDIA_URL_LENGTH) return `${label} must be a URL`;

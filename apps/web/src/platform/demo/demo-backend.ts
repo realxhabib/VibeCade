@@ -1,7 +1,7 @@
 import { appImageKeyError, blobToDataUrl, type AppImageKind } from "@/lib/app-images";
-import { LIMITS, randomId } from "@xapps/sdk";
-import { byteLength } from "@xapps/sdk/protocol";
-import { isBlobLike } from "@xapps/sdk/host";
+import { LIMITS, randomId } from "vibecade-sdk";
+import { byteLength } from "vibecade-sdk/protocol";
+import { isBlobLike } from "vibecade-sdk/host";
 import { absoluteMediaUrl, displayProblem, mediaKindOf, mediaProblem, mediaQuotaProblem, postDemoMedia, probeMedia } from "@/lib/media";
 import { BackendError, type Backend, type DemoControls, type RoomTransport } from "../backend";
 import {

@@ -1,12 +1,12 @@
-# create-xapp
+# create-vibecade
 
-Scaffold an [XApps](https://github.com/realxhabib/XApps) app in seconds. No dependencies, and no
+Scaffold an [VibeCade](https://github.com/realxhabib/VibeCade) app in seconds. No dependencies, and no
 network needed to scaffold.
 
 ```bash
-npx create-xapp my-game                          # React + Vite + TypeScript (default)
-npx create-xapp my-board --template turn-based   # shared state + turns
-npx create-xapp my-page --template vanilla       # one HTML file, no build
+npx create-vibecade my-game                          # React + Vite + TypeScript (default)
+npx create-vibecade my-board --template turn-based   # shared state + turns
+npx create-vibecade my-page --template vanilla       # one HTML file, no build
 ```
 
 Then:
@@ -21,9 +21,9 @@ npm run dev        # opens standalone with the SDK's mock host: you vs a practic
 
 | Template | What you get |
 | --- | --- |
-| `react` | Vite + React + TypeScript with `@xapps/sdk`: a 1v1 tap race using room messages, `submit`, and a practice bot via `submitFor` |
+| `react` | Vite + React + TypeScript with `vibecade-sdk`: a 1v1 tap race using room messages, `submit`, and a practice bot via `submitFor` |
 | `turn-based` | The React setup with tic-tac-toe on the shared match state (`state.update` + `turn.end`), read-only spectators and a practice bot |
-| `vanilla` | A single `index.html` importing the SDK bundle from your XApps host (`https://YOUR-XAPPS-HOST/sdk/v1.js`) |
+| `vanilla` | A single `index.html` importing the SDK bundle from your VibeCade host (`https://YOUR-XAPPS-HOST/sdk/v1.js`) |
 
 Every template includes an `xapps.manifest.json` (your listing and capabilities: name, tagline,
 category, icon, accent, modes, players, teams, spectators, turnBased, scoring, how-to…) and a
@@ -46,7 +46,7 @@ must be a valid npm package name, and the target folder must be empty or not exi
 ## Programmatic use
 
 ```js
-import { scaffold } from "create-xapp";
+import { scaffold } from "create-vibecade";
 
 scaffold({ targetDir: "./my-game", template: "turn-based", name: "My Game" });
 ```

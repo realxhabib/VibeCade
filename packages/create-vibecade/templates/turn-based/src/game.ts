@@ -1,4 +1,4 @@
-import type { Random } from "@xapps/sdk";
+import type { Random } from "vibecade-sdk";
 
 /** A cell holds the seat (0 = X, 1 = O) that marked it, or null. */
 export type Cell = 0 | 1 | null;

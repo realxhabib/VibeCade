@@ -29,7 +29,7 @@
  *    shows 100.0%. A 2% average wobble scores about 96%; 98.0% ("perfect")
  *    needs the stroke within 1% of the radius on average.
  */
-import type { StatLeaderEntry, StatStanding } from "@xapps/sdk";
+import type { StatLeaderEntry, StatStanding } from "vibecade-sdk";
 
 /* ------------------------------------------------------------------ */
 /* Tuning                                                             */

@@ -1,5 +1,5 @@
 import { fakeLocalStorage, fakeSessionStorage, resetFakeBrowser } from "./fake-browser";
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BackendError } from "../backend";
 import type { AchievementDef, Profile, RegisterAppInput, StatDef } from "../types";

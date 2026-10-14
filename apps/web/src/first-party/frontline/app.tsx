@@ -7,7 +7,7 @@
  * so three.js never touches the marketplace bundles.
  */
 
-import { useMatchStarted, usePlayers, useXApps } from "@xapps/sdk/react";
+import { useMatchStarted, usePlayers, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion } from "motion/react";
 import { Crosshair, Map as MapIcon, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -35,7 +35,7 @@ export function modeLabel(teams: number, seats: number): string {
 }
 
 export function FrontlineApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const { players, me, isSpectator } = usePlayers();
   const [settings, setSettings] = useState<Settings>(() => loadLocal());

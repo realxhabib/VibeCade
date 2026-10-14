@@ -1,7 +1,7 @@
 "use client";
 
-import type { Json, PlayerInfo } from "@xapps/sdk";
-import { useGestureLock, useMatchResult, useMatchStarted, useRoomEvent, useXApps } from "@xapps/sdk/react";
+import type { Json, PlayerInfo } from "vibecade-sdk";
+import { useGestureLock, useMatchResult, useMatchStarted, useRoomEvent, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useBot, useLiveOpponent } from "@/first-party/shared/hooks";
@@ -60,7 +60,7 @@ function isGhostMessage(payload: Json): payload is { d: number; y: number; vy: n
 }
 
 export function StarshipFlap() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const result = useMatchResult();
   const bot = useBot();

@@ -1,4 +1,4 @@
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { BackendError } from "../backend";
 import { getOfficialApp } from "../catalog";
 import type { AppManifest, UpvoteResult } from "../types";

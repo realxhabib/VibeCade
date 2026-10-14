@@ -1,12 +1,12 @@
 /**
- * Host side of the protocol. The XApps marketplace uses this to run apps, and
- * you can use it too — e.g. to embed XApps apps in your own site or to write
+ * Host side of the protocol. The VibeCade marketplace uses this to run apps, and
+ * you can use it too — e.g. to embed VibeCade apps in your own site or to write
  * integration tests for your app.
  */
 import {
   LIMITS,
   PROTOCOL_VERSION,
-  XAppsError,
+  VibeCadeError,
   byteLength,
   isEnvelope,
   isRequestMethod,
@@ -81,7 +81,7 @@ export type HostHandlers = {
 } & {
   /** `state.get` → `{ state, version }` */
   getState?: HostHandler<"state.get">;
-  /** `state.set` → `{ version }`; throw `new XAppsError("conflict", …)` when `expectedVersion` is stale. */
+  /** `state.set` → `{ version }`; throw `new VibeCadeError("conflict", …)` when `expectedVersion` is stale. */
   setState?: HostHandler<"state.set">;
   /** `turn.end` → `null`. Emit `turn.change` before returning so the app sees it first. */
   endTurn?: HostHandler<"turn.end">;
@@ -167,7 +167,7 @@ export interface HostCoreOptions {
   /** Fired when an app instance (re)connects. */
   onConnect?: (info: { sdkVersion: string; session: string }) => void;
   /** Fired for every rejected request — useful for dev tooling. */
-  onRequestError?: (method: string, error: XAppsError) => void;
+  onRequestError?: (method: string, error: VibeCadeError) => void;
   /** Fired for every request — useful for dev tooling (sandbox inspector). */
   onRequest?: (method: RequestMethod, params: unknown) => void;
   /**
@@ -224,7 +224,7 @@ export function createHostCore(transport: HostTransport, options: HostCoreOption
     transport.post(message);
   };
 
-  const respondError = (id: number, method: string, error: XAppsError) => {
+  const respondError = (id: number, method: string, error: VibeCadeError) => {
     options.onRequestError?.(method, error);
     transport.post({
       xapps: PROTOCOL_VERSION,
@@ -261,18 +261,18 @@ export function createHostCore(transport: HostTransport, options: HostCoreOption
     let { params } = message;
     if (typeof id !== "number") return;
     if (!isRequestMethod(method)) {
-      respondError(id, String(method), new XAppsError("unknown_method", `Unknown method ${String(method)}`));
+      respondError(id, String(method), new VibeCadeError("unknown_method", `Unknown method ${String(method)}`));
       return;
     }
     let denied: string | null;
     try {
       denied = accessProblem(method, readAccess());
     } catch (error) {
-      respondError(id, method, new XAppsError("internal", error instanceof Error ? error.message : "Host error"));
+      respondError(id, method, new VibeCadeError("internal", error instanceof Error ? error.message : "Host error"));
       return;
     }
     if (denied) {
-      respondError(id, method, new XAppsError("forbidden", denied));
+      respondError(id, method, new VibeCadeError("forbidden", denied));
       return;
     }
     let problem = validateRequest(method, params);
@@ -293,15 +293,15 @@ export function createHostCore(transport: HostTransport, options: HostCoreOption
       }
     }
     if (problem) {
-      respondError(id, method, new XAppsError("invalid_params", `${method}: ${problem}`));
+      respondError(id, method, new VibeCadeError("invalid_params", `${method}: ${problem}`));
       return;
     }
     if (method === "room.send" && !takeBudget()) {
-      respondError(id, method, new XAppsError("rate_limited", "room.send: slow down"));
+      respondError(id, method, new VibeCadeError("rate_limited", "room.send: slow down"));
       return;
     }
     if ((method === "state.set" || method === "turn.end" || method === "round.set") && !writeBudget.take()) {
-      respondError(id, method, new XAppsError("rate_limited", `${method}: slow down`));
+      respondError(id, method, new VibeCadeError("rate_limited", `${method}: slow down`));
       return;
     }
     if (method === "log" && !logBudget.take()) {
@@ -320,7 +320,7 @@ export function createHostCore(transport: HostTransport, options: HostCoreOption
       | ((p: unknown) => unknown | Promise<unknown>)
       | undefined;
     if (!handler) {
-      respondError(id, method, new XAppsError("unknown_method", `${method} is not supported by this host`));
+      respondError(id, method, new VibeCadeError("unknown_method", `${method} is not supported by this host`));
       return;
     }
     try {
@@ -330,9 +330,9 @@ export function createHostCore(transport: HostTransport, options: HostCoreOption
     } catch (error) {
       if (destroyed) return;
       const err =
-        error instanceof XAppsError
+        error instanceof VibeCadeError
           ? error
-          : new XAppsError("internal", error instanceof Error ? error.message : "Host error");
+          : new VibeCadeError("internal", error instanceof Error ? error.message : "Host error");
       respondError(id, method, err);
     }
   };

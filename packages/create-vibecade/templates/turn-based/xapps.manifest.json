@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "url": "https://your-app.example.com/",
   "tagline": "Three in a row. Live, or one move a day.",
-  "description": "Classic tic-tac-toe on the XApps shared match state: play live, take your turns over days, or practice against a bot. Friends can watch.",
+  "description": "Classic tic-tac-toe on the VibeCade shared match state: play live, take your turns over days, or practice against a bot. Friends can watch.",
   "category": "games",
   "icon": "⭕",
   "accent": ["#8b5cf6", "#22d3ee"],

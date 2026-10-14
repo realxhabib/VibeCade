@@ -14,7 +14,7 @@
  * and has the final word on race results.
  */
 
-import type { Json, MatchResult, PlayerInfo, XAppsClient } from "@xapps/sdk";
+import type { Json, MatchResult, PlayerInfo, VibeCadeClient } from "vibecade-sdk";
 import { Vector3 } from "three";
 import { reportStats, unlockAchievements } from "@/first-party/shared/progress";
 import { AiPilot, rubberBand, type AiView } from "./ai";
@@ -315,7 +315,7 @@ function conductorId(players: readonly PlayerInfo[]): string | null {
 }
 
 export class RaceRuntime {
-  readonly xapps: XAppsClient;
+  readonly xapps: VibeCadeClient;
   readonly audio = new RaceAudio();
   readonly reduced: boolean;
   readonly spectator: boolean;
@@ -380,7 +380,7 @@ export class RaceRuntime {
   private koSeq = 0;
   private trialResult: { time: number; best: number | null; record: boolean } | null = null;
 
-  constructor(xapps: XAppsClient, reduced: boolean, choice: ShipChoice, opts: { trial?: string } = {}) {
+  constructor(xapps: VibeCadeClient, reduced: boolean, choice: ShipChoice, opts: { trial?: string } = {}) {
     this.xapps = xapps;
     this.reduced = reduced;
     this.trial = opts.trial ?? null;

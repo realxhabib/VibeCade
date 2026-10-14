@@ -7,7 +7,7 @@
  * the embed page only, so three.js never touches the marketplace bundles.
  */
 
-import { useMatchStarted, usePlayers, useXApps } from "@xapps/sdk/react";
+import { useMatchStarted, usePlayers, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -40,7 +40,7 @@ function save(l: Loadout): void {
 }
 
 export function WedgeWarsApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const { players, me, isSpectator } = usePlayers();
   const [loadout, setLoadout] = useState<Loadout>(() => loadSaved());

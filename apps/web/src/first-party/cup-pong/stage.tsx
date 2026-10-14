@@ -7,7 +7,7 @@
  * animates each action in the log before the game moves on.
  */
 
-import { useGestureLock } from "@xapps/sdk/react";
+import { useGestureLock } from "vibecade-sdk/react";
 import { motion, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "motion/react";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@/lib/utils";

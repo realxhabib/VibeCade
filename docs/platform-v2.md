@@ -10,7 +10,7 @@ stays backward compatible: every v1 app keeps working unchanged.
 | 1. General matches | 2–8 players, teams, spectators, shared persistent match state, turns (live or over days), rounds, app-defined challenge setup |
 | 2. Trust | App secret keys, a server API, signed webhooks, server-authoritative results |
 | 3. Media & data | Per-app media uploads, video/audio entries, bigger storage, custom stats + leaderboards, achievements |
-| 4. Shipping | App versions + staging, review queue, analytics, logs, `create-xapp` CLI, publishable SDK |
+| 4. Shipping | App versions + staging, review queue, analytics, logs, `create-vibecade` CLI, publishable SDK |
 
 ---
 
@@ -109,7 +109,7 @@ SQL columns: `matches.min_players`, `max_players`, `team_count`, `state jsonb`,
 Realtime: `is_room_member` includes spectators. State/turn/round changes reach
 clients through the existing `matches` postgres_changes watch.
 
-### SDK (`@xapps/sdk` 0.2.0, protocol v1, additive)
+### SDK (`vibecade-sdk` 0.2.0, protocol v1, additive)
 
 `LaunchContext` gains `purpose: "match" | "setup"`. In `match`:
 `minPlayers`, `maxPlayers`, `teams`, `role`, `state`, `stateVersion`, `turn`,
@@ -265,10 +265,10 @@ Signature headers: `X-XApps-Event`, `X-XApps-Delivery` (uuid),
 `X-XApps-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(secret, t + "." + body)>`.
 Receivers reject timestamps older than 5 minutes.
 
-### Server SDK (`@xapps/sdk/server`)
+### Server SDK (`vibecade-sdk/server`)
 
 - `verifyWebhook(rawBody: string, signatureHeader: string, secret: string, { toleranceSeconds = 300, now? })`
-  → parsed event, or throws `XAppsError("invalid_signature" | "stale_signature")`. Web Crypto only (Node 18+, Deno, Workers, edge).
+  → parsed event, or throws `VibeCadeError("invalid_signature" | "stale_signature")`. Web Crypto only (Node 18+, Deno, Workers, edge).
 - `createServerClient({ secret, baseUrl })` → `getMatch(id)`, `setState(id, state, expectedVersion)`,
   `updateState(id, fn)` (retry on 409), `endTurn(id, next?)`, `setRound(id, round)`, `reportResult(id, result)`.
 - Types for webhook events.
@@ -382,7 +382,7 @@ Migration: `20261003000000_shipping.sql`. Make yourself an admin with
 
 Goal: developers can iterate safely (versions, staging, testers), get
 reviewed in a real queue, see how their app is doing (analytics, logs), and
-start in seconds (`npx create-xapp`, a publishable SDK).
+start in seconds (`npx create-vibecade`, a publishable SDK).
 
 ### Versions & staging
 
@@ -442,14 +442,14 @@ start in seconds (`npx create-xapp`, a publishable SDK).
   `list_app_logs(p_app, p_level, p_match, p_before, p_limit)` (owner).
 - UI: a Logs tab with level filter, match filter and live tail.
 
-### create-xapp & publishable SDK
+### create-vibecade & publishable SDK
 
-- `packages/create-xapp`: `npx create-xapp my-game [--template react|vanilla|turn-based]`
-  scaffolds a ready project (Vite + React + TS with `@xapps/sdk`, or one
+- `packages/create-vibecade`: `npx create-vibecade my-game [--template react|vanilla|turn-based]`
+  scaffolds a ready project (Vite + React + TS with `vibecade-sdk`, or one
   HTML file using the hosted bundle), a manifest file, README with the
   register → sandbox → version → review path, and `npm run dev` that opens
   the app standalone with the mock host. No network needed to scaffold.
-- `@xapps/sdk` becomes publishable: version = `SDK_VERSION`, `exports`
+- `vibecade-sdk` becomes publishable: version = `SDK_VERSION`, `exports`
   with types (declaration build), `files`, `sideEffects: false`, MIT
   license, CHANGELOG. `npm pack --dry-run` is part of the checks.
 

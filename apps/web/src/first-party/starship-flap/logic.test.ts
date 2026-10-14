@@ -1,4 +1,4 @@
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import {
   GATE_MARGIN,

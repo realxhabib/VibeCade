@@ -1,4 +1,4 @@
-import type { XAppsClient } from "@xapps/sdk";
+import type { VibeCadeClient } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_LOADOUT, HP_MAX, type Loadout } from "./logic";
 import { NetLink } from "./net";
@@ -26,7 +26,7 @@ function table() {
           return Promise.resolve(null);
         },
       },
-    } as unknown as XAppsClient;
+    } as unknown as VibeCadeClient;
     const loadouts = new Map<string, Loadout>([
       ["alice", { weapon: "hammer", armor: "tank", paint: 1 }],
       ["bob", { ...DEFAULT_LOADOUT }],

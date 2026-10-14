@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SDK_VERSION, XAppsError, type LaunchContext } from "@xapps/sdk";
-import { standaloneMatch, type HostHandlers } from "@xapps/sdk/host";
+import { SDK_VERSION, VibeCadeError, type LaunchContext } from "vibecade-sdk";
+import { standaloneMatch, type HostHandlers } from "vibecade-sdk/host";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, FlaskConical, Share } from "lucide-react";
 import Link from "next/link";
@@ -247,7 +247,7 @@ function AppStage({ app, versionId, viewer, immersiveButton }: { app: AppManifes
       app: launchApp(app),
       user,
       match: standaloneMatch(user, { id: `app:${app.slug}`, seed }),
-      host: { name: "XApps", version: SDK_VERSION, origin: window.location.origin },
+      host: { name: "VibeCade", version: SDK_VERSION, origin: window.location.origin },
       locale: navigator.language,
     };
   };
@@ -369,10 +369,10 @@ function AppStage({ app, versionId, viewer, immersiveButton }: { app: AppManifes
       return null;
     },
     "setup.submit": () => {
-      throw new XAppsError("forbidden", "setup.submit only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.submit only works in setup purpose");
     },
     "setup.cancel": () => {
-      throw new XAppsError("forbidden", "setup.cancel only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.cancel only works in setup purpose");
     },
   };
 

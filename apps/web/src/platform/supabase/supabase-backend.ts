@@ -1,7 +1,7 @@
 import { APP_IMAGES_BUCKET, APP_IMAGE_MAX_BYTES, APP_IMAGE_UPLOADS_PER_DAY, type AppImageKind } from "@/lib/app-images";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import { LIMITS } from "@xapps/sdk";
-import { isBlobLike } from "@xapps/sdk/host";
+import { LIMITS } from "vibecade-sdk";
+import { isBlobLike } from "vibecade-sdk/host";
 import { env } from "@/lib/env";
 import { APP_MEDIA_BUCKET, baseMime, displayProblem, mediaExtension, mediaKindOf, mediaProblem, probeMedia } from "@/lib/media";
 import { BackendError, type Backend, type RoomTransport } from "../backend";

@@ -1,4 +1,4 @@
-import type { XAppsClient } from "@xapps/sdk";
+import type { VibeCadeClient } from "vibecade-sdk";
 
 /**
  * Stats & achievements for first-party apps, through the public SDK only.
@@ -9,7 +9,7 @@ import type { XAppsClient } from "@xapps/sdk";
  * Each app decides *what* was earned in its pure `logic.ts`; these just send it.
  */
 
-type Client = Pick<XAppsClient, "purpose" | "isSpectator" | "me" | "stats" | "achievements">;
+type Client = Pick<VibeCadeClient, "purpose" | "isSpectator" | "me" | "stats" | "achievements">;
 
 /** Whether this client may record progress for its own player (in a match or a standalone app). */
 export function canTrackProgress(xapps: Client): boolean {

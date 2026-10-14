@@ -1,5 +1,5 @@
-import type { PlayerInfo } from "@xapps/sdk";
-import { useLogger, useMatchResult, usePlayers, useRoomEvent, useXApps } from "@xapps/sdk/react";
+import type { PlayerInfo } from "vibecade-sdk";
+import { useLogger, useMatchResult, usePlayers, useRoomEvent, useVibeCade } from "vibecade-sdk/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /** How long a race lasts. */
@@ -20,7 +20,7 @@ type Taps = { [playerId: string]: number };
  *   submits for them with `submitFor`.
  */
 export function App() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const log = useLogger();
   const result = useMatchResult();
   const { players, me, opponents, isSpectator } = usePlayers();

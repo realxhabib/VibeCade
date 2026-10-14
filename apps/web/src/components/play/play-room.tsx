@@ -1,8 +1,8 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { XAppsError } from "@xapps/sdk";
-import type { HostHandlers } from "@xapps/sdk/host";
+import { VibeCadeError } from "vibecade-sdk";
+import type { HostHandlers } from "vibecade-sdk/host";
 import { AnimatePresence, motion } from "motion/react";
 import { Eye, Home, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -499,7 +499,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     }
   };
   const seatedOnly = (method: string) => {
-    if (spectating) throw new XAppsError("forbidden", `${method}: spectators can't do that`);
+    if (spectating) throw new VibeCadeError("forbidden", `${method}: spectators can't do that`);
   };
 
   const handlers: HostHandlers = {
@@ -696,10 +696,10 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     // The stage fills the screen: size hints only matter for the challenge sheet's setup frame.
     "ui.resize": () => null,
     "setup.submit": () => {
-      throw new XAppsError("forbidden", "setup.submit only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.submit only works in setup purpose");
     },
     "setup.cancel": () => {
-      throw new XAppsError("forbidden", "setup.cancel only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.cancel only works in setup purpose");
     },
   };
 

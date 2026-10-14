@@ -5,7 +5,7 @@ import { connect, resetConnection } from "../src/client";
 import { accessProblem, createHostCore, standaloneMatch, type HostHandlers } from "../src/host";
 import { createMockHost, type MockHostOptions } from "../src/mock-host";
 import { REQUEST_METHODS, type LaunchContext, type RequestMethod } from "../src/protocol";
-import { XAppsProvider, useMatchStarted, useStandalone, useUser } from "../src/react";
+import { VibeCadeProvider, useMatchStarted, useStandalone, useUser } from "../src/react";
 import { createMemoryTransportPair } from "../src/transport";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -276,7 +276,7 @@ describe("purpose app: react", () => {
     }
     const root = createRoot(document.createElement("div"));
     await act(async () => {
-      root.render(createElement(XAppsProvider, null, createElement(Probe)));
+      root.render(createElement(VibeCadeProvider, null, createElement(Probe)));
     });
     expect(seen).toEqual({ standalone: true, handle: "you", started: false });
     act(() => root.unmount());

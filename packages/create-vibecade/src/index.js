@@ -1,4 +1,4 @@
-// create-xapp: scaffolds an XApps app from the templates shipped in this
+// create-vibecade: scaffolds an VibeCade app from the templates shipped in this
 // package. Zero dependencies; everything here runs offline.
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -26,21 +26,21 @@ export const TEMPLATES = [
   {
     name: "vanilla",
     title: "Vanilla (one HTML file)",
-    description: "No build step: a single index.html importing the SDK bundle from your XApps host.",
+    description: "No build step: a single index.html importing the SDK bundle from your VibeCade host.",
   },
 ];
 
 export const DEFAULT_TEMPLATE = "react";
 
-/** The @xapps/sdk version range new projects depend on (this package is released in lockstep). */
+/** The vibecade-sdk version range new projects depend on (this package is released in lockstep). */
 export const SDK_RANGE = `^${readOwnVersion()}`;
 
 function readOwnVersion() {
   try {
     const pkg = JSON.parse(readFileSync(resolve(here, "..", "package.json"), "utf8"));
-    return typeof pkg.version === "string" ? pkg.version : "0.8.0";
+    return typeof pkg.version === "string" ? pkg.version : "0.9.0";
   } catch {
-    return "0.8.0";
+    return "0.9.0";
   }
 }
 

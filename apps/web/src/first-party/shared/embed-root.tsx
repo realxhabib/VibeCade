@@ -1,7 +1,7 @@
 "use client";
 
-import type { LaunchPurpose, MockHostOptions } from "@xapps/sdk";
-import { XAppsProvider } from "@xapps/sdk/react";
+import type { LaunchPurpose, MockHostOptions } from "vibecade-sdk";
+import { VibeCadeProvider } from "vibecade-sdk/react";
 import { motion } from "motion/react";
 import { useMemo, type ReactNode } from "react";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
@@ -62,7 +62,7 @@ export function EmbedRoot({
       style={{ "--accent-from": app.accent[0], "--accent-to": app.accent[1] } as React.CSSProperties}
     >
       <EmbedBackdrop accent={app.accent} />
-      <XAppsProvider
+      <VibeCadeProvider
         options={options}
         fallback={<EmbedLoading app={app} />}
         errorFallback={(error) => (
@@ -74,7 +74,7 @@ export function EmbedRoot({
         )}
       >
         {children}
-      </XAppsProvider>
+      </VibeCadeProvider>
     </div>
   );
 }

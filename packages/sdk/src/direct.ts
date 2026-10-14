@@ -1,7 +1,7 @@
 /**
  * Direct connections: a WebRTC data-channel mesh between the match's players.
  *
- * The XApps room only carries the signaling (offer, answer, ICE candidates:
+ * The VibeCade room only carries the signaling (offer, answer, ICE candidates:
  * a handful of messages per pair of players), under the reserved event type
  * `xapps.direct`. Game traffic then flows browser to browser, which is faster
  * and never counts against the room's message quota. When a peer can't be
@@ -9,12 +9,12 @@
  * no TURN server) `send` falls back to the room for that peer, throttled for
  * fast messages, and receivers get both paths through the same `onMessage`.
  *
- * Client-side only: no host method is involved, so any XApps host (and the
+ * Client-side only: no host method is involved, so any VibeCade host (and the
  * mock host) works. Purpose `match` only; spectators can't send, so they get
  * no connections, but can receive relayed copies (`spectators: true`).
  */
 
-import { XAppsError, type Json } from "./protocol";
+import { VibeCadeError, type Json } from "./protocol";
 
 type Unsubscribe = () => void;
 type Timer = ReturnType<typeof setTimeout>;
@@ -74,7 +74,7 @@ export interface DirectMesh {
   close(): void;
 }
 
-/** The parts of the client a mesh uses (an `XAppsClient` fits). */
+/** The parts of the client a mesh uses (an `VibeCadeClient` fits). */
 export interface DirectClient {
   readonly purpose: string;
   readonly isSpectator: boolean;
@@ -164,7 +164,7 @@ function addressedTo(to: unknown, id: string): boolean {
  * One mesh per page: close it when the match view goes away.
  */
 export function createDirectMesh(client: DirectClient, options: DirectOptions = {}): DirectMesh {
-  if (client.purpose !== "match") throw new XAppsError("forbidden", "room.direct: there is no match room here");
+  if (client.purpose !== "match") throw new VibeCadeError("forbidden", "room.direct: there is no match room here");
   return new Mesh(client, options);
 }
 

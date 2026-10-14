@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { useViewer } from "@/platform/client";
 import { useAppServerConfig, useMyApps } from "@/platform/queries";
 import type { AppManifest } from "@/platform/types";
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 
 const FEATURES = [
   { icon: Fingerprint, title: "X identity", body: "Every player arrives signed in with their X handle and avatar. No auth code on your side." },
@@ -53,18 +53,18 @@ const FEATURES = [
   { icon: Medal, title: "Stats & achievements", body: "Declare stats and get leaderboards on your listing. Unlock achievements with a host-rendered moment and XP on profiles." },
 ];
 
-const REACT_SNIPPET = `import { XAppsProvider, useXApps, useRoomEvent, useMatchStarted } from "@xapps/sdk/react";
+const REACT_SNIPPET = `import { VibeCadeProvider, useVibeCade, useRoomEvent, useMatchStarted } from "vibecade-sdk/react";
 
 export default function App() {
   return (
-    <XAppsProvider fallback={<p>Loading…</p>}>
+    <VibeCadeProvider fallback={<p>Loading…</p>}>
       <Game />
-    </XAppsProvider>
+    </VibeCadeProvider>
   );
 }
 
 function Game() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const [taps, setTaps] = useState(0);
 
@@ -127,7 +127,7 @@ xapps.onAchievement(({ id, userId }) => cheer(userId, id)); // anyone in the mat
 await xapps.storage.set("settings", { sfx: false });
 const puzzle = await xapps.storage.get("daily", { scope: "app" });`;
 
-const TURNS_SNIPPET = `import { connect } from "@xapps/sdk";
+const TURNS_SNIPPET = `import { connect } from "vibecade-sdk";
 
 const xapps = await connect();                     // manifest: turnBased: true, modes: ["live", "async"]
 
@@ -281,13 +281,13 @@ const API: { group: string; rows: [string, string][] }[] = [
       ["xapps.achievements.unlock(id)", "→ { unlocked } (false if the player already had it). XP is added to their profile once; the host shows the unlock moment."],
       ["xapps.onAchievement(fn)", "achievement.unlock { id, userId } — the player, or someone else in a live match."],
       ["Server authority", "Server-authoritative apps report stats and unlock achievements only from their server: POST /api/v1/stats · /api/v1/achievements."],
-      ["useStats() · useAchievements() · useMediaUpload()", "React hooks (@xapps/sdk/react)."],
+      ["useStats() · useAchievements() · useMediaUpload()", "React hooks (vibecade-sdk/react)."],
     ],
   },
   {
-    group: "Server SDK (@xapps/sdk/server)",
+    group: "Server SDK (vibecade-sdk/server)",
     rows: [
-      ["verifyWebhook(rawBody, signatureHeader, secret, { toleranceSeconds? })", "Checks X-XApps-Signature and returns the parsed event. Throws XAppsError invalid_signature or stale_signature (older than 5 min by default). Accepts several v1 signatures during a rotation. Web Crypto only: Node 18+, Deno, Workers, edge."],
+      ["verifyWebhook(rawBody, signatureHeader, secret, { toleranceSeconds? })", "Checks X-XApps-Signature and returns the parsed event. Throws VibeCadeError invalid_signature or stale_signature (older than 5 min by default). Accepts several v1 signatures during a rotation. Web Crypto only: Node 18+, Deno, Workers, edge."],
       ["createServerClient({ secret, baseUrl })", "A client for the server API, authenticated with your xas_ secret. Never ship it to the browser."],
       ["server.getMatch(id)", "The match with every player's submission, data included."],
       ["server.setState(id, state, version) · updateState(id, fn)", "Compare-and-set the shared state; updateState re-reads and retries on 409."],
@@ -296,10 +296,10 @@ const API: { group: string; rows: [string, string][] }[] = [
     ],
   },
   {
-    group: "React (@xapps/sdk/react)",
+    group: "React (vibecade-sdk/react)",
     rows: [
-      ["<XAppsProvider fallback errorFallback>", "Connects once and provides the client."],
-      ["useXApps() · useMatch() · usePresence()", "Client, live match object, connected players."],
+      ["<VibeCadeProvider fallback errorFallback>", "Connects once and provides the client."],
+      ["useVibeCade() · useMatch() · usePresence()", "Client, live match object, connected players."],
       ["useRoomEvent(type, handler) · useReactions(handler)", "Subscriptions that clean themselves up."],
       ["useMatchStarted() · useMatchResult()", "Booleans/results that re-render when they change."],
       ["useMatchState() · useTurn() · useRound()", "{ state, version, set, update } · { turn, isMine, deadline, end } · { round, set }."],
@@ -547,7 +547,7 @@ export function Developers() {
     <div>
       <section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={spring.soft}>
-          <Badge tone="nova">@xapps/sdk · v0.1</Badge>
+          <Badge tone="nova">vibecade-sdk · v0.1</Badge>
           <h1 className="mt-5 font-display text-[clamp(2.6rem,6vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.04em]">
             Build the next thing <span className="text-gradient">everyone challenges</span> their friends to.
           </h1>
@@ -566,7 +566,7 @@ export function Developers() {
           </div>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 30, rotate: 2 }} animate={{ opacity: 1, y: 0, rotate: 0 }} transition={{ delay: 0.1, ...spring.soft }}>
-          <CodeBlock filename="terminal" code={`npm install @xapps/sdk\n\n// or, no build step at all:\nimport { connect } from "${origin}/sdk/v1.js";`} />
+          <CodeBlock filename="terminal" code={`npm install vibecade-sdk\n\n// or, no build step at all:\nimport { connect } from "${origin}/sdk/v1.js";`} />
         </motion.div>
       </section>
 

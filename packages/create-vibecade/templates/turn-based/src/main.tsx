@@ -1,4 +1,4 @@
-import { XAppsProvider } from "@xapps/sdk/react";
+import { VibeCadeProvider } from "vibecade-sdk/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -6,14 +6,14 @@ import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <XAppsProvider
+    <VibeCadeProvider
       fallback={<p className="center muted">Connecting…</p>}
-      errorFallback={(error) => <p className="center">Couldn’t reach XApps: {error.message}</p>}
+      errorFallback={(error) => <p className="center">Couldn’t reach VibeCade: {error.message}</p>}
       // Only used when the page is opened directly (npm run dev): a local mock
-      // host seats you against a practice bot (?xapps-players=4 for more bots).
-      options={{ mock: { startDelayMs: 800 } }}
+      // host seats you (X, moves first) against a practice bot, with turns on.
+      options={{ mock: { turnBased: true, startDelayMs: 600 } }}
     >
       <App />
-    </XAppsProvider>
+    </VibeCadeProvider>
   </StrictMode>,
 );

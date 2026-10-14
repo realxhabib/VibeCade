@@ -1,4 +1,4 @@
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import {
   bytesMatchMime,

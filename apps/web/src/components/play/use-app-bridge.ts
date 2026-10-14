@@ -1,14 +1,14 @@
 "use client";
 
-import { XAppsError } from "@xapps/sdk";
-import { createHostBridge, type HostBridge, type HostHandlers } from "@xapps/sdk/host";
+import { VibeCadeError } from "vibecade-sdk";
+import { createHostBridge, type HostBridge, type HostHandlers } from "vibecade-sdk/host";
 import {
   REQUEST_METHODS,
   type HostEvent,
   type HostEventData,
   type LaunchContext,
   type StatStanding as SdkStatStanding,
-} from "@xapps/sdk/protocol";
+} from "vibecade-sdk/protocol";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { BackendError, type Backend } from "@/platform/backend";
 import type { Match, StatStanding } from "@/platform/types";
@@ -38,7 +38,7 @@ export function useAppBridge({
   context: () => LaunchContext;
   handlers: HostHandlers;
   /** Every request the host refused or that failed (the host core's `onRequestError`). */
-  onRequestError?: (method: string, error: XAppsError) => void;
+  onRequestError?: (method: string, error: VibeCadeError) => void;
 }) {
   const handlersRef = useRef(handlers);
   const contextRef = useRef(context);
@@ -117,8 +117,8 @@ export function resolveAppUrl(url: string, base: string): { href: string; origin
 }
 
 /** A backend failure as the SDK error code the app should see. */
-export function toSdkError(error: unknown): XAppsError {
-  if (error instanceof XAppsError) return error;
+export function toSdkError(error: unknown): VibeCadeError {
+  if (error instanceof VibeCadeError) return error;
   if (error instanceof BackendError) {
     const code =
       error.code === "conflict"
@@ -130,9 +130,9 @@ export function toSdkError(error: unknown): XAppsError {
             : error.code === "rate_limited"
               ? "rate_limited"
               : "internal";
-    return new XAppsError(code, error.message);
+    return new VibeCadeError(code, error.message);
   }
-  return new XAppsError("internal", error instanceof Error ? error.message : "Something went wrong");
+  return new VibeCadeError("internal", error instanceof Error ? error.message : "Something went wrong");
 }
 
 /** A platform stat standing as the SDK's `stats.leaderboard` result (profiles become SDK players). */

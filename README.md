@@ -4,7 +4,7 @@
 
 **A social arcade on X.** Sign in with X, pick an app and go head-to-head with anyone:
 reflex duels, rocket runs, strategy and 3D robot brawls.
-Anyone can build and list their own app with the `@xapps/sdk`. (The code and SDK keep their original XApps names.)
+Anyone can build and list their own app with the `vibecade-sdk`. (The code and SDK keep their original XApps names.)
 
 - **Marketplace**: browse, search and filter apps. Each app card is a live animated vignette.
 - **Challenges**: quick match, invite one or several `@handles`, or post an open challenge link to your timeline. Tables seat 2–8 players, with teams and spectators.
@@ -117,7 +117,7 @@ Unset, every game uses Supabase Realtime as before.
 │      ▼                                                                       │
 │  ┌───────────────── sandboxed <iframe> ─────────────────┐                    │
 │  │  Any app: first-party (/embed/*) or community (https) │                   │
-│  │  connect() · room.send/on · submit() · ui.* · storage │  ← @xapps/sdk     │
+│  │  connect() · room.send/on · submit() · ui.* · storage │  ← vibecade-sdk     │
 │  └────────────────────────────────────────────────────────┘                  │
 │      │                                                                       │
 │  Backend interface ── SupabaseBackend (Postgres RPCs + RLS, Realtime rooms)  │
@@ -136,8 +136,8 @@ apps/web/                  Next.js 16 app (App Router, React 19, Tailwind v4, Mo
   src/app/embed/<slug>/    first-party app frames  src/first-party/  their code
   src/platform/            backend interface, demo + Supabase backends, queries
   src/components/          chrome, motion primitives, marketplace, play room
-packages/sdk/              @xapps/sdk: protocol, client, host bridge, React hooks
-packages/create-xapp/      `npx create-xapp`: project templates (React, turn-based, one HTML file)
+packages/sdk/              vibecade-sdk: protocol, client, host bridge, React hooks
+packages/create-vibecade/      `npx create-vibecade`: project templates (React, turn-based, one HTML file)
 examples/rps/              a complete app in one HTML file
 supabase/migrations/       schema, RLS, RPCs, realtime auth
 supabase/tests/            lifecycle tests against a plain local Postgres
@@ -146,7 +146,7 @@ supabase/tests/            lifecycle tests against a plain local Postgres
 ## Build and ship an app
 
 ```bash
-npx create-xapp my-game            # templates: react (default), turn-based, vanilla
+npx create-vibecade my-game            # templates: react (default), turn-based, vanilla
 cd my-game && npm install && npm run dev   # runs standalone against the SDK's mock host
 ```
 
@@ -158,21 +158,21 @@ cd my-game && npm install && npm run dev   # runs standalone against the SDK's m
 
 To make someone an admin, run `update public.profiles set is_admin = true where handle = '<handle>';` in the SQL editor. In demo mode, the review page has a "Become admin" switch.
 
-`@xapps/sdk` and `create-xapp` are ready for npm (`npm publish` from `packages/sdk` and `packages/create-xapp`). Until you publish them, scaffolded projects can't install the SDK.
+`vibecade-sdk` and `create-vibecade` are ready for npm (`npm publish` from `packages/sdk` and `packages/create-vibecade`). Until you publish them, scaffolded projects can't install the SDK.
 
 ## The SDK in 10 lines
 
 Start from a template (no network needed to scaffold):
 
 ```bash
-npx create-xapp my-game          # --template react (default) | turn-based | vanilla
+npx create-vibecade my-game          # --template react (default) | turn-based | vanilla
 cd my-game && npm install && npm run dev
 ```
 
-Or add the SDK to any project (`npm i @xapps/sdk`):
+Or add the SDK to any project (`npm i vibecade-sdk`):
 
 ```ts
-import { connect } from "@xapps/sdk"; // or "https://<xapps-host>/sdk/v1.js" with no build step
+import { connect } from "vibecade-sdk"; // or "https://<xapps-host>/sdk/v1.js" with no build step
 
 const xapps = await connect();
 xapps.room.on("move", (move, from) => apply(move, from));

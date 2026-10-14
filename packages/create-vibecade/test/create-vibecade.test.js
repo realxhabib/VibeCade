@@ -18,13 +18,13 @@ import {
 } from "../src/index.js";
 
 const pkgDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const bin = join(pkgDir, "bin", "create-xapp.js");
+const bin = join(pkgDir, "bin", "create-vibecade.js");
 const ownVersion = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8")).version;
 const sdkVersion = JSON.parse(readFileSync(join(pkgDir, "..", "sdk", "package.json"), "utf8")).version;
 
 let tmp;
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), "create-xapp-"));
+  tmp = mkdtempSync(join(tmpdir(), "create-vibecade-"));
 });
 afterEach(() => {
   rmSync(tmp, { recursive: true, force: true });
@@ -117,7 +117,7 @@ describe("scaffold", () => {
         expect(files).not.toContain("_gitignore");
         const pkg = JSON.parse(read(target, "package.json"));
         expect(pkg.name).toBe("tap-race");
-        expect(pkg.dependencies["@xapps/sdk"]).toBe(`^${sdkVersion}`);
+        expect(pkg.dependencies["vibecade-sdk"]).toBe(`^${sdkVersion}`);
         expect(pkg.scripts.dev).toBe("vite");
         expect(manifest.turnBased).toBe(template === "turn-based");
         const app = read(target, "src/App.tsx");

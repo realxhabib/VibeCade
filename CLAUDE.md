@@ -1,7 +1,7 @@
 # XApps — notes for coding agents
 
 Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind v4, `motion/react`),
-`packages/sdk` (`@xapps/sdk`), `supabase/` (migrations + SQL tests), `examples/rps`.
+`packages/sdk` (`vibecade-sdk`), `supabase/` (migrations + SQL tests), `examples/rps`.
 
 - Next.js 16 differs from older versions: read `apps/web/AGENTS.md` and the bundled docs in
   `node_modules/next/dist/docs/` (e.g. `proxy.ts` replaced middleware; `params` are Promises).

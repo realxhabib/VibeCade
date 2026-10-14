@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useAnimate, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { lockGestures } from "@xapps/sdk";
+import { lockGestures } from "vibecade-sdk";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { drawInk } from "./render";

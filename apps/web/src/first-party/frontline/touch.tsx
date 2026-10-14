@@ -11,7 +11,7 @@
  * never scrolls or zooms mid-fight.
  */
 
-import { useGestureLock } from "@xapps/sdk/react";
+import { useGestureLock } from "vibecade-sdk/react";
 import { ArrowUpFromLine, Bomb, ChevronsDown, Crosshair } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";

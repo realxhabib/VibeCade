@@ -1,11 +1,11 @@
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import type { AchievementDef, AppManifest, StatDef } from "./types";
 
 const OFFICIAL_DEV = { id: null, handle: "xapps", name: "VibeCade Studio" };
 const LAUNCH = "2026-09-01T00:00:00.000Z";
 
 /**
- * First-party apps. They are built with the public @xapps/sdk exactly like
+ * First-party apps. They are built with the public vibecade-sdk exactly like
  * community apps — the only difference is that they are served from /embed.
  */
 /**

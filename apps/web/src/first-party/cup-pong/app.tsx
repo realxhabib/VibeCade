@@ -8,8 +8,8 @@
  * three.js never touches the marketplace bundles.
  */
 
-import type { PlayerInfo } from "@xapps/sdk";
-import { useXApps } from "@xapps/sdk/react";
+import type { PlayerInfo } from "vibecade-sdk";
+import { useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -42,7 +42,7 @@ function loadDifficulty(): Difficulty {
 }
 
 export function CupPongApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const [difficulty, setDifficulty] = useState<Difficulty>(() => (typeof window === "undefined" ? "medium" : loadDifficulty()));
   const game = useCupPong(difficulty);
 

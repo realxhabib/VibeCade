@@ -284,7 +284,7 @@ export function AppDetail({ slug }: { slug: string }) {
             <p className="mt-3 leading-relaxed text-ink-300">{app.description}</p>
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-ink-400">
               <span>
-                Built by <b className="text-ink-100">{app.official ? "VibeCade Studio" : `@${app.developer.handle}`}</b> with @xapps/sdk
+                Built by <b className="text-ink-100">{app.official ? "VibeCade Studio" : `@${app.developer.handle}`}</b> with vibecade-sdk
               </span>
               <button
                 onClick={() => openXIntent(`${app.icon} ${app.name} on VibeCade — ${app.tagline}`, `${window.location.origin}/apps/${app.slug}`)}

@@ -7,7 +7,7 @@
  * the marketplace bundles.
  */
 
-import { useMatchStarted, usePlayers, useXApps } from "@xapps/sdk/react";
+import { useMatchStarted, usePlayers, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -18,7 +18,7 @@ import { BALL_COLORS, STROKE_CAP } from "./logic";
 import { MatchView } from "./match";
 
 export function MiniGolfApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const readyRef = useRef(false);
 

@@ -1,4 +1,4 @@
-import { createRandom, randomId } from "@xapps/sdk";
+import { createRandom, randomId } from "vibecade-sdk";
 import { OFFICIAL_APPS } from "../catalog";
 import { settle } from "../scoring";
 import type { AppManifest, Profile } from "../types";

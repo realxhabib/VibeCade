@@ -1,4 +1,4 @@
-// Command line front end for create-xapp.
+// Command line front end for create-vibecade.
 import { readFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 import { DEFAULT_TEMPLATE, TEMPLATES, isEmptyDir, scaffold, titleFromSlug, validateName } from "./index.js";
 
 const HELP = `
-Usage: npx create-xapp <project-name> [options]
+Usage: npx create-vibecade <project-name> [options]
 
-Scaffolds an XApps app: a ready project using @xapps/sdk, an
+Scaffolds an VibeCade app: a ready project using vibecade-sdk, an
 xapps.manifest.json and a README with the path to launch.
 
 Options:
@@ -20,9 +20,9 @@ Options:
   -h, --help             Show this help
 
 Examples:
-  npx create-xapp my-game
-  npx create-xapp my-board --template turn-based
-  npx create-xapp my-page -t vanilla --yes
+  npx create-vibecade my-game
+  npx create-vibecade my-board --template turn-based
+  npx create-vibecade my-page -t vanilla --yes
 `;
 
 const useColor = () => Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
@@ -184,7 +184,7 @@ export async function main(argv, io = {}) {
 
     let dir = args.dir;
     if (!dir) {
-      if (!prompter) return fail(`Missing the project name, e.g. ${cyan("npx create-xapp my-game")}`);
+      if (!prompter) return fail(`Missing the project name, e.g. ${cyan("npx create-vibecade my-game")}`);
       while (!dir) {
         const answer = (await ask(`${bold("Project name")} ${dim("(my-xapp)")}: `)) || "my-xapp";
         const problems = validateName(basename(answer));
@@ -238,11 +238,11 @@ export async function main(argv, io = {}) {
     steps.forEach((s, i) => stdout.write(`  ${dim(`${i + 1}.`)} ${cyan(s)}\n`));
     stdout.write(
       `\n${bold("Ship it")}\n` +
-        `  1. Deploy it anywhere that serves HTTPS and allows framing by your XApps host\n` +
+        `  1. Deploy it anywhere that serves HTTPS and allows framing by your VibeCade host\n` +
         `  2. Register it at ${cyan("<xapps-host>/developers/new")} (fields from ${cyan("xapps.manifest.json")})\n` +
         `  3. Play both seats in the ${cyan("Sandbox")}, invite testers, add versions\n` +
         `  4. Submit a version for review\n\n` +
-        `${dim("Docs: README.md in your project and https://www.npmjs.com/package/@xapps/sdk")}\n`,
+        `${dim("Docs: README.md in your project and https://www.npmjs.com/package/vibecade-sdk")}\n`,
     );
     return 0;
   } catch (error) {

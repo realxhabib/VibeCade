@@ -12,7 +12,7 @@
  * best face ranks worldwide. Every run gets fresh slides (start, direction,
  * speed, acceleration) from its own fork of the app's random.
  */
-import type { Random } from "@xapps/sdk";
+import type { Random } from "vibecade-sdk";
 import { PART_ORDER, type FaceConfig, type PartId } from "./face";
 
 /* ---------------------------------------------------------------------- */

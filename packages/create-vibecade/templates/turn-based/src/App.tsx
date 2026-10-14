@@ -5,8 +5,8 @@ import {
   useMatchState,
   usePlayers,
   useTurn,
-  useXApps,
-} from "@xapps/sdk/react";
+  useVibeCade,
+} from "vibecade-sdk/react";
 import { useEffect, useMemo, useRef } from "react";
 import { MARKS, botMove, nextSeat, play, readBoard, type Board, type Seat } from "./game";
 
@@ -14,7 +14,7 @@ import { MARKS, botMove, nextSeat, play, readBoard, type Board, type Seat } from
 const BOT_DELAY_MS = 700;
 
 /**
- * {{name}}: tic-tac-toe on the XApps shared match state.
+ * {{name}}: tic-tac-toe on the VibeCade shared match state.
  *
  * - The board is the match state (`useMatchState`). A move is
  *   `state.update(add mark)` then `turn.end()`, so live games, games played
@@ -26,7 +26,7 @@ const BOT_DELAY_MS = 700;
  * - Game over: every player submits 1 for a win, 0.5 for a draw, 0 for a loss.
  */
 export function App() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const log = useLogger();
   const started = useMatchStarted();
   const result = useMatchResult();

@@ -1,7 +1,7 @@
 # {{name}}
 
-An [XApps](https://github.com/realxhabib/XApps) app: turn-based tic-tac-toe on the shared match
-state, built with Vite, React, TypeScript and [`@xapps/sdk`](https://www.npmjs.com/package/@xapps/sdk).
+An [VibeCade](https://github.com/realxhabib/VibeCade) app: turn-based tic-tac-toe on the shared match
+state, built with Vite, React, TypeScript and [`vibecade-sdk`](https://www.npmjs.com/package/vibecade-sdk).
 
 ## Develop
 
@@ -28,14 +28,14 @@ How it works:
 
 | File | What |
 | --- | --- |
-| `src/main.tsx` | `<XAppsProvider>` connects to the host (or the mock, with turns on) |
+| `src/main.tsx` | `<VibeCadeProvider>` connects to the host (or the mock, with turns on) |
 | `src/App.tsx` | Board, moves, the practice bot, submitting |
 | `src/game.ts` | Pure game rules (easy to unit test) |
 | `xapps.manifest.json` | Your listing and capabilities (`turnBased: true`, modes, players…) |
 
 ## Ship it
 
-1. **Deploy** `npm run build` (the `dist/` folder) to any HTTPS static host. Allow XApps to frame it,
+1. **Deploy** `npm run build` (the `dist/` folder) to any HTTPS static host. Allow VibeCade to frame it,
    e.g. `Content-Security-Policy: frame-ancestors https://<xapps-host>`.
 2. **Register** the app at `https://<xapps-host>/developers/new`. Copy the fields from
    `xapps.manifest.json` and set the URL to your deployment. This creates version `1.0.0`.

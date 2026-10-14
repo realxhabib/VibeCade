@@ -1,4 +1,4 @@
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import { achievementDefsError, getOfficialApp, manifestShapeError, statDefsError } from "@/platform/catalog";
 import { FACE, PART_ORDER, type PartId } from "./face";

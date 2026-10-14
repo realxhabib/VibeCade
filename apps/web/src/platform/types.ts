@@ -9,7 +9,7 @@ import type {
   PlayerRole,
   Scoring,
   SubmissionDisplay,
-} from "@xapps/sdk";
+} from "vibecade-sdk";
 
 export type { AchievementDef, Json, MatchMode, MatchStatus, MediaRef, PlayerRole, Scoring, StatDef, StorageScope, SubmissionDisplay };
 

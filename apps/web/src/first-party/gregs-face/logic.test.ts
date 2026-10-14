@@ -1,4 +1,4 @@
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FACE, FACE, PART_ORDER, faceConfigProblems, type FaceConfig } from "./face";
 import {

@@ -1,12 +1,12 @@
 # {{name}}
 
-An [XApps](https://github.com/realxhabib/XApps) app in **one HTML file**, no build step: a
+An [VibeCade](https://github.com/realxhabib/VibeCade) app in **one HTML file**, no build step: a
 10-second tap race for two players.
 
 ## Develop
 
-1. In `index.html`, replace `YOUR-XAPPS-HOST` with your XApps host. Every XApps host serves the SDK
-   bundle at `/sdk/v1.js` (classic script: `/sdk/v1.global.js` → `window.XApps`).
+1. In `index.html`, replace `YOUR-XAPPS-HOST` with your VibeCade host. Every VibeCade host serves the SDK
+   bundle at `/sdk/v1.js` (classic script: `/sdk/v1.global.js` → `window.VibeCade`).
 2. Serve the folder over http(s), not `file://`:
 
    ```bash
@@ -17,12 +17,12 @@ An [XApps](https://github.com/realxhabib/XApps) app in **one HTML file**, no bui
    that the page plays itself. The browser console shows what the host sees (`[xapps mock]`) and
    your logs (`[xapps log]`). Try `?xapps-players=4` for more bots.
 
-Prefer npm? `npm i @xapps/sdk` and `import { connect } from "@xapps/sdk"` with any bundler, or run
-`npx create-xapp my-game` for the React template.
+Prefer npm? `npm i vibecade-sdk` and `import { connect } from "vibecade-sdk"` with any bundler, or run
+`npx create-vibecade my-game` for the React template.
 
 ## Ship it
 
-1. **Deploy** this folder to any HTTPS static host. Allow XApps to frame it, e.g.
+1. **Deploy** this folder to any HTTPS static host. Allow VibeCade to frame it, e.g.
    `Content-Security-Policy: frame-ancestors https://<xapps-host>`.
 2. **Register** the app at `https://<xapps-host>/developers/new`. Copy the fields from
    `xapps.manifest.json` and set the URL to your deployment. This creates version `1.0.0`.

@@ -1,7 +1,7 @@
 "use client";
 
-import type { StatStanding, XAppsClient } from "@xapps/sdk";
-import { useXApps } from "@xapps/sdk/react";
+import type { StatStanding, VibeCadeClient } from "vibecade-sdk";
+import { useVibeCade } from "vibecade-sdk/react";
 import {
   AnimatePresence,
   animate,
@@ -67,7 +67,7 @@ interface Board {
 }
 
 /** Reads the global best-face board. Never rejects: a failure comes back as status "error". */
-function readBoard(xapps: XAppsClient): Promise<Board> {
+function readBoard(xapps: VibeCadeClient): Promise<Board> {
   const failed = (error: unknown): Board => {
     console.warn(`[${TAG}] stats.leaderboard failed`, error);
     return { status: "error", standing: null };
@@ -127,7 +127,7 @@ function useFaceKit(): { kit: FaceKit | null; error: string | null } {
  * screen; every "Again" mounts a fresh run with fresh slides.
  */
 export function GregsFaceApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const { kit, error } = useFaceKit();
   const [run, setRun] = useState(0);
   const [board, setBoard] = useState<Board>({ status: "loading", standing: null });
@@ -224,7 +224,7 @@ function Title({
   board: Board;
   onStart: () => void;
 }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const face = kit?.face ?? FACE;
   const mine = board.standing?.me ?? null;
@@ -373,7 +373,7 @@ function Run({
   onFinish: (drops: Drop[]) => Promise<RunResult>;
   onAgain: () => void;
 }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const { face } = kit;
   // Fresh slides every run: the app's random is seeded per open, forked per run.

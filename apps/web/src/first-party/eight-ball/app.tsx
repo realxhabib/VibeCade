@@ -1,6 +1,6 @@
 "use client";
 
-import { useXApps } from "@xapps/sdk/react";
+import { useVibeCade } from "vibecade-sdk/react";
 import { Eye, Hourglass, RotateCcw } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,7 +21,7 @@ import { useEightBall, type EightBall } from "./use-game";
 const noop = () => {};
 
 export function EightBallApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const game = useEightBall();
 
   const readied = useRef(false);

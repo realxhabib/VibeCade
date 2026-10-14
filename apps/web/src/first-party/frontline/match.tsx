@@ -10,8 +10,8 @@
  * this client drives).
  */
 
-import type { Json, PlayerInfo, XAppsClient } from "@xapps/sdk";
-import { usePlayers, usePresence, useRoomEvent, useXApps } from "@xapps/sdk/react";
+import type { Json, PlayerInfo, VibeCadeClient } from "vibecade-sdk";
+import { usePlayers, usePresence, useRoomEvent, useVibeCade } from "vibecade-sdk/react";
 import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { reportStats, unlockAchievements } from "../shared/progress";
@@ -73,7 +73,7 @@ function debugAim(game: Game, seat?: number): { seat: number; dist: number } | n
   return { seat: best.seat, dist: best.dist };
 }
 
-function createGame(xapps: XAppsClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, settings: Settings, link: PacketLink): Game {
+function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, settings: Settings, link: PacketLink): Game {
   const humans = players.filter((p) => !p.isBot);
   const simAll = spectator && humans.length === 0;
   return new Game({
@@ -100,7 +100,7 @@ function createGame(xapps: XAppsClient, players: PlayerInfo[], me: PlayerInfo, s
   });
 }
 
-function submitResults(xapps: XAppsClient, game: Game, rows: FinalRow[], submitted: Set<string>) {
+function submitResults(xapps: VibeCadeClient, game: Game, rows: FinalRow[], submitted: Set<string>) {
   xapps.ui.setScores(Object.fromEntries(rows.map((r) => [r.id, r.kills]))).catch(ignore);
   const n = rows.length;
   for (const s of game.submitters()) {
@@ -133,7 +133,7 @@ function submitResults(xapps: XAppsClient, game: Game, rows: FinalRow[], submitt
 }
 
 export function MatchView({ settings, onSettings }: { settings: Settings; onSettings: (s: Settings) => void }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const { players, me, isSpectator } = usePlayers();
   const reduce = useReducedMotion() ?? false;
   const [link] = useState(() => new PacketLink());
