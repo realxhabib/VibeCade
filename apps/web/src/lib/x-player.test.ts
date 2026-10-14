@@ -76,10 +76,11 @@ describe("playsInPost", () => {
     expect(playsInPost({ kind: "app", modes: ["live", "practice"] })).toBe(false);
   });
 
-  it("opens standalone apps in the post too", () => {
+  it("opens everything in the post: games (bots or not) and standalone apps", () => {
     expect(opensInPost({ kind: "app", modes: ["live"] })).toBe(true);
     expect(opensInPost({ modes: ["live", "practice"] })).toBe(true);
-    expect(opensInPost({ kind: "game", modes: ["live"] })).toBe(false);
+    expect(opensInPost({ kind: "game", modes: ["live"] })).toBe(true);
+    expect(opensInPost({ kind: "game", modes: [] })).toBe(false);
     expect(xAppPlayerPath("perfect-circle")).toBe("/x/play/perfect-circle/open");
   });
 });
