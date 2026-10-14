@@ -20,7 +20,7 @@ type Taps = { [playerId: string]: number };
  *   submits for them with `submitFor`.
  */
 export function App() {
-  const xapps = useVibeCade();
+  const vibecade = useVibeCade();
   const log = useLogger();
   const result = useMatchResult();
   const { players, me, opponents, isSpectator } = usePlayers();
@@ -39,16 +39,16 @@ export function App() {
 
   // Tell the host we're on screen. It plays its VS intro + countdown, then fires onStart.
   useEffect(() => {
-    const off = xapps.onStart(() => {
+    const off = vibecade.onStart(() => {
       // Local clock: every client races for exactly DURATION_MS from its own start signal.
       const at = Date.now();
       setStartedAt(at);
       setNow(at);
-      log.info("race started", { players: xapps.players.length, practice: xapps.match.mode === "practice" });
+      log.info("race started", { players: vibecade.players.length, practice: vibecade.match.mode === "practice" });
     });
-    xapps.ready().catch((error: unknown) => log.error("ready failed", { error: String(error) }));
+    vibecade.ready().catch((error: unknown) => log.error("ready failed", { error: String(error) }));
     return off;
-  }, [xapps, log]);
+  }, [vibecade, log]);
 
   // Tick the clock while racing.
   useEffect(() => {
@@ -66,20 +66,20 @@ export function App() {
   // Practice: drive the bots from the shared seed.
   useEffect(() => {
     if (bots.length === 0 || endsAt === null) return;
-    const rngs = bots.map((b) => ({ id: b.id, rng: xapps.random.fork(`bot:${b.id}`) }));
+    const rngs = bots.map((b) => ({ id: b.id, rng: vibecade.random.fork(`bot:${b.id}`) }));
     const id = setInterval(() => {
       if (Date.now() >= endsAt) return;
       const tapped = rngs.filter(({ rng }) => rng.chance(BOT_SKILL)).map((b) => b.id);
       if (tapped.length) setTaps((t) => ({ ...t, ...Object.fromEntries(tapped.map((b) => [b, (t[b] ?? 0) + 1])) }));
     }, 100);
     return () => clearInterval(id);
-  }, [bots, endsAt, xapps]);
+  }, [bots, endsAt, vibecade]);
 
   // Live scoreboard in the host HUD.
   useEffect(() => {
     if (startedAt === null) return;
-    xapps.ui.setScores(Object.fromEntries(players.map((p) => [p.id, taps[p.id] ?? 0]))).catch(() => {});
-  }, [xapps, players, taps, startedAt]);
+    vibecade.ui.setScores(Object.fromEntries(players.map((p) => [p.id, taps[p.id] ?? 0]))).catch(() => {});
+  }, [vibecade, players, taps, startedAt]);
 
   // Time's up: submit once (and for the bots in practice).
   useEffect(() => {
@@ -87,26 +87,26 @@ export function App() {
     submitted.current = true;
     const mine = taps[me.id] ?? 0;
     log.info("race over", { taps: mine });
-    xapps
+    vibecade
       .submit({ score: mine, display: { kind: "text", title: "Tap race", body: `${mine} taps in ${DURATION_MS / 1000} s` } })
       .catch((error: unknown) => log.error("submit failed", { error: String(error) }));
     for (const b of bots) {
-      xapps.submitFor(b.id, { score: taps[b.id] ?? 0 }).catch((error: unknown) => log.warn("bot submit failed", { error: String(error) }));
+      vibecade.submitFor(b.id, { score: taps[b.id] ?? 0 }).catch((error: unknown) => log.warn("bot submit failed", { error: String(error) }));
     }
-  }, [finished, isSpectator, taps, me.id, bots, xapps, log]);
+  }, [finished, isSpectator, taps, me.id, bots, vibecade, log]);
 
   // Celebrate a win.
   useEffect(() => {
-    if (result && result.winnerId === me.id) xapps.ui.celebrate("big").catch(() => {});
-  }, [result, me.id, xapps]);
+    if (result && result.winnerId === me.id) vibecade.ui.celebrate("big").catch(() => {});
+  }, [result, me.id, vibecade]);
 
   const tap = () => {
     if (!racing || isSpectator) return;
     const count = (taps[me.id] ?? 0) + 1;
     setTaps((t) => ({ ...t, [me.id]: count }));
     // Over ~30 messages/s the SDK answers rate_limited; the next tap carries the latest count anyway.
-    xapps.room.send("taps", { count }).catch(() => {});
-    xapps.ui.haptic("light").catch(() => {});
+    vibecade.room.send("taps", { count }).catch(() => {});
+    vibecade.ui.haptic("light").catch(() => {});
   };
 
   const leader = Math.max(20, ...players.map((p) => taps[p.id] ?? 0));
@@ -129,7 +129,7 @@ export function App() {
   return (
     <main className="app">
       <header>
-        <h1>{xapps.context.app.name}</h1>
+        <h1>{vibecade.context.app.name}</h1>
         <p className="muted">Most taps in {DURATION_MS / 1000} seconds wins.</p>
       </header>
 

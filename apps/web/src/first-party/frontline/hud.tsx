@@ -11,7 +11,7 @@
  */
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeftRight, Bomb, Package, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeftRight, Bomb, Package, RotateCw, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { isSoundEnabled, onSoundChange, setSoundEnabled } from "@/lib/sfx";
@@ -211,7 +211,21 @@ export function Hud({
         {touch ? (
           <div className="flex shrink-0 items-start gap-2">
             {/* Phones: ammo at the top too (above the touch controls); tapping it swaps weapons. */}
-            {me && me.alive && live && <Ammo me={me} touch onSwap={() => engine.input.setTouch({ swap: true })} />}
+            {me && me.alive && live && (
+              <>
+                {/* Reload when you like (it also reloads by itself when the magazine runs dry). */}
+                <button
+                  type="button"
+                  aria-label="Reload"
+                  disabled={me.reloading || me.mag >= me.magSize || me.reserve <= 0}
+                  onClick={() => engine.input.setTouch({ reload: true })}
+                  className="glass pointer-events-auto mt-1.5 flex size-9 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-35"
+                >
+                  <RotateCw className={cn("size-4", me.reloading && "animate-spin")} />
+                </button>
+                <Ammo me={me} touch onSwap={() => engine.input.setTouch({ swap: true })} />
+              </>
+            )}
             <button type="button" aria-label="Menu" onClick={() => setMenu(true)} className="glass pointer-events-auto flex size-9 items-center justify-center rounded-full">
               <Pause className="size-4" />
             </button>

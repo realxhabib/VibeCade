@@ -5,7 +5,7 @@ import { Toaster } from "@/components/chrome/toasts";
 import { ConfettiLayer } from "@/components/motion/confetti";
 import { AchievementLayer } from "@/components/play/achievement-moment";
 import { HostRoutesProvider, type HostRoutes } from "@/components/play/host-routes";
-import { xMatchPlayerPath, xMatchSharePath, xPlayerPath, xSharePath } from "@/lib/x-player";
+import { xChallengesPath, xMatchPlayerPath, xMatchSharePath, xPlayerPath, xSharePath } from "@/lib/x-player";
 import { PlatformProvider, useBackend } from "@/platform/client";
 import { isFramed } from "@/platform/x-session";
 
@@ -17,7 +17,7 @@ const X_ROUTES: Omit<HostRoutes, "guest"> = {
   match: (id) => xMatchPlayerPath(id),
   share: (slug) => xSharePath(slug),
   matchLink: (id) => xMatchSharePath(id),
-  challenges: xPlayerPath(),
+  challenges: xChallengesPath(),
   arena: xPlayerPath(),
 };
 

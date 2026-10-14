@@ -94,6 +94,23 @@ test("community apps are in the card too", async ({ page }) => {
   await expect(page.locator("iframe").first()).toHaveAttribute("src", /starshipleague/);
 });
 
+test("signed in, the card has your challenges and your profile", async ({ page }) => {
+  // Demo mode: the card plays for real without the popup sign-in.
+  test.skip(!!process.env.NEXT_PUBLIC_SUPABASE_URL, "demo mode only");
+  await page.setViewportSize({ width: 480, height: 480 });
+  await page.goto("/x/play");
+  await page.getByRole("link", { name: /^Challenges/ }).click();
+  await expect(page).toHaveURL(/\/x\/play\/challenges$/);
+  await expect(page.getByRole("tab", { name: /Your move/ })).toBeVisible();
+  // Match cards open inside the card, never the site.
+  await expect(page.locator("main a[href^='/play/']")).toHaveCount(0);
+  await page.goto("/x/play");
+  await page.getByRole("link", { name: "Your profile" }).click();
+  await expect(page).toHaveURL(/\/x\/play\/me$/);
+  await expect(page.getByText(/Level \d+/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+});
+
 test("a posted challenge's link describes a player card for the match", async ({ request }) => {
   const html = await (await request.get("/x/m/some-match")).text();
   expect(html).toMatch(/<meta name="twitter:card" content="player"/);

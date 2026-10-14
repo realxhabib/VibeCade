@@ -9,7 +9,7 @@ const HELP = `
 Usage: npx create-vibecade <project-name> [options]
 
 Scaffolds a VibeCade app: a ready project using vibecade-sdk, an
-xapps.manifest.json and a README with the path to launch.
+vibecade.manifest.json and a README with the path to launch.
 
 Options:
   -t, --template <name>  react (default), turn-based or vanilla
@@ -239,7 +239,7 @@ export async function main(argv, io = {}) {
     stdout.write(
       `\n${bold("Ship it")}\n` +
         `  1. Deploy it anywhere that serves HTTPS and allows framing by your VibeCade host\n` +
-        `  2. Register it at ${cyan("<xapps-host>/developers/new")} (fields from ${cyan("xapps.manifest.json")})\n` +
+        `  2. Register it at ${cyan("https://vibecade.si/developers/new")} (fields from ${cyan("vibecade.manifest.json")})\n` +
         `  3. Play both seats in the ${cyan("Sandbox")}, invite testers, add versions\n` +
         `  4. Submit a version for review\n\n` +
         `${dim("Docs: README.md in your project and https://www.npmjs.com/package/vibecade-sdk")}\n`,

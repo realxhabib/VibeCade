@@ -1,13 +1,16 @@
 "use client";
 
-import { ArrowUpRight, LogOut } from "lucide-react";
+import { ArrowUpRight, Inbox } from "lucide-react";
+import Link from "next/link";
+import { useInbox } from "@/components/chrome/use-inbox";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { XLogo } from "@/components/ui/x-logo";
 import { isSupabaseConfigured } from "@/lib/env";
 import { useMounted } from "@/lib/use-mounted";
+import { xChallengesPath, xProfilePath } from "@/lib/x-player";
 import { useBackend, useViewer } from "@/platform/client";
-import { signOutXPlayer, useXSignIn } from "./use-x-sign-in";
+import { useXSignIn } from "./use-x-sign-in";
 
 /** True when the card plays real matches: signed in, or a demo deployment (its personas are local). */
 export function usePlaysForReal(): boolean {
@@ -38,28 +41,38 @@ export function XSignInButton({ label = "Sign in with X", size = "md", className
   );
 }
 
-/** The header's account corner: who's signed in (and sign out), or (with `signIn`) the sign-in button. */
+/**
+ * The header's account corner. Signed in: your challenges (with a count of the
+ * ones waiting on you) and your profile. Signed out: (with `signIn`) the sign-in button.
+ */
 export function XAccount({ signIn = true }: { signIn?: boolean }) {
   const mounted = useMounted();
-  const backend = useBackend();
+  const forReal = usePlaysForReal();
   const { viewer } = useViewer();
-  if (!mounted || !isSupabaseConfigured) return null;
-  if (backend.kind === "supabase" && viewer) {
+  const { count } = useInbox();
+  if (!mounted) return null;
+  if (forReal && viewer) {
     return (
-      <div className="flex items-center gap-1.5">
-        <Avatar person={viewer} size={26} />
-        <span className="max-w-[9rem] truncate text-[13px] font-semibold text-ink-100">@{viewer.handle}</span>
-        <button
-          type="button"
-          onClick={() => void signOutXPlayer()}
-          aria-label="Sign out"
-          className="rounded-full p-1.5 text-ink-400 hover:bg-white/[0.06] hover:text-ink-100"
+      <div className="flex items-center gap-1">
+        <Link
+          href={xChallengesPath()}
+          aria-label={count ? `Challenges: ${count} waiting on you` : "Challenges"}
+          className="relative rounded-full p-2 text-ink-200 hover:bg-white/[0.06] hover:text-ink-50"
         >
-          <LogOut className="size-3.5" />
-        </button>
+          <Inbox className="size-[18px]" />
+          {count > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-[#ff5ca8] px-1 text-[10px] font-bold leading-4 text-white">
+              {count > 9 ? "9+" : count}
+            </span>
+          )}
+        </Link>
+        <Link href={xProfilePath()} aria-label="Your profile" className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 hover:bg-white/[0.06]">
+          <Avatar person={viewer} size={26} />
+          <span className="max-w-[8rem] truncate text-[13px] font-semibold text-ink-100">@{viewer.handle}</span>
+        </Link>
       </div>
     );
   }
-  if (backend.kind === "supabase" || !signIn) return null;
+  if (!isSupabaseConfigured || forReal || !signIn) return null;
   return <XSignInButton size="sm" />;
 }

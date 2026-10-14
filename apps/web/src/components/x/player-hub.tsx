@@ -28,7 +28,7 @@ export function XPlayerHub({ apps: firstParty }: { apps: AppManifest[] }) {
           <LogoMark size={26} />
           <span className="font-display text-[17px] font-extrabold tracking-tight text-ink-50">VibeCade</span>
         </div>
-        {isSupabaseConfigured && <XAccount />}
+        <XAccount />
       </header>
       <p className="mb-3 text-[13px] text-ink-300">
         {!isSupabaseConfigured

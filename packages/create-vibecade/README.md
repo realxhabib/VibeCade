@@ -1,6 +1,6 @@
 # create-vibecade
 
-Scaffold an [VibeCade](https://github.com/realxhabib/VibeCade) app in seconds. No dependencies, and no
+Scaffold a [VibeCade](https://github.com/realxhabib/VibeCade) app in seconds. No dependencies, and no
 network needed to scaffold.
 
 ```bash
@@ -17,17 +17,20 @@ npm install
 npm run dev        # opens standalone with the SDK's mock host: you vs a practice bot
 ```
 
+The whole path, from here to a game people play inside a post on X, is in
+[Build your first game](https://github.com/realxhabib/VibeCade/blob/HEAD/docs/build-a-game.md).
+
 ## Templates
 
 | Template | What you get |
 | --- | --- |
 | `react` | Vite + React + TypeScript with `vibecade-sdk`: a 1v1 tap race using room messages, `submit`, and a practice bot via `submitFor` |
 | `turn-based` | The React setup with tic-tac-toe on the shared match state (`state.update` + `turn.end`), read-only spectators and a practice bot |
-| `vanilla` | A single `index.html` importing the SDK bundle from your VibeCade host (`https://YOUR-XAPPS-HOST/sdk/v1.js`) |
+| `vanilla` | A single `index.html` importing the SDK bundle from your VibeCade host (`https://vibecade.si/sdk/v1.js`) |
 
-Every template includes an `xapps.manifest.json` (your listing and capabilities: name, tagline,
+Every template includes a `vibecade.manifest.json` (your listing and capabilities: name, tagline,
 category, icon, accent, modes, players, teams, spectators, turnBased, scoring, how-to…) and a
-README with the path to launch: `npm run dev` → register at `<xapps-host>/developers/new` →
+README with the path to launch: `npm run dev` → register at `https://vibecade.si/developers/new` →
 Sandbox → versions → review.
 
 ## Options

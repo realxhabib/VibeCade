@@ -18,11 +18,26 @@ import { DeveloperNotices } from "./developer-notices";
 import { SignInPrompt } from "./sign-in-prompt";
 import { goToHost } from "@/lib/host-nav";
 
-type Tab = "move" | "waiting" | "history";
+export type ChallengeTab = "move" | "waiting" | "history";
+type Tab = ChallengeTab;
 
 /** A lobby that expired or was cancelled before anyone else sat down: not history worth keeping. */
 function isDeadLobby(m: Match): boolean {
   return (m.status === "expired" || m.status === "cancelled") && m.players.filter((p) => p.role === "player" && p.state !== "declined").length < 2;
+}
+
+/** The viewer's matches as the inbox tabs show them: waiting on you, waiting on others, finished. */
+export function groupMyMatches(matches: Match[] | undefined, viewerId: string | undefined): Record<ChallengeTab, Match[]> {
+  const move: Match[] = [];
+  const waiting: Match[] = [];
+  const history: Match[] = [];
+  for (const m of matches ?? []) {
+    if (viewerId && needsMyMove(m, viewerId)) move.push(m);
+    else if (["open", "pending", "active", "voting"].includes(m.status) && m.mode !== "practice") waiting.push(m);
+    else if (isDeadLobby(m)) continue;
+    else if (m.status !== "active") history.push(m);
+  }
+  return { move, waiting, history };
 }
 
 export function Challenges() {
@@ -33,18 +48,7 @@ export function Challenges() {
   const action = useMatchAction();
   const [tab, setTab] = useState<Tab>("move");
 
-  const groups = useMemo(() => {
-    const move: typeof data = [];
-    const waiting: typeof data = [];
-    const history: typeof data = [];
-    for (const m of data ?? []) {
-      if (viewer && needsMyMove(m, viewer.id)) move.push(m);
-      else if (["open", "pending", "active", "voting"].includes(m.status) && m.mode !== "practice") waiting.push(m);
-      else if (isDeadLobby(m)) continue;
-      else if (m.status !== "active") history.push(m);
-    }
-    return { move, waiting, history };
-  }, [data, viewer]);
+  const groups = useMemo(() => groupMyMatches(data, viewer?.id), [data, viewer]);
 
   if (loading) return <Skeleton className="h-64 rounded-[2rem]" />;
   if (!viewer) {

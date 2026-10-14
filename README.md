@@ -4,7 +4,8 @@
 
 **A social arcade on X.** Sign in with X, pick an app and go head-to-head with anyone:
 reflex duels, rocket runs, strategy and 3D robot brawls.
-Anyone can build and list their own app with the `vibecade-sdk`. (The code and SDK keep their original XApps names.)
+Anyone can build and list their own app with the `vibecade-sdk`: start with
+[Build your first game](docs/build-a-game.md), from `npm create vibecade` to a playable post on X.
 
 - **Marketplace**: browse, search and filter apps. Each app card is a live animated vignette.
 - **Challenges**: quick match, invite one or several `@handles`, or post an open challenge link to your timeline. Tables seat 2–8 players, with teams and spectators.

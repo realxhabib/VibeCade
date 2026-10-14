@@ -332,7 +332,7 @@ export function RegisterApp() {
               maxLength={1200}
             />
           </Field>
-          <Field label="App URL" error={errors.url} hint="Your app must allow framing: frame-ancestors <this site>">
+          <Field label="App URL" error={errors.url} hint="Your app must allow framing by this site and by X (playable posts): no frame-ancestors, or this site plus https://x.com https://*.x.com">
             <input className={cn(input, "font-mono")} value={form.url} onChange={(e) => set("url", e.target.value)} placeholder="https://tap-race.dev" />
           </Field>
 

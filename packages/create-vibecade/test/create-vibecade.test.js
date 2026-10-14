@@ -84,13 +84,13 @@ describe("scaffold", () => {
       const files = listAll(target);
       expect(files).toEqual(result.files);
       expect(files).toContain("README.md");
-      expect(files).toContain("xapps.manifest.json");
+      expect(files).toContain("vibecade.manifest.json");
       expect(files).toContain("index.html");
 
       // No placeholder survives anywhere.
       for (const file of files) expect(read(target, file), file).not.toMatch(/\{\{\s*(name|slug|sdkVersion)\s*\}\}/);
 
-      const manifest = JSON.parse(read(target, "xapps.manifest.json"));
+      const manifest = JSON.parse(read(target, "vibecade.manifest.json"));
       expect(manifest).toMatchObject({ name: "Tap Race", players: { min: 2, max: 2 }, scoring: "high" });
       for (const key of ["tagline", "description", "category", "icon", "accent", "modes", "howTo", "spectators", "turnBased"]) {
         expect(manifest, key).toHaveProperty(key);
@@ -101,9 +101,9 @@ describe("scaffold", () => {
       expect(read(target, "index.html")).toContain("<title>Tap Race</title>");
 
       if (template === "vanilla") {
-        expect(files).toEqual(["README.md", "index.html", "xapps.manifest.json"]);
+        expect(files).toEqual(["README.md", "index.html", "vibecade.manifest.json"]);
         const html = read(target, "index.html");
-        expect(html).toContain('from "https://YOUR-XAPPS-HOST/sdk/v1.js"');
+        expect(html).toContain('from "https://vibecade.si/sdk/v1.js"');
         expect(html).toMatch(/submitFor/);
         expect(manifest.turnBased).toBe(false);
         // The inline module parses.
@@ -201,9 +201,9 @@ describe("cli", () => {
     input.write("Quiz Night!\n"); // display name
     expect(await done).toBe(0);
     expect(out.text()).toMatch(/Project name[\s\S]*Template[\s\S]*Display name/);
-    const manifest = JSON.parse(read(tmp, "quiz-night", "xapps.manifest.json"));
+    const manifest = JSON.parse(read(tmp, "quiz-night", "vibecade.manifest.json"));
     expect(manifest.name).toBe("Quiz Night!");
-    expect(listAll(join(tmp, "quiz-night"))).toEqual(["README.md", "index.html", "xapps.manifest.json"]);
+    expect(listAll(join(tmp, "quiz-night"))).toEqual(["README.md", "index.html", "vibecade.manifest.json"]);
   });
 
   it("fails without a name when not interactive, and on a non-empty folder", async () => {
