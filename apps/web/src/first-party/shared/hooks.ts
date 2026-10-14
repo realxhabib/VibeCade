@@ -2,7 +2,7 @@
 
 import { useXApps } from "@xapps/sdk/react";
 import type { PlayerInfo } from "@xapps/sdk";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /** The bot this client must play for (practice / sandbox / demo personas), if any. */
 export function useBot(): PlayerInfo | undefined {
@@ -69,4 +69,17 @@ export function useTimeouts() {
     timers.current.add(id);
     return id;
   }, []);
+}
+
+/** Whether a CSS media query matches (false on the server and before hydration). */
+export function useMediaQuery(query: string): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      return () => list.removeEventListener("change", onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
 }

@@ -13,6 +13,7 @@ import { Crosshair, Map as MapIcon, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { ActionButton, AnimatedDots, Eyebrow, Screen } from "@/first-party/shared/ui";
+import { useMediaQuery } from "@/first-party/shared/hooks";
 import { ease } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { LoadoutPicker } from "./loadout";
@@ -111,6 +112,8 @@ export function FrontlineApp() {
   }, [locked, started, isSpectator, others, xapps]);
 
   const map = MAPS[DEFAULT_MAP];
+  // The X post's card (and phones): everything on one screen, Deploy always in view.
+  const small = useMediaQuery("(max-height: 600px), (max-width: 480px)");
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
@@ -126,9 +129,9 @@ export function FrontlineApp() {
             exit={{ opacity: 0, scale: 1.03, filter: "blur(10px)" }}
             transition={{ duration: 0.35, ease: ease.inOutQuart }}
           >
-            <Screen className="max-w-2xl justify-start gap-5 py-5 sm:justify-center">
-              <header className="flex w-full flex-col items-center gap-1.5 text-center">
-                <h1 className="font-display text-4xl font-extrabold uppercase italic tracking-tight sm:text-5xl">
+            <Screen className={cn("max-w-2xl justify-start", small ? "min-h-full gap-2.5 px-3 py-2.5" : "gap-5 py-5 sm:justify-center")}>
+              <header className={cn("flex w-full flex-col items-center text-center", small ? "gap-0.5" : "gap-1.5")}>
+                <h1 className={cn("font-display font-extrabold uppercase italic tracking-tight", small ? "text-2xl" : "text-4xl sm:text-5xl")}>
                   Front<span className="bg-[linear-gradient(100deg,var(--accent-from),var(--accent-to))] bg-clip-text pr-1 text-transparent">line</span>
                 </h1>
                 <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-semibold text-ink-300">
@@ -153,8 +156,8 @@ export function FrontlineApp() {
                 </Eyebrow>
               ) : (
                 <>
-                  <LoadoutPicker value={settings.loadout} onChange={(l) => update({ ...settings, loadout: l })} disabled={locked} />
-                  <div className="flex w-full flex-col items-center gap-2 pb-4">
+                  <LoadoutPicker value={settings.loadout} onChange={(l) => update({ ...settings, loadout: l })} disabled={locked} compact={small} summary />
+                  <div className={cn("flex w-full flex-col items-center gap-2", small ? "sticky bottom-0 mt-auto pb-1 pt-1" : "pb-4")}>
                     <ActionButton onClick={lockIn} disabled={locked} className="w-full max-w-xs">
                       {locked ? (
                         <span className="inline-flex items-center gap-1">

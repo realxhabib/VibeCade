@@ -3,8 +3,9 @@
 /**
  * Twin-stick phone controls: a floating stick on the left (appears under
  * your thumb; push it to the edge to sprint), drag anywhere on the right to
- * look, and five buttons in the right thumb's reach: fire (drag it to keep
- * aiming while you shoot), aim, jump, crouch and grenade. Reloading is
+ * look, and four buttons in the right thumb's reach: fire, which aims down
+ * sights while held (drag it to keep aiming while you shoot; the sniper
+ * scopes in while held and fires on release), jump, crouch and grenade. Reloading is
  * automatic when the magazine runs dry, and the ammo readout at the top
  * swaps weapons (hud.tsx). Every touch surface is gesture-locked so the page
  * never scrolls or zooms mid-fight.
@@ -23,8 +24,9 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
   const root = useRef<HTMLDivElement>(null);
   useGestureLock(root);
   const [stick, setStick] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
-  const [ads, setAds] = useState(false);
   const [crouch, setCrouch] = useState(false);
+  /** The sniper's scope toggle: stay scoped in and look around, then fire. */
+  const [scoped, setScoped] = useState(false);
   const stickId = useRef<number | null>(null);
 
   const me = hud.me;
@@ -94,6 +96,20 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
     },
   });
 
+  // Fire aims too (mobile shooters' "ADS fire"): guns aim down sights and shoot while it's
+  // held; the sniper scopes in while held and fires on release (a quick-scope).
+  const sniper = me?.weapon === "sniper";
+  const scopedIn = sniper && scoped;
+  const aimFire = (down: boolean) => {
+    if (down) input.setTouch({ ads: true, fire: !sniper });
+    else if (sniper) input.pulseFire({ ads: scopedIn });
+    else input.setTouch({ fire: false, ads: false });
+  };
+  // The scope follows the toggle: swapping away from the sniper lowers it, swapping back raises it again.
+  useEffect(() => {
+    input.setTouch({ ads: scopedIn });
+  }, [scopedIn, input]);
+
   const tap = (fn: () => void) => ({
     onPointerDown: (e: ReactPointerEvent) => {
       e.preventDefault();
@@ -158,8 +174,9 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
         </div>
       )}
 
-      {/* Buttons: fire under the thumb, aim beside it, movement and the grenade in a row above. */}
-      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 grid grid-cols-[auto_auto_auto] items-center justify-items-center gap-x-2.5 gap-y-2 [@media(max-height:480px)]:gap-y-1.5">
+      {/* Buttons: fire under the thumb with jump above it, crouch and the grenade beside them (and the sniper's scope). */}
+      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 grid grid-cols-[auto_auto_auto] items-center justify-items-center gap-x-3 gap-y-2 [@media(max-height:480px)]:gap-y-1.5">
+        <div />
         <Btn
           label="Grenade (hold to aim, release to throw)"
           size="sm"
@@ -168,6 +185,25 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
         >
           <Bomb className="size-5" />
         </Btn>
+        <Btn label="Jump" size="sm" {...tap(() => input.setTouch({ jump: true }))}>
+          <ArrowUpFromLine className="size-5" />
+        </Btn>
+        {/* Only with the sniper: scope in to look around without shooting. */}
+        {sniper ? (
+          <Btn
+            label={scopedIn ? "Lower scope" : "Scope in"}
+            size="sm"
+            on={scopedIn}
+            {...tap(() => {
+              input.setTouch({ ads: !scopedIn });
+              setScoped(!scopedIn);
+            })}
+          >
+            <Scan className="size-5" />
+          </Btn>
+        ) : (
+          <div />
+        )}
         <Btn
           label="Crouch"
           size="sm"
@@ -179,22 +215,12 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
         >
           <ChevronsDown className="size-5" />
         </Btn>
-        <Btn label="Jump" size="sm" {...tap(() => input.setTouch({ jump: true }))}>
-          <ArrowUpFromLine className="size-5" />
-        </Btn>
-        <div />
         <Btn
-          label={me.weapon === "sniper" ? "Scope in" : "Aim down sights"}
-          size="md"
-          on={ads}
-          {...tap(() => {
-            input.setTouch({ ads: !ads });
-            setAds(!ads);
-          })}
+          label={sniper ? (scopedIn ? "Fire" : "Fire: hold to scope in, release to fire") : "Fire: hold to aim down sights and shoot"}
+          size="lg"
+          {...press((down) => aimFire(down), true)}
+          className="bg-[color-mix(in_oklab,var(--accent-to)_40%,transparent)]"
         >
-          <Scan className="size-6" />
-        </Btn>
-        <Btn label="Fire" size="lg" {...press((down) => input.setTouch({ fire: down }), true)} className="bg-[color-mix(in_oklab,var(--accent-to)_40%,transparent)]">
           <Crosshair className="size-9" />
         </Btn>
       </div>
