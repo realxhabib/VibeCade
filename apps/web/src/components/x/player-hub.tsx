@@ -6,6 +6,8 @@ import Link from "next/link";
 import { LogoMark } from "@/components/chrome/logo";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
 import { isSupabaseConfigured } from "@/lib/env";
+import { useMounted } from "@/lib/use-mounted";
+import { useBackend } from "@/platform/client";
 import { fadeUp, staggerChildren } from "@/lib/motion";
 import { opensInPost, xPlayerPath } from "@/lib/x-player";
 import type { AppManifest } from "@/platform/types";
@@ -15,6 +17,9 @@ import { useCardApps } from "./card-catalog";
 /** `/x/play`: every app as a tile, sized for the 480×480 frame (and phones). */
 export function XPlayerHub({ apps: firstParty }: { apps: AppManifest[] }) {
   const apps = useCardApps(firstParty);
+  // After mounting: the server renders the guest's text (the card's session lives in this browser).
+  const mounted = useMounted();
+  const signedIn = useBackend().kind === "supabase" && mounted;
   const ordered = [...apps.filter(opensInPost), ...apps.filter((app) => !opensInPost(app))];
   return (
     <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col px-3 pb-3">
@@ -37,7 +42,11 @@ export function XPlayerHub({ apps: firstParty }: { apps: AppManifest[] }) {
         )}
       </header>
       <p className="mb-3 text-[13px] text-ink-300">
-        {isSupabaseConfigured ? "Pick a game: play the bots, or sign in to challenge people right here." : "Pick a game and play right here."}
+        {!isSupabaseConfigured
+          ? "Pick a game and play right here."
+          : signedIn
+            ? "Pick a game: challenge anyone on X, or play the bots, right here."
+            : "Pick a game: play the bots, or sign in to challenge people right here."}
       </p>
       <motion.ul className="grid grid-cols-3 gap-2" variants={staggerChildren(0.03)} initial="hidden" animate="show">
         {ordered.map((app) => {
