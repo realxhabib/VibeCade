@@ -4,11 +4,11 @@ import { notFound } from "next/navigation";
 import { PlayerCardTags } from "@/components/x/player-card-tags";
 import { ShareLanding } from "@/components/x/share-landing";
 import { requestOrigin, xPlayerPath, xPreviewPath, xSharePath, xSiteHandle } from "@/lib/x-player";
-import { getOfficialApp } from "@/platform/catalog";
+import { getPostableApp } from "@/platform/postable-apps";
 
 export async function generateMetadata({ params }: PageProps<"/x/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const app = getOfficialApp(slug);
+  const app = await getPostableApp(slug);
   if (!app) return {};
   return { title: { absolute: `Play ${app.name} on VibeCade` }, description: app.tagline, openGraph: null, twitter: null };
 }
@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: PageProps<"/x/[slug]">): Prom
 /** A playable post for one app: X frames `/x/play/<slug>`. People who open the link go to the app's page. */
 export default async function XAppSharePage({ params }: PageProps<"/x/[slug]">) {
   const { slug } = await params;
-  const app = getOfficialApp(slug);
+  const app = await getPostableApp(slug);
   if (!app) notFound();
   const origin = requestOrigin(await headers());
   return (

@@ -10,9 +10,11 @@ import { fadeUp, staggerChildren } from "@/lib/motion";
 import { opensInPost, xPlayerPath } from "@/lib/x-player";
 import type { AppManifest } from "@/platform/types";
 import { XAccount } from "./account";
+import { useCardApps } from "./card-catalog";
 
 /** `/x/play`: every app as a tile, sized for the 480×480 frame (and phones). */
-export function XPlayerHub({ apps }: { apps: AppManifest[] }) {
+export function XPlayerHub({ apps: firstParty }: { apps: AppManifest[] }) {
+  const apps = useCardApps(firstParty);
   const ordered = [...apps.filter(opensInPost), ...apps.filter((app) => !opensInPost(app))];
   return (
     <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col px-3 pb-3">

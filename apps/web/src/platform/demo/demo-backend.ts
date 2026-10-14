@@ -559,6 +559,17 @@ export class DemoBackend implements Backend {
     markHuman(profile.id);
   }
 
+  /**
+   * Knows a community app it was handed (the X player's guest, who reads the
+   * real catalog but plays practice on this engine): published, as listed.
+   */
+  adoptApp(app: AppManifest): void {
+    if (getOfficialApp(app.slug)) return;
+    mutate((db) => {
+      db.apps[app.slug] = { ...app, status: "published" };
+    });
+  }
+
   /* ---------------------------------------------------------------- */
   /* Session                                                          */
   /* ---------------------------------------------------------------- */

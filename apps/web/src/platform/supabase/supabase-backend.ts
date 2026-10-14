@@ -39,6 +39,7 @@ import type {
 import { getBrowserSupabase } from "./client";
 import { createLiveRoom } from "./live-room";
 import {
+  APP_COLUMNS,
   appInsert,
   challengeArgs,
   isSchemaMissing,
@@ -90,8 +91,6 @@ interface ProfileRow {
   /** Stage 4 (absent before the shipping migration). */
   is_admin?: boolean | null;
 }
-
-const APP_COLUMNS = "*, developer:profiles!apps_developer_id_fkey(handle, name)";
 
 function toProfile(row: ProfileRow): Profile {
   return {

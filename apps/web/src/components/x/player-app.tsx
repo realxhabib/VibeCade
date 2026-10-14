@@ -14,7 +14,9 @@ import { playsInPost, xAppPlayerPath, xMatchPlayerPath, xPlayerPath } from "@/li
 import { useViewer } from "@/platform/client";
 import { useCreateChallenge, usePractice, useQuickMatch } from "@/platform/queries";
 import type { AppManifest, Match } from "@/platform/types";
+import { Spinner } from "@/components/ui/spinner";
 import { XAccount, XSignInButton, usePlaysForReal } from "./account";
+import { useCardApp } from "./card-catalog";
 
 /** Games people can challenge each other to from the card (apps with a setup screen show it in the card first). */
 export function challengeableInPost(app: AppManifest): boolean {
@@ -23,6 +25,26 @@ export function challengeableInPost(app: AppManifest): boolean {
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+/** `/x/play/<slug>` for a community app: its listing comes from the catalog in the browser. */
+export function XPlayerAppBySlug({ slug }: { slug: string }) {
+  const { data: app, isPending } = useCardApp(slug);
+  if (app) return <XPlayerApp app={app} />;
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-4 px-4 text-center">
+      {isPending ? (
+        <Spinner className="size-8 text-ink-300" />
+      ) : (
+        <>
+          <p className="text-ink-200">This app isn&apos;t on VibeCade (or isn&apos;t published yet).</p>
+          <Button size="md" variant="glass" href={xPlayerPath()} icon={<ArrowLeft className="size-4" />}>
+            All games
+          </Button>
+        </>
+      )}
+    </main>
+  );
 }
 
 /**

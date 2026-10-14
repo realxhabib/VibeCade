@@ -1,7 +1,8 @@
 import type { Backend } from "./backend";
 import { DemoBackend } from "./demo/demo-backend";
 import { SupabaseBackend } from "./supabase/supabase-backend";
-import type { Profile } from "./types";
+import { isSupabaseConfigured } from "@/lib/env";
+import type { AppManifest, Profile } from "./types";
 import { getXPlayerSupabase, hasXPlayerSession } from "./x-session";
 
 const GUEST_KEY = "xapps:x-guest";
@@ -56,4 +57,23 @@ export function getPlayerBackend(): Backend {
     if (typeof window !== "undefined") guest.adoptViewer(guestProfile());
   }
   return guest;
+}
+
+let catalog: Backend | null = null;
+
+/**
+ * Where the X player reads the catalog: the real one (as anyone, or as the
+ * signed-in player), so community apps are there for guests too. Demo
+ * deployments read the local engine's.
+ */
+export function getCardCatalog(): Backend {
+  if (!isSupabaseConfigured) return getPlayerBackend();
+  if (hasXPlayerSession()) return getPlayerBackend();
+  return (catalog ??= new SupabaseBackend(getXPlayerSupabase()));
+}
+
+/** A community app the guest is about to play: practice runs on the local engine, which needs its manifest. */
+export function adoptGuestApp(app: AppManifest): void {
+  const backend = getPlayerBackend();
+  if (backend instanceof DemoBackend) backend.adoptApp(app);
 }

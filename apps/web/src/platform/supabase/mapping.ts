@@ -38,6 +38,9 @@ import type {
 import { BackendError } from "../backend";
 import { OutageError, isOutage } from "../health";
 
+/** The `apps` columns every catalog read selects (with the developer's handle and name). */
+export const APP_COLUMNS = "*, developer:profiles!apps_developer_id_fkey(handle, name)";
+
 export interface AppRow {
   slug: string;
   name: string;

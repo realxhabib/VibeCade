@@ -81,6 +81,19 @@ test("games with their own setup screen set up the challenge inside the card", a
   await expect(page).toHaveURL(/\/x\/play\/match\//);
 });
 
+test("community apps are in the card too", async ({ page }) => {
+  // Demo mode lists the showcase's Starship League; with Supabase, the published catalog.
+  test.skip(!!process.env.NEXT_PUBLIC_SUPABASE_URL, "demo mode only");
+  await page.setViewportSize({ width: 480, height: 480 });
+  await page.goto("/x/play");
+  await page.getByRole("link", { name: /Starship League/ }).click();
+  await expect(page).toHaveURL(/\/x\/play\/starship-league$/);
+  await expect(page.locator("a[target=_blank]")).toHaveCount(0);
+  await page.getByRole("button", { name: /^(Play vs bots|Bots)$/ }).click();
+  await expect(page).toHaveURL(/\/x\/play\/match\//);
+  await expect(page.locator("iframe").first()).toHaveAttribute("src", /starshipleague/);
+});
+
 test("a posted challenge's link describes a player card for the match", async ({ request }) => {
   const html = await (await request.get("/x/m/some-match")).text();
   expect(html).toMatch(/<meta name="twitter:card" content="player"/);
