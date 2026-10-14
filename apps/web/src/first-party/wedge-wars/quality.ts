@@ -5,6 +5,8 @@
  * pin a tier in the pause menu (remembered per browser).
  */
 
+import { detectDeviceTier } from "../shared/device-tier";
+
 export type Tier = "high" | "medium" | "low";
 export type QualityPref = "auto" | Tier;
 
@@ -53,36 +55,9 @@ export function savePref(pref: QualityPref): void {
 
 let guessed: Tier | null = null;
 
-/** A first guess from what the browser tells us about the GPU and device. */
+/** A first guess from the device (`shared/device-tier`); the match steps down from it if it can't hold the frame rate. */
 export function detectTier(): Tier {
-  if (guessed) return guessed;
-  let tier: Tier = "medium";
-  try {
-    const nav = navigator as Navigator & { deviceMemory?: number };
-    const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-    const cores = nav.hardwareConcurrency ?? 4;
-    const memory = nav.deviceMemory ?? 8;
-    const renderer = gpuRenderer().toLowerCase();
-    if (/swiftshader|llvmpipe|software|mesa offscreen|microsoft basic/.test(renderer)) tier = "low";
-    else if (/nvidia|geforce|rtx|radeon rx|amd radeon pro|apple m\d|apple gpu/.test(renderer) && !touch) tier = "high";
-    else if (touch) tier = memory >= 6 && cores >= 6 && /apple|adreno \(tm\) (7|8)\d\d|mali-g7\d\d|immortalis/.test(renderer) ? "medium" : "low";
-    else if (/intel/.test(renderer)) tier = cores >= 8 ? "medium" : "low";
-    else tier = cores >= 8 && memory >= 8 ? "high" : "medium";
-  } catch {
-    tier = "medium";
-  }
-  guessed = tier;
-  return tier;
-}
-
-function gpuRenderer(): string {
-  const c = document.createElement("canvas");
-  const gl = (c.getContext("webgl2") ?? c.getContext("webgl")) as WebGLRenderingContext | null;
-  if (!gl) return "software";
-  const ext = gl.getExtension("WEBGL_debug_renderer_info");
-  const name = ext ? (gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) as string) : (gl.getParameter(gl.RENDERER) as string);
-  gl.getExtension("WEBGL_lose_context")?.loseContext();
-  return name ?? "";
+  return (guessed ??= detectDeviceTier());
 }
 
 export function lower(tier: Tier): Tier {
