@@ -8,7 +8,7 @@ import {
   type HostBridge,
   type HostHandlers,
 } from "../src/host";
-import { LIMITS, XAppsError, type Json, type LaunchContext, type PlayerInfo } from "../src/protocol";
+import { LIMITS, VibeCadeError, type Json, type LaunchContext, type PlayerInfo } from "../src/protocol";
 import { createMemoryTransportPair } from "../src/transport";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -54,7 +54,7 @@ function makeServer(context: LaunchContext, bridge: () => HostBridge) {
     "state.get": () => ({ state: server.state, version: server.version }),
     "state.set": ({ state, expectedVersion }) => {
       server.sets++;
-      if (expectedVersion !== server.version) throw new XAppsError("conflict", "state moved");
+      if (expectedVersion !== server.version) throw new VibeCadeError("conflict", "state moved");
       server.state = state;
       server.version++;
       bridge().emitState(state, server.version, context.user.id);
@@ -204,7 +204,7 @@ describe("shared state", () => {
   it("update() gives up after the retry budget", async () => {
     const { client } = await setup(makeContext(), {
       "state.set": () => {
-        throw new XAppsError("conflict", "always");
+        throw new VibeCadeError("conflict", "always");
       },
     });
     const fn = vi.fn((s: Json | null) => s ?? 1);

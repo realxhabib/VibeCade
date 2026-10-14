@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlayerInfo } from "@xapps/sdk";
+import type { PlayerInfo } from "vibecade-sdk";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";

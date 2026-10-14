@@ -7,7 +7,7 @@
  * Prix once the host fires `match.start`.
  */
 
-import { useMatchStarted, usePlayers, useXApps } from "@xapps/sdk/react";
+import { useMatchStarted, usePlayers, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -45,7 +45,7 @@ function loadChoice(): ShipChoice {
 }
 
 export function NovaRallyApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#07051a]">
       {xapps.purpose === "setup" ? <Setup /> : <Race />}
@@ -58,7 +58,7 @@ function Race() {
   const [choice, setChoice] = useState<ShipChoice | null>(null);
   const [locked, setLocked] = useState<ShipChoice | null>(null);
   const [trial, setTrial] = useState<{ track: string; run: number } | null>(null);
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const readyRef = useRef(false);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ function Garage({
   onTrial: (track: string) => void;
   locked: boolean;
 }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const { players, me } = usePlayers();
   const [choice, setChoice] = useState<ShipChoice>(() => (typeof window === "undefined" ? { design: 0, livery: -1, pilot: 0 } : loadChoice()));
@@ -236,7 +236,7 @@ function Garage({
         </div>
 
         {/* Right: kit out the ship, start engines, then the extras. */}
-        <div className="pointer-events-auto flex flex-col gap-2.5 md:max-h-[calc(100dvh-40px)] md:overflow-y-auto md:pb-1">
+        <div className="pointer-events-auto flex flex-col gap-2.5 md:max-h-[calc(100dvh-40px)] md:overflow-y-auto md:pb-1 [@media(min-width:768px)_and_(max-height:560px)]:pb-20">
           <div className="flex flex-col gap-3 rounded-3xl bg-[rgba(10,6,30,0.74)] p-3 ring-1 ring-white/10 backdrop-blur-md">
             <Segmented<GarageTab>
               id="garage-tab"
@@ -355,8 +355,8 @@ function Garage({
             </ul>
           </div>
 
-          {/* Phones: pinned to the bottom so it's always in reach. */}
-          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[#07051a] via-[#07051a]/90 to-transparent px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-10 md:static md:z-auto md:bg-none md:p-0">
+          {/* Phones and short screens (a phone on its side, the X post's card): pinned to the bottom so it's always in reach. */}
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[#07051a] via-[#07051a]/90 to-transparent px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-10 [@media(min-width:768px)_and_(min-height:561px)]:static [@media(min-width:768px)_and_(min-height:561px)]:z-auto [@media(min-width:768px)_and_(min-height:561px)]:bg-none [@media(min-width:768px)_and_(min-height:561px)]:p-0">
             <motion.button
               type="button"
               disabled={locked}
@@ -365,7 +365,7 @@ function Garage({
                 onReady(choice);
               }}
               whileTap={{ scale: 0.97 }}
-              className="pointer-events-auto mx-auto block w-full max-w-lg rounded-2xl px-5 py-3.5 text-lg font-black italic text-[#2a1400] disabled:opacity-80 md:max-w-none"
+              className="pointer-events-auto mx-auto block w-full max-w-lg rounded-2xl px-5 py-3.5 text-lg font-black italic text-[#2a1400] disabled:opacity-80 [@media(min-width:768px)_and_(min-height:561px)]:max-w-none [@media(max-height:480px)]:py-2.5 [@media(max-height:480px)]:text-base"
               style={{ background: "linear-gradient(180deg, #ffe27a, #ff9a1f)", boxShadow: "0 5px 0 #9a4b00, 0 0 30px rgba(255,160,40,0.4)" }}
             >
               {locked ? "Engines hot — waiting for the grid…" : `Start engines (${Math.max(0, autoLeft)})`}

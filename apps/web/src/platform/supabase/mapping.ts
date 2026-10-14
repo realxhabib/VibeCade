@@ -38,6 +38,9 @@ import type {
 import { BackendError } from "../backend";
 import { OutageError, isOutage } from "../health";
 
+/** The `apps` columns every catalog read selects (with the developer's handle and name). */
+export const APP_COLUMNS = "*, developer:profiles!apps_developer_id_fkey(handle, name)";
+
 export interface AppRow {
   slug: string;
   name: string;
@@ -281,7 +284,7 @@ export function toBackendError(error: { code?: string; message?: string } | null
   const code = error?.code;
   if (isSchemaMissing(code)) {
     return new BackendError(
-      "Supabase is connected, but the XApps database schema isn't installed yet. Run the SQL in supabase/migrations.",
+      "Supabase is connected, but the VibeCade database schema isn't installed yet. Run the SQL in supabase/migrations.",
       "setup_required",
     );
   }

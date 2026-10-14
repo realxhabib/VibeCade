@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { achievementDefsError, getOfficialApp, statDefsError } from "@/platform/catalog";
 import { BALLS, type Balls, type Vec } from "./physics";
 import { earnedAchievements, gameStats, type PoolAchievement } from "./progress";

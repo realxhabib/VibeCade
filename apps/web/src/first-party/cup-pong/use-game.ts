@@ -1,6 +1,6 @@
 "use client";
 
-import type { Json, MatchResult, PlayerInfo } from "@xapps/sdk";
+import type { Json, MatchResult, PlayerInfo } from "vibecade-sdk";
 import {
   useMatch,
   useMatchResult,
@@ -10,8 +10,8 @@ import {
   usePresence,
   useRoomEvent,
   useTurn,
-  useXApps,
-} from "@xapps/sdk/react";
+  useVibeCade,
+} from "vibecade-sdk/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { play } from "@/lib/sfx";
 import { useBot } from "../shared/hooks";
@@ -107,7 +107,7 @@ const isNums = (v: unknown): v is number[] => Array.isArray(v) && v.length <= 2_
  * table has caught up.
  */
 export function useCupPong(difficulty: Difficulty) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const matchStatus = useMatch().status;
   const result: MatchResult | null = useMatchResult();

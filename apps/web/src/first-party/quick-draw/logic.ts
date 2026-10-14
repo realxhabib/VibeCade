@@ -22,7 +22,7 @@
  * That keeps the duel short and both clients in lock-step, at the cost of a
  * rare drawn match (e.g. 2–2 after five rounds).
  */
-import type { Json, Random } from "@xapps/sdk";
+import type { Json, Random } from "vibecade-sdk";
 
 /* ------------------------------------------------------------------ */
 /* Tuning                                                             */

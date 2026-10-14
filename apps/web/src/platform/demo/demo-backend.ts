@@ -1,7 +1,7 @@
 import { appImageKeyError, blobToDataUrl, type AppImageKind } from "@/lib/app-images";
-import { LIMITS, createRandom, randomId } from "@xapps/sdk";
-import { byteLength } from "@xapps/sdk/protocol";
-import { isBlobLike } from "@xapps/sdk/host";
+import { LIMITS, randomId } from "vibecade-sdk";
+import { byteLength } from "vibecade-sdk/protocol";
+import { isBlobLike } from "vibecade-sdk/host";
 import { absoluteMediaUrl, displayProblem, mediaKindOf, mediaProblem, mediaQuotaProblem, postDemoMedia, probeMedia } from "@/lib/media";
 import { BackendError, type Backend, type DemoControls, type RoomTransport } from "../backend";
 import {
@@ -73,7 +73,7 @@ import type {
 import { UPVOTES_PER_MINUTE } from "../upvotes";
 import { computeAnalytics } from "./analytics";
 import { createDemoRoom } from "./room";
-import { addPersonaContest, applySettlement, buildSeed, ensureShowcase, isPracticeBot, newMatchId, PRACTICE_BOTS, upgradeDb } from "./seed";
+import { applySettlement, buildSeed, ensureShowcase, isPracticeBot, newMatchId, PRACTICE_BOTS, upgradeDb } from "./seed";
 import {
   credentialsFor,
   deliveriesFor,
@@ -559,6 +559,17 @@ export class DemoBackend implements Backend {
     markHuman(profile.id);
   }
 
+  /**
+   * Knows a community app it was handed (the X player's guest, who reads the
+   * real catalog but plays practice on this engine): published, as listed.
+   */
+  adoptApp(app: AppManifest): void {
+    if (getOfficialApp(app.slug)) return;
+    mutate((db) => {
+      db.apps[app.slug] = { ...app, status: "published" };
+    });
+  }
+
   /* ---------------------------------------------------------------- */
   /* Session                                                          */
   /* ---------------------------------------------------------------- */
@@ -618,7 +629,7 @@ export class DemoBackend implements Backend {
           handle: clean,
           name: name?.trim() || clean,
           avatarUrl: null,
-          bio: "Trying out XApps",
+          bio: "Trying out VibeCade",
           xp: 0,
           wins: 0,
           losses: 0,
@@ -1171,7 +1182,7 @@ export class DemoBackend implements Backend {
     return mutate((db) => {
       const app = this.requireAppOwner(db, appSlug);
       const profile = Object.values(db.profiles).find((p) => p.handle.toLowerCase() === clean);
-      if (!clean || !profile || isPracticeBot(profile.id)) throw new BackendError(`@${clean || "?"} hasn't joined XApps yet`, "not_found");
+      if (!clean || !profile || isPracticeBot(profile.id)) throw new BackendError(`@${clean || "?"} hasn't joined VibeCade yet`, "not_found");
       if (profile.id === app.developer.id) throw new BackendError("You can always play your own test builds", "invalid");
       const list = ((db.testers ??= {})[appSlug] ??= []);
       if (!list.includes(profile.id)) {
@@ -1473,7 +1484,7 @@ export class DemoBackend implements Backend {
       if (!handle || seen.has(handle)) continue;
       seen.add(handle);
       const profile = Object.values(db.profiles).find((p) => p.handle.toLowerCase() === handle);
-      if (!profile || isPracticeBot(profile.id)) throw new BackendError(`@${handle} hasn't joined XApps yet`, "not_found");
+      if (!profile || isPracticeBot(profile.id)) throw new BackendError(`@${handle} hasn't joined VibeCade yet`, "not_found");
       if (profile.id === viewerId) throw new BackendError("You can't challenge yourself", "invalid");
       if (testApp && !canTest(db, testApp.slug, profile.id)) {
         throw new BackendError(`@${profile.handle} isn't a tester of ${testApp.name}`, "forbidden");
@@ -2058,6 +2069,7 @@ export class DemoBackend implements Backend {
     return subscribe(handler);
   }
 
+  // Demo rooms are local (BroadcastChannel) whatever the app: no live server here.
   openRoom(matchId: string, viewerId: string): RoomTransport {
     return createDemoRoom(matchId, viewerId);
   }
@@ -2394,16 +2406,6 @@ export class DemoBackend implements Backend {
           applySettlement(draft, row);
           changed = true;
         }
-      }
-
-      // Keep the Arena stocked with fresh persona contests.
-      const background = Object.values(draft.matches).filter(
-        (m) => m.status === "voting" && !seatRows(m).some((p) => !p.isBot),
-      ).length;
-      if (background < 4) {
-        const rng = createRandom(randomId(8));
-        addPersonaContest(draft, rng, 0, true);
-        changed = true;
       }
 
       // Once per session, a persona challenges the newcomer so invites can be seen live.

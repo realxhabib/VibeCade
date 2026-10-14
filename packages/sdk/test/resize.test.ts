@@ -5,7 +5,7 @@ import { connect, resetConnection } from "../src/client";
 import { HANDLER_ALIASES, createHostCore, validateRequest, type HostHandlers } from "../src/host";
 import { createMockHost } from "../src/mock-host";
 import { LIMITS, type LaunchContext } from "../src/protocol";
-import { XAppsProvider, useAutoResize } from "../src/react";
+import { VibeCadeProvider, useAutoResize } from "../src/react";
 import { createMemoryTransportPair } from "../src/transport";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -206,7 +206,7 @@ describe("useAutoResize", () => {
     }
     const root = createRoot(document.createElement("div"));
     await act(async () => {
-      root.render(createElement(XAppsProvider, null, createElement(Probe)));
+      root.render(createElement(VibeCadeProvider, null, createElement(Probe)));
     });
     await act(async () => tick(5));
     expect(heights).toEqual([260]);

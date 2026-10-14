@@ -39,14 +39,14 @@ export function AdminReview() {
   const mounted = useMounted();
 
   if (!mounted || loading) return <Skeleton className="h-96 rounded-[2rem]" />;
-  if (!viewer) return <SignInPrompt title="Sign in to review apps">The review queue is for XApps reviewers.</SignInPrompt>;
+  if (!viewer) return <SignInPrompt title="Sign in to review apps">The review queue is for VibeCade reviewers.</SignInPrompt>;
   if (!isAdmin) {
     return backend.demo ? (
       <EmptyState emoji="🛡️" title="Reviewers only" action={<AdminToggle on={false} />}>
         In demo mode you can make yourself a reviewer to try the queue. With Supabase, admins are set in SQL.
       </EmptyState>
     ) : (
-      <EmptyState emoji="🧭" title="This page got ratioed." action={<Button href="/">Back to XApps</Button>}>
+      <EmptyState emoji="🧭" title="This page got ratioed." action={<Button href="/">Back to VibeCade</Button>}>
         It doesn&apos;t exist, or it moved.
       </EmptyState>
     );

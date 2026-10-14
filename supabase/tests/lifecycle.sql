@@ -84,10 +84,14 @@ begin
   assert (select play_count from public.apps where slug = 'quick-draw') = 1, 'play count';
 end $$;
 
--- ---------------------------------------------------------------- Meme Duel, async, crowd judged
+-- ---------------------------------------------------------------- A crowd-judged async duel with its own setup
+-- Meme Duel was the first-party one; it's retired (official_apps.sql), so its row is copied as a test app.
+insert into public.apps
+select (jsonb_populate_record(null::public.apps, to_jsonb(a) || '{"slug":"crowd-duel","name":"Crowd Duel","status":"published","play_count":0}')).*
+  from public.apps a where slug = 'meme-duel';
 set role authenticated;
 select set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', false);
-insert into ctx values ('meme', (select public.create_challenge('meme-duel', 'async', 'bob')::text));
+insert into ctx values ('meme', (select public.create_challenge('crowd-duel', 'async', 'bob')::text));
 -- Async: challenger can play before the invite is accepted
 select public.submit_entry((select v from ctx where k = 'meme')::uuid, null, null,
   '{"templateId":"pov"}', '{"kind":"text","body":"alice caption"}');
@@ -152,7 +156,7 @@ end $$;
 
 -- ---------------------------------------------------------------- Practice vs bot
 select set_config('request.jwt.claim.sub', '33333333-3333-4333-8333-333333333333', false);
-insert into ctx values ('practice', (select public.start_practice('meme-duel')::text));
+insert into ctx values ('practice', (select public.start_practice('crowd-duel')::text));
 select public.submit_entry((select v from ctx where k = 'practice')::uuid, null, null, '{}', '{"kind":"text","body":"mine"}');
 select public.submit_entry((select v from ctx where k = 'practice')::uuid, '00000000-0000-4000-8000-00000000b075', null, '{}', '{"kind":"text","body":"bot"}');
 do $$
@@ -279,10 +283,10 @@ end $$;
 -- Meme Duel renders its own setup screen (app-defined setup).
 do $$
 begin
-  assert (select has_setup from public.apps where slug = 'meme-duel'), 'meme-duel has_setup';
+  assert (select has_setup from public.apps where slug = 'crowd-duel'), 'crowd-duel has_setup';
 end $$;
 select set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', false);
-insert into ctx values ('drop', (select public.create_challenge('meme-duel', 'async', null,
+insert into ctx values ('drop', (select public.create_challenge('crowd-duel', 'async', null,
   '{"topic":"Monday mornings","drop":{"src":"https://x.supabase.co/storage/v1/object/public/meme-drops/a.jpg","width":800,"height":600},"quick":true}')::text));
 do $$
 declare m jsonb := public.get_match((select v from ctx where k = 'drop')::uuid);
@@ -293,14 +297,14 @@ begin
 end $$;
 do $$
 begin
-  perform public.create_challenge('meme-duel', 'async', null, '"nope"');
+  perform public.create_challenge('crowd-duel', 'async', null, '"nope"');
   raise exception 'expected failure';
 exception when invalid_parameter_value then
   null;
 end $$;
 do $$
 begin
-  perform public.create_challenge('meme-duel', 'async', null, jsonb_build_object('topic', repeat('x', 5000)));
+  perform public.create_challenge('crowd-duel', 'async', null, jsonb_build_object('topic', repeat('x', 5000)));
   raise exception 'expected failure';
 exception when invalid_parameter_value then
   null;
@@ -1917,17 +1921,17 @@ begin
             'audio/webm', 'audio/wav', 'video/mp4', 'video/webm', 'video/quicktime']
             from storage.buckets where id = 'app-media'), 'app-media bucket';
   assert (select bool_and(stats = '[]'::jsonb and achievements = '[]'::jsonb) from public.apps
-           where slug not in ('quick-draw', 'four-in-a-row', 'trivia-royale', 'emoji-decode', 'hot-takes', 'wedge-wars', 'gregs-face', 'perfect-circle', 'cup-pong', 'darts', 'eight-ball', 'mini-golf', 'frontline', 'nova-rally')),
+           where slug not in ('quick-draw', 'four-in-a-row', 'trivia-royale', 'emoji-decode', 'hot-takes', 'wedge-wars', 'gregs-face', 'perfect-circle', 'cup-pong', 'darts', 'eight-ball', 'mini-golf', 'frontline', 'nova-rally', 'starship-flap')),
     'other existing apps declare nothing';
   -- First-party progress (20261002000200): valid lists, matching the web catalog (its test compares them).
   assert (select jsonb_object_agg(slug, jsonb_build_array(jsonb_array_length(stats), jsonb_array_length(achievements)))
             from public.apps where official and status = 'published' and stats <> '[]'::jsonb)
-       = '{"quick-draw":[4,8],"four-in-a-row":[3,9],"wedge-wars":[4,9],"gregs-face":[3,10],"perfect-circle":[3,9],"cup-pong":[4,10],"darts":[4,10],"eight-ball":[4,9],"mini-golf":[4,10],"frontline":[4,9],"nova-rally":[6,13]}'::jsonb,
+       = '{"quick-draw":[4,8],"four-in-a-row":[3,9],"wedge-wars":[4,9],"gregs-face":[3,10],"perfect-circle":[3,9],"cup-pong":[4,10],"darts":[4,10],"eight-ball":[4,9],"mini-golf":[4,10],"frontline":[4,9],"nova-rally":[6,13],"starship-flap":[3,4]}'::jsonb,
     'first-party stats + achievements';
   -- Retired first-party apps (official_apps.sql: sync-apps retires what the catalog dropped) keep theirs.
   assert (select jsonb_object_agg(slug, jsonb_build_array(jsonb_array_length(stats), jsonb_array_length(achievements)))
             from public.apps where official and status = 'rejected')
-       = '{"trivia-royale":[4,9],"emoji-decode":[4,8],"hot-takes":[3,8]}'::jsonb,
+       = '{"trivia-royale":[4,9],"emoji-decode":[4,8],"hot-takes":[3,8],"meme-duel":[0,0]}'::jsonb,
     'retired first-party apps keep their progress definitions';
   assert (select bool_and(public.app_stats_error(stats) is null and public.app_achievements_error(achievements) is null
                           and (select sum((e->>'xp')::int) from jsonb_array_elements(achievements) e) <= 500

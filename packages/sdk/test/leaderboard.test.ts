@@ -5,7 +5,7 @@ import { connect, resetConnection } from "../src/client";
 import { accessProblem, createHostCore, rankStatValues, standaloneMatch, validateRequest, type HostHandlers } from "../src/host";
 import { createMockHost, type MockHostOptions } from "../src/mock-host";
 import type { LaunchContext, StatDef, StatStanding } from "../src/protocol";
-import { XAppsProvider, useStatStanding, type StatStandingHook } from "../src/react";
+import { VibeCadeProvider, useStatStanding, type StatStandingHook } from "../src/react";
 import { createMemoryTransportPair } from "../src/transport";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -207,7 +207,7 @@ describe("useStatStanding", () => {
     }
     const root = createRoot(document.createElement("div"));
     await act(async () => {
-      root.render(createElement(XAppsProvider, null, createElement(Probe)));
+      root.render(createElement(VibeCadeProvider, null, createElement(Probe)));
     });
     await act(async () => new Promise((r) => setTimeout(r, 0)));
     expect(seen.best).toMatchObject({ loading: false, error: null, standing: { key: "best", me: null, total: 1 } });
@@ -230,7 +230,7 @@ describe("useStatStanding", () => {
     }
     const root = createRoot(document.createElement("div"));
     await act(async () => {
-      root.render(createElement(XAppsProvider, null, createElement(Probe)));
+      root.render(createElement(VibeCadeProvider, null, createElement(Probe)));
     });
     await act(async () => new Promise((r) => setTimeout(r, 0)));
     expect(hook).toMatchObject({ standing: null, loading: false });

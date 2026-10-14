@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { connect, resetConnection } from "../src/client";
 import { createMockHost } from "../src/mock-host";
 import {
-  XAppsProvider,
+  VibeCadeProvider,
   useAchievementEvents,
   useAchievements,
   useLogger,
@@ -23,12 +23,12 @@ afterEach(() => resetConnection());
 
 async function render(node: ReactNode, mockOptions: Parameters<typeof createMockHost>[0] = {}) {
   const mock = createMockHost({ quiet: true, readUrl: false, ...mockOptions });
-  // XAppsProvider calls connect() with no transport; prime the shared client with the mock.
+  // VibeCadeProvider calls connect() with no transport; prime the shared client with the mock.
   const client = await connect({ transport: mock.transport, timeoutMs: 1000 });
   const container = document.createElement("div");
   const root = createRoot(container);
   await act(async () => {
-    root.render(createElement(XAppsProvider, null, node));
+    root.render(createElement(VibeCadeProvider, null, node));
   });
   return { mock, client, container, root };
 }
@@ -160,7 +160,7 @@ describe("react hooks", () => {
       return null;
     }
     const { mock, root } = await render(createElement(Probe));
-    act(() => root.render(createElement(XAppsProvider, null, createElement(Probe))));
+    act(() => root.render(createElement(VibeCadeProvider, null, createElement(Probe))));
     expect(loggers.length).toBeGreaterThan(1);
     expect(new Set(loggers).size).toBe(1);
     loggers[0]!.warn("from react", { ok: true });

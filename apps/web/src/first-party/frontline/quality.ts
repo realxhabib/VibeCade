@@ -5,6 +5,8 @@
  * the target. Players can pin a tier in the settings menu.
  */
 
+import { detectDeviceTier } from "../shared/device-tier";
+
 export type Tier = "high" | "medium" | "low";
 export type QualityPref = "auto" | Tier;
 
@@ -56,36 +58,9 @@ export function assetsCover(have: AssetLevel, want: AssetLevel): boolean {
 
 let guessed: Tier | null = null;
 
-/** A first guess from what the browser says about the GPU and device. */
+/** A first guess from the device (`shared/device-tier`); the engine steps down from it if frames run slow. */
 export function detectTier(): Tier {
-  if (guessed) return guessed;
-  let tier: Tier = "medium";
-  try {
-    const nav = navigator as Navigator & { deviceMemory?: number };
-    const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-    const cores = nav.hardwareConcurrency ?? 4;
-    const memory = nav.deviceMemory ?? 8;
-    const renderer = gpuRenderer().toLowerCase();
-    if (/swiftshader|llvmpipe|software|mesa offscreen|microsoft basic/.test(renderer)) tier = "low";
-    else if (touch) tier = memory >= 6 && cores >= 8 && /apple gpu|adreno \(tm\) (7[3-9]|8)\d\d|immortalis/.test(renderer) ? "medium" : "low";
-    else if (/nvidia|geforce|rtx|radeon rx|apple m\d|apple gpu/.test(renderer)) tier = "high";
-    else if (/intel/.test(renderer)) tier = cores >= 8 ? "medium" : "low";
-    else tier = cores >= 8 && memory >= 8 ? "high" : "medium";
-  } catch {
-    tier = "medium";
-  }
-  guessed = tier;
-  return tier;
-}
-
-function gpuRenderer(): string {
-  const c = document.createElement("canvas");
-  const gl = (c.getContext("webgl2") ?? c.getContext("webgl")) as WebGLRenderingContext | null;
-  if (!gl) return "software";
-  const ext = gl.getExtension("WEBGL_debug_renderer_info");
-  const name = ext ? (gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) as string) : (gl.getParameter(gl.RENDERER) as string);
-  gl.getExtension("WEBGL_lose_context")?.loseContext();
-  return name ?? "";
+  return (guessed ??= detectDeviceTier());
 }
 
 /** The tier to render with for a preference (auto → the device guess). */

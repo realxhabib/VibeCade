@@ -6,9 +6,9 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "XApps",
-    short_name: "XApps",
-    description: "Mini games and meme duels against anyone on X.",
+    name: "VibeCade",
+    short_name: "VibeCade",
+    description: "Mini games against anyone on X, right in your posts.",
     start_url: "/",
     scope: "/",
     display: "standalone",

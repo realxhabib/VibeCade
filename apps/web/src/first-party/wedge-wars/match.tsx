@@ -7,8 +7,8 @@
  * (for you, and for the bots this client drives).
  */
 
-import type { PlayerInfo, XAppsClient } from "@xapps/sdk";
-import { usePlayers, usePresence, useRoomEvent, useXApps } from "@xapps/sdk/react";
+import type { PlayerInfo, VibeCadeClient } from "vibecade-sdk";
+import { usePlayers, usePresence, useRoomEvent, useVibeCade } from "vibecade-sdk/react";
 import { Canvas } from "@react-three/fiber";
 import { useReducedMotion } from "motion/react";
 import { Suspense, useEffect, useState } from "react";
@@ -54,7 +54,7 @@ export function tableRoles(players: PlayerInfo[], meId: string, spectator: boole
   return { sim, botDriver, local, humans };
 }
 
-function createRuntime(xapps: XAppsClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, loadout: Loadout, reduce: boolean) {
+function createRuntime(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, loadout: Loadout, reduce: boolean) {
   const { sim, botDriver, local, humans } = tableRoles(players, me.id, spectator);
   const loadouts = new Map<string, Loadout>();
   const skills = new Map<string, number>();
@@ -104,7 +104,7 @@ function matchLog(t: TruckRuntime, row: FinalRow, players: number): MatchLog {
   };
 }
 
-function submitResults(xapps: XAppsClient, rt: MatchRuntime, rows: FinalRow[], submitted: Set<string>) {
+function submitResults(xapps: VibeCadeClient, rt: MatchRuntime, rows: FinalRow[], submitted: Set<string>) {
   const w = rt.world;
   xapps.ui.setScores(Object.fromEntries(rows.map((r) => [r.id, r.score]))).catch(ignore);
   if (w.sim || w.spectator) return;
@@ -139,7 +139,7 @@ function submitResults(xapps: XAppsClient, rt: MatchRuntime, rows: FinalRow[], s
 }
 
 export function MatchView({ loadout }: { loadout: Loadout }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const { players, me, isSpectator } = usePlayers();
   const reduce = useReducedMotion();
   const [rt] = useState(() => createRuntime(xapps, players, me, isSpectator, loadout, !!reduce));

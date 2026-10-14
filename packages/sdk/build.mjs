@@ -1,6 +1,6 @@
 // Builds the publishable ESM package (dist/*.js + .d.ts) and a drop-in
 // browser bundle (dist/xapps.js, dist/xapps.global.js) for no-build apps.
-// `@xapps/sdk/server` (dist/server.js) is ESM only.
+// `vibecade-sdk/server` (dist/server.js) is ESM only.
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -34,13 +34,14 @@ await build({
 
 // Single-file ESM for `import { connect } from "https://host/sdk/v1.js"`.
 await build({ ...shared, entryPoints: ["src/index.ts"], outfile: "dist/xapps.js", format: "esm", minify: true });
-// Classic <script> tag: exposes `window.XApps`.
+// Classic <script> tag: exposes `window.VibeCade` (and `window.XApps`, its name before the rename).
 await build({
   ...shared,
   entryPoints: ["src/index.ts"],
   outfile: "dist/xapps.global.js",
   format: "iife",
-  globalName: "XApps",
+  globalName: "VibeCade",
+  footer: { js: "globalThis.XApps=globalThis.XApps||VibeCade;" },
   minify: true,
 });
 
@@ -61,4 +62,4 @@ for (const file of readdirSync("dist")) {
   );
   if (fixed !== source) writeFileSync(path, fixed);
 }
-console.log("@xapps/sdk built → dist/");
+console.log("vibecade-sdk built → dist/");

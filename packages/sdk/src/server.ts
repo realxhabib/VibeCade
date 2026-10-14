@@ -1,9 +1,9 @@
 /**
- * `@xapps/sdk/server`: for app servers that referee their own matches.
+ * `vibecade-sdk/server`: for app servers that referee their own matches.
  *
  * - `verifyWebhook` checks the `X-XApps-Signature` header on webhook
  *   deliveries and returns the typed event.
- * - `createServerClient` calls the XApps server API with your app secret
+ * - `createServerClient` calls the VibeCade server API with your app secret
  *   (`xas_…`): read matches (every player's entry included), write shared
  *   state, end turns, set rounds and report results; write app-scope
  *   storage, report stats and unlock achievements for players.
@@ -14,7 +14,7 @@
  */
 import {
   LIMITS,
-  XAppsError,
+  VibeCadeError,
   byteLength,
   type Json,
   type MatchMode,
@@ -25,7 +25,7 @@ import {
 } from "./protocol";
 import { achievementProblem, jsonProblem, statsProblem, storageKeyProblem } from "./rules";
 
-export { XAppsError, type Json };
+export { VibeCadeError, type Json };
 
 /* ------------------------------------------------------------------------ */
 /* Match JSON (app-server view)                                             */
@@ -193,7 +193,7 @@ const encoder = new TextEncoder();
 
 function subtle(): SubtleCrypto {
   const s = globalThis.crypto?.subtle;
-  if (!s) throw new XAppsError("internal", "@xapps/sdk/server needs Web Crypto (globalThis.crypto.subtle)");
+  if (!s) throw new VibeCadeError("internal", "vibecade-sdk/server needs Web Crypto (globalThis.crypto.subtle)");
   return s;
 }
 
@@ -278,11 +278,11 @@ function parseSignatureHeader(header: string): { t: number; signatures: Uint8Arr
 
 function normalizeEvent(parsed: unknown): WebhookEvent {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new XAppsError("invalid_payload", "Webhook body is not a JSON object");
+    throw new VibeCadeError("invalid_payload", "Webhook body is not a JSON object");
   }
   const event = parsed as Record<string, unknown>;
   if (typeof event.id !== "string" || typeof event.type !== "string") {
-    throw new XAppsError("invalid_payload", "Webhook body is missing id or type");
+    throw new VibeCadeError("invalid_payload", "Webhook body is missing id or type");
   }
   const app = typeof event.app === "string" ? { slug: event.app } : event.app;
   return { ...event, app, match: event.match ?? null } as WebhookEvent;
@@ -296,7 +296,7 @@ function normalizeEvent(parsed: unknown): WebhookEvent {
  * (`whsec_…`). During a secret rotation the header may carry several `v1`
  * signatures; any match is accepted.
  *
- * @throws XAppsError `invalid_signature` (missing/malformed header or no matching signature),
+ * @throws VibeCadeError `invalid_signature` (missing/malformed header or no matching signature),
  *   `stale_signature` (valid, but the timestamp is outside `toleranceSeconds`),
  *   `invalid_payload` (signed body isn't an event).
  */
@@ -307,18 +307,18 @@ export async function verifyWebhook(
   options: VerifyWebhookOptions = {},
 ): Promise<WebhookEvent> {
   const { toleranceSeconds = 300, now } = options;
-  if (!secret) throw new XAppsError("invalid_params", "verifyWebhook: missing signing secret");
+  if (!secret) throw new VibeCadeError("invalid_params", "verifyWebhook: missing signing secret");
   const parsed = signatureHeader ? parseSignatureHeader(signatureHeader) : null;
-  if (!parsed) throw new XAppsError("invalid_signature", `Missing or malformed ${SIGNATURE_HEADER} header`);
+  if (!parsed) throw new VibeCadeError("invalid_signature", `Missing or malformed ${SIGNATURE_HEADER} header`);
 
   const expected = await hmacSha256(secret, signedPayload(parsed.t, rawBody));
   let ok = false;
   // No early exit: every candidate is compared.
   for (const candidate of parsed.signatures) ok = timingSafeEqual(candidate, expected) || ok;
-  if (!ok) throw new XAppsError("invalid_signature", "Webhook signature doesn't match");
+  if (!ok) throw new VibeCadeError("invalid_signature", "Webhook signature doesn't match");
 
   if (Math.abs(unixSeconds(now) - parsed.t) > toleranceSeconds) {
-    throw new XAppsError("stale_signature", `Webhook timestamp is more than ${toleranceSeconds}s away from now`);
+    throw new VibeCadeError("stale_signature", `Webhook timestamp is more than ${toleranceSeconds}s away from now`);
   }
 
   const text = typeof rawBody === "string" ? rawBody : new TextDecoder().decode(rawBody);
@@ -326,7 +326,7 @@ export async function verifyWebhook(
   try {
     body = JSON.parse(text);
   } catch {
-    throw new XAppsError("invalid_payload", "Webhook body is not valid JSON");
+    throw new VibeCadeError("invalid_payload", "Webhook body is not valid JSON");
   }
   return normalizeEvent(body);
 }
@@ -356,7 +356,7 @@ export type ServerErrorCode =
 export interface ServerClientOptions {
   /** Your app secret (`xas_…`). Keep it on the server. */
   secret: string;
-  /** Origin of the XApps host, e.g. `https://xapps.example`. */
+  /** Origin of the VibeCade host, e.g. `https://xapps.example`. */
   baseUrl: string;
   /** Custom fetch (tests, proxies). Defaults to the global `fetch`. */
   fetch?: typeof fetch;
@@ -419,9 +419,9 @@ const STATUS_CODES: Record<number, ServerErrorCode> = {
   501: "not_configured",
 };
 
-async function errorFromResponse(res: Response): Promise<XAppsError> {
+async function errorFromResponse(res: Response): Promise<VibeCadeError> {
   let code: string = STATUS_CODES[res.status] ?? "internal";
-  let message = `XApps server API responded ${res.status}`;
+  let message = `VibeCade server API responded ${res.status}`;
   try {
     const body = (await res.json()) as { error?: { code?: unknown; message?: unknown } };
     if (typeof body?.error?.code === "string" && body.error.code) code = body.error.code;
@@ -429,14 +429,14 @@ async function errorFromResponse(res: Response): Promise<XAppsError> {
   } catch {
     // Not JSON: keep the status-derived error.
   }
-  return new XAppsError(code, message);
+  return new VibeCadeError(code, message);
 }
 
-/** A client for the XApps server API, authenticated with your app secret. */
+/** A client for the VibeCade server API, authenticated with your app secret. */
 export function createServerClient(options: ServerClientOptions): ServerClient {
   const { secret } = options;
-  if (!secret) throw new XAppsError("invalid_params", "createServerClient: missing secret");
-  if (!options.baseUrl) throw new XAppsError("invalid_params", "createServerClient: missing baseUrl");
+  if (!secret) throw new VibeCadeError("invalid_params", "createServerClient: missing secret");
+  if (!options.baseUrl) throw new VibeCadeError("invalid_params", "createServerClient: missing baseUrl");
   const base = options.baseUrl.replace(/\/+$/, "");
   const doFetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
 
@@ -452,7 +452,7 @@ export function createServerClient(options: ServerClientOptions): ServerClient {
         cache: "no-store",
       });
     } catch (error) {
-      throw new XAppsError("network", error instanceof Error ? error.message : "Network error");
+      throw new VibeCadeError("network", error instanceof Error ? error.message : "Network error");
     }
     if (!res.ok) throw await errorFromResponse(res);
     const text = res.status === 204 ? "" : await res.text();
@@ -460,16 +460,16 @@ export function createServerClient(options: ServerClientOptions): ServerClient {
     try {
       return JSON.parse(text) as T;
     } catch {
-      throw new XAppsError("internal", "XApps server API sent a response that isn't JSON");
+      throw new VibeCadeError("internal", "VibeCade server API sent a response that isn't JSON");
     }
   }
 
   function call<T>(method: "GET" | "PUT" | "POST", matchId: string, path: string, body?: unknown): Promise<T> {
-    if (typeof matchId !== "string" || !matchId) return Promise.reject(new XAppsError("invalid_params", "Missing match id"));
+    if (typeof matchId !== "string" || !matchId) return Promise.reject(new VibeCadeError("invalid_params", "Missing match id"));
     return send<T>(method, `/matches/${encodeURIComponent(matchId)}${path}`, body);
   }
 
-  const invalid = (problem: string) => Promise.reject(new XAppsError("invalid_params", problem));
+  const invalid = (problem: string) => Promise.reject(new VibeCadeError("invalid_params", problem));
   const userProblem = (userId: unknown) =>
     typeof userId === "string" && userId.length > 0 ? null : "userId must be a player id";
 
@@ -478,7 +478,7 @@ export function createServerClient(options: ServerClientOptions): ServerClient {
 
     async setState(matchId, state, expectedVersion) {
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
-        throw new XAppsError("invalid_params", "setState: expectedVersion must be a non-negative integer");
+        throw new VibeCadeError("invalid_params", "setState: expectedVersion must be a non-negative integer");
       }
       const { version } = await call<{ version: number }>("PUT", matchId, "/state", { state, expectedVersion });
       return { version };
@@ -499,7 +499,7 @@ export function createServerClient(options: ServerClientOptions): ServerClient {
           const { version } = await client.setState(matchId, next, match.stateVersion);
           return { state: next, version };
         } catch (error) {
-          if (!(error instanceof XAppsError) || error.code !== "conflict" || attempt >= retries) throw error;
+          if (!(error instanceof VibeCadeError) || error.code !== "conflict" || attempt >= retries) throw error;
           if (attempt > 0) await new Promise((r) => setTimeout(r, Math.random() * 50 * attempt));
         }
       }
@@ -511,7 +511,7 @@ export function createServerClient(options: ServerClientOptions): ServerClient {
 
     async setRound(matchId, round) {
       if (!Number.isSafeInteger(round) || round < 0) {
-        throw new XAppsError("invalid_params", "setRound: round must be a non-negative integer");
+        throw new VibeCadeError("invalid_params", "setRound: round must be a non-negative integer");
       }
       await call("POST", matchId, "/round", { round });
     },
@@ -520,7 +520,7 @@ export function createServerClient(options: ServerClientOptions): ServerClient {
       const body: { scores?: object; ranks?: object; leavers?: string[] } = {};
       if (result.ranks) body.ranks = result.ranks;
       else if (result.scores) body.scores = result.scores;
-      else throw new XAppsError("invalid_params", "reportResult: pass { scores } or { ranks }");
+      else throw new VibeCadeError("invalid_params", "reportResult: pass { scores } or { ranks }");
       if (opts.leavers?.length) body.leavers = opts.leavers;
       await call("POST", matchId, "/result", body);
     },

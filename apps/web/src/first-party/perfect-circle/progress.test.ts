@@ -1,4 +1,4 @@
-import type { StatStanding } from "@xapps/sdk";
+import type { StatStanding } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import { achievementDefsError, getOfficialApp, manifestShapeError, statDefsError } from "@/platform/catalog";
 import {

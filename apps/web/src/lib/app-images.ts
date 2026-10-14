@@ -45,7 +45,7 @@ export function appImageKeyError(key: unknown, { demo = false }: { demo?: boolea
   if (STORAGE_KEY_PATTERN.test(key)) return null;
   if (demo && key.length <= DEMO_APP_IMAGE_MAX_CHARS && DATA_KEY_PATTERN.test(key)) return null;
   if (demo && SHOWCASE_KEY_PATTERN.test(key)) return null;
-  return "Images must be uploaded through XApps";
+  return "Images must be uploaded through VibeCade";
 }
 
 /** Where to load an image key from, or null when it isn't one. */

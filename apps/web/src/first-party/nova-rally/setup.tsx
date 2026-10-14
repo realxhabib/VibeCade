@@ -7,7 +7,7 @@
  * Challenge button pinned to the bottom.
  */
 
-import { useSetup, useXApps } from "@xapps/sdk/react";
+import { useSetup, useVibeCade } from "vibecade-sdk/react";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { spring } from "@/lib/motion";
@@ -36,7 +36,7 @@ const WORLD: Record<ThemeId, string> = {
 };
 
 export function Setup() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const { submit, cancel, settings: initial } = useSetup();
   const [start] = useState(() => parseSettings(initial));

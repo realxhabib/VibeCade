@@ -3,7 +3,7 @@
  * what gets submitted. No three.js, no SDK calls.
  */
 
-import type { Json } from "@xapps/sdk";
+import type { Json } from "vibecade-sdk";
 import { ARENAS, CUPS, TRACKS, type Cup } from "./tracks";
 
 export const FIELD_SIZE = 8;

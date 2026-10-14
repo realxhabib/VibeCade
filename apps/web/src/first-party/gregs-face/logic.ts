@@ -12,7 +12,7 @@
  * best face ranks worldwide. Every run gets fresh slides (start, direction,
  * speed, acceleration) from its own fork of the app's random.
  */
-import type { Random } from "@xapps/sdk";
+import type { Random } from "vibecade-sdk";
 import { PART_ORDER, type FaceConfig, type PartId } from "./face";
 
 /* ---------------------------------------------------------------------- */
@@ -187,7 +187,7 @@ export function formatPct(n: number): string {
 
 /** Share text for X. */
 export function shareText(score: number, name = "Greg"): string {
-  return `I built ${name}'s face ${formatPct(Math.round(score))} right on XApps ${score >= 90 ? "😎" : "🤪"}`;
+  return `I built ${name}'s face ${formatPct(Math.round(score))} right on VibeCade ${score >= 90 ? "😎" : "🤪"}`;
 }
 
 /** First time ≥ `fromMs` the feature passes its true position (or `fromMs` if it never does). */

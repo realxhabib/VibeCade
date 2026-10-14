@@ -11,7 +11,7 @@
  */
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Bomb, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeftRight, Bomb, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { isSoundEnabled, onSoundChange, setSoundEnabled } from "@/lib/sfx";
@@ -195,7 +195,7 @@ export function Hud({
       {/* Top bar. */}
       <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-3">
         <div className="flex flex-col items-start gap-1.5">
-          <canvas ref={minimap} className={cn("rounded-full", touch ? "size-20" : "size-28 sm:size-32")} aria-label="Minimap" />
+          <canvas ref={minimap} className={cn("rounded-full", touch ? "size-16" : "size-28 sm:size-32")} aria-label="Minimap" />
           {me && hud.me && hud.me.radar > 0 && (
             <span className="glass flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#7dffa8]">
               <Radar className="size-3" /> {Math.ceil(hud.me.radar / 1000)}s
@@ -205,11 +205,17 @@ export function Hud({
         <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
           <Compass innerRef={compass} />
           <ScoreBar hud={hud} compact={touch} onTap={() => setBoard((b) => !b)} />
+          {/* Phones: health up here, out of the way of the fight. */}
+          {touch && me && me.alive && live && <Vitals hp={me.hp} streak={me.streak} compact />}
         </div>
         {touch ? (
-          <button type="button" aria-label="Menu" onClick={() => setMenu(true)} className="glass pointer-events-auto flex size-9 shrink-0 items-center justify-center rounded-full">
-            <Pause className="size-4" />
-          </button>
+          <div className="flex shrink-0 items-start gap-2">
+            {/* Phones: ammo at the top too (above the touch controls); tapping it swaps weapons. */}
+            {me && me.alive && live && <Ammo me={me} touch onSwap={() => engine.input.setTouch({ swap: true })} />}
+            <button type="button" aria-label="Menu" onClick={() => setMenu(true)} className="glass pointer-events-auto flex size-9 items-center justify-center rounded-full">
+              <Pause className="size-4" />
+            </button>
+          </div>
         ) : (
           <div className="flex w-64 flex-col items-end gap-1">
             <KillFeed hud={hud} compact={false} />
@@ -217,7 +223,7 @@ export function Hud({
         )}
       </div>
       {touch && (
-        <div className="absolute right-2 top-[max(6.25rem,calc(env(safe-area-inset-top)+5.75rem))] flex max-w-[70%] flex-col items-end">
+        <div className="absolute left-2 top-[max(5.5rem,calc(env(safe-area-inset-top)+5rem))] flex max-w-[45%] flex-col items-start">
           <KillFeed hud={hud} compact />
         </div>
       )}
@@ -241,15 +247,10 @@ export function Hud({
       </div>
 
       {/* Bottom: health, streak, ammo. */}
-      {me && me.alive && live && (
-        <div className={cn("absolute flex items-end gap-3", touch ? "bottom-[max(16.5rem,calc(env(safe-area-inset-bottom)+16rem))] right-4" : "inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] justify-between px-3")}>
-          {!touch && <Vitals hp={me.hp} streak={me.streak} />}
-          <Ammo me={me} touch={touch} />
-        </div>
-      )}
-      {touch && me && me.alive && live && (
-        <div className="absolute left-1/2 top-[max(8.5rem,calc(env(safe-area-inset-top)+8rem))] -translate-x-1/2">
-          <Vitals hp={me.hp} streak={me.streak} compact />
+      {!touch && me && me.alive && live && (
+        <div className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] flex items-end justify-between gap-3 px-3">
+          <Vitals hp={me.hp} streak={me.streak} />
+          <Ammo me={me} touch={false} />
         </div>
       )}
 
@@ -450,13 +451,18 @@ function Vitals({ hp, streak, compact = false }: { hp: number; streak: number; c
   );
 }
 
-function Ammo({ me, touch }: { me: NonNullable<HudState["me"]>; touch: boolean }) {
+function Ammo({ me, touch, onSwap }: { me: NonNullable<HudState["me"]>; touch: boolean; onSwap?: () => void }) {
   const w = WEAPONS[me.weapon];
   const low = me.mag <= Math.ceil(me.magSize * 0.25);
+  const canSwap = !!onSwap && me.weapons.length > 1;
+  const Root = canSwap ? "button" : "div";
   return (
-    <div className="flex flex-col items-end gap-0.5">
+    <Root
+      {...(canSwap ? { type: "button" as const, onClick: onSwap, "aria-label": `${w.name}: tap to swap to your other weapon` } : {})}
+      className={cn("flex flex-col items-end gap-0.5", canSwap && "pointer-events-auto glass rounded-2xl px-2.5 py-1.5 active:scale-95")}
+    >
       <div className="flex items-baseline gap-1.5 font-mono tabular [text-shadow:0_2px_6px_rgb(0_0_0/0.6)]">
-        <span className={cn("font-bold", touch ? "text-2xl" : "text-4xl", low && "text-[#ff6a5a]")}>{me.mag}</span>
+        <span className={cn("font-bold", touch ? "text-xl leading-none" : "text-4xl", low && "text-[#ff6a5a]")}>{me.mag}</span>
         <span className="text-sm text-white/70">/ {me.reserve}</span>
       </div>
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/80">
@@ -468,9 +474,12 @@ function Ammo({ me, touch }: { me: NonNullable<HudState["me"]>; touch: boolean }
             </span>
           </span>
         ) : me.mag === 0 ? (
-          <span className="text-[#ff6a5a]">{touch ? "Tap reload" : "Press R"}</span>
+          <span className="text-[#ff6a5a]">{touch ? "Empty" : "Press R"}</span>
         ) : (
-          <span>{w.name}</span>
+          <span className="flex items-center gap-1">
+            {w.name}
+            {canSwap && <ArrowLeftRight className="size-3 text-white/60" aria-hidden />}
+          </span>
         )}
         <span className={cn("flex items-center gap-0.5", me.nades > 0 ? "text-white" : "text-white/30")} aria-label={`${me.nades} grenade${me.nades === 1 ? "" : "s"}`}>
           <Bomb className="size-3.5" />
@@ -486,7 +495,7 @@ function Ammo({ me, touch }: { me: NonNullable<HudState["me"]>; touch: boolean }
           </span>
         )}
       </div>
-    </div>
+    </Root>
   );
 }
 
@@ -625,7 +634,7 @@ function Connections({ hud }: { hud: HudState }) {
 /** How that player's packets reach us: a direct connection (with ping) or the XApps room. */
 function LinkBadge({ link }: { link: PeerLink }) {
   const label = link.via === "direct" ? (link.rtt !== null ? `direct ${Math.round(link.rtt)} ms` : "direct") : link.via === "relay" ? "relay" : "connecting";
-  const title = link.via === "direct" ? "Direct connection" : link.via === "relay" ? "No direct connection: relayed through XApps (slower updates)" : "Connecting directly…";
+  const title = link.via === "direct" ? "Direct connection" : link.via === "relay" ? "No direct connection: relayed through VibeCade (slower updates)" : "Connecting directly…";
   return (
     <span
       title={title}

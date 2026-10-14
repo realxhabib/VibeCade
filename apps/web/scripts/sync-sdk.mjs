@@ -1,4 +1,4 @@
-// Builds @xapps/sdk and publishes the browser bundle at /sdk/v1.js so apps
+// Builds vibecade-sdk and publishes the browser bundle at /sdk/v1.js so apps
 // hosted anywhere can `import { connect } from "https://<host>/sdk/v1.js"`.
 // Also copies the example apps (examples/*) into /examples.
 import { execFileSync } from "node:child_process";

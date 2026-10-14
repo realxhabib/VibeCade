@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SDK_VERSION, XAppsError, type LaunchContext } from "@xapps/sdk";
-import { standaloneMatch, type HostHandlers } from "@xapps/sdk/host";
+import { SDK_VERSION, VibeCadeError, type LaunchContext } from "vibecade-sdk";
+import { standaloneMatch, type HostHandlers } from "vibecade-sdk/host";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, FlaskConical, Share } from "lucide-react";
 import Link from "next/link";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "@/components/chrome/toasts";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
 import { celebrate } from "@/components/motion/confetti";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { XLogo } from "@/components/ui/x-logo";
+import { isSupabaseConfigured } from "@/lib/env";
 import { haptic } from "@/lib/haptics";
 import { spring } from "@/lib/motion";
 import { openXIntent } from "@/lib/share";
@@ -26,6 +27,7 @@ import { launchApp } from "@/platform/match-utils";
 import { invalidateProgress, useApp } from "@/platform/queries";
 import type { AppManifest, Json, LogLevel, Profile } from "@/platform/types";
 import { showAchievement } from "./achievement-moment";
+import { useHostRoutes } from "./host-routes";
 import { ImmersiveButton, ImmersiveChrome, useImmersive } from "./immersive";
 import {
   APP_ALLOW,
@@ -59,11 +61,12 @@ function Backdrop({ accent }: { accent?: Accent }) {
 
 /** Centered host screen (loading, sign-in, errors) with a way back. */
 function HostScreen({ slug, accent, children }: { slug: string; accent?: Accent; children: React.ReactNode }) {
+  const routes = useHostRoutes();
   return (
     <div className="relative flex min-h-dvh flex-col">
       <Backdrop accent={accent} />
       <div className="px-3 pt-3">
-        <Button variant="ghost" size="sm" href={`/apps/${slug}`} icon={<ArrowLeft className="size-4" />}>
+        <Button variant="ghost" size="sm" href={routes.app(slug)} icon={<ArrowLeft className="size-4" />}>
           Back
         </Button>
       </div>
@@ -88,11 +91,26 @@ function openPath(slug: string, versionId: string | null): string {
 /**
  * /apps/[slug]/open: runs a standalone (`kind: "app"`) app full screen with
  * `purpose: "app"`. The viewer must be signed in: apps are promised a real X
- * identity (`xapps.user`), and every open is recorded against it.
+ * identity (`xapps.user`), and every open is recorded against it. The X player
+ * (`/x/play/<slug>/open`) runs it inside the post: its guest signs in with
+ * `signIn` (the card's popup), and it has no full-screen button.
  */
-export function AppRoom({ slug, versionId }: { slug: string; versionId: string | null }) {
+export function AppRoom({
+  slug,
+  versionId,
+  signIn,
+  immersive = true,
+}: {
+  slug: string;
+  versionId: string | null;
+  signIn?: ReactNode;
+  immersive?: boolean;
+}) {
   const backend = useBackend();
-  const { viewer, loading: viewerLoading } = useViewer();
+  const routes = useHostRoutes();
+  const { viewer: signedIn, loading: viewerLoading } = useViewer();
+  // The X player's guest is only on this device, not a real X identity (unless the deployment is a demo).
+  const viewer = routes.guest && isSupabaseConfigured ? null : signedIn;
   // The listing (public) paints the loader and the sign-in card; openApp decides what actually runs.
   const { data: listed } = useApp(slug);
   const launch = useQuery({
@@ -117,7 +135,7 @@ export function AppRoom({ slug, versionId }: { slug: string; versionId: string |
   if (!viewer) {
     return (
       <HostScreen slug={slug} accent={listed?.accent}>
-        <SignInCard app={listed ?? null} next={openPath(slug, versionId)} />
+        <SignInCard app={listed ?? null} next={openPath(slug, versionId)} action={signIn} />
       </HostScreen>
     );
   }
@@ -131,10 +149,10 @@ export function AppRoom({ slug, versionId }: { slug: string; versionId: string |
   }
 
   const { app, versionId: openedVersion } = launch.data;
-  return <AppStage key={`${app.slug}:${openedVersion ?? "live"}`} app={app} versionId={openedVersion} viewer={viewer} />;
+  return <AppStage key={`${app.slug}:${openedVersion ?? "live"}`} app={app} versionId={openedVersion} viewer={viewer} immersiveButton={immersive} />;
 }
 
-function SignInCard({ app, next }: { app: AppManifest | null; next: string }) {
+function SignInCard({ app, next, action }: { app: AppManifest | null; next: string; action?: ReactNode }) {
   return (
     <motion.div
       className="flex w-full max-w-sm flex-col items-center rounded-[2rem] px-6 py-10 text-center glass-strong"
@@ -146,23 +164,22 @@ function SignInCard({ app, next }: { app: AppManifest | null; next: string }) {
       <h1 className="mt-5 font-display text-2xl font-bold">{app ? `Open ${app.name}` : "Sign in to open this app"}</h1>
       {app && <p className="mt-1 text-sm text-ink-300">by @{app.developer.handle}</p>}
       <p className="mt-4 text-sm text-ink-300">
-        Apps on XApps know who you are: sign in with X and {app?.name ?? "the app"} can greet you, save your stuff and track
+        Apps on VibeCade know who you are: sign in with X and {app?.name ?? "the app"} can greet you, save your stuff and track
         your achievements.
       </p>
-      <Button
-        href={`/login?next=${encodeURIComponent(next)}`}
-        variant="primary"
-        size="lg"
-        className="mt-6"
-        icon={<XLogo className="size-4" />}
-      >
-        Sign in with X
-      </Button>
+      {action ? (
+        <div className="mt-6">{action}</div>
+      ) : (
+        <Button href={`/login?next=${encodeURIComponent(next)}`} variant="primary" size="lg" className="mt-6" icon={<XLogo className="size-4" />}>
+          Sign in with X
+        </Button>
+      )}
     </motion.div>
   );
 }
 
 function LaunchError({ error, slug, app }: { error: unknown; slug: string; app: AppManifest | null }) {
+  const routes = useHostRoutes();
   const code = error instanceof BackendError ? error.code : null;
   const message = error instanceof Error ? error.message : null;
   // openApp refuses games (they're played through matches) with `invalid`.
@@ -183,7 +200,7 @@ function LaunchError({ error, slug, app }: { error: unknown; slug: string; app: 
       title={title}
       className="w-full max-w-md"
       action={
-        <Button href={`/apps/${slug}`} variant={isGame ? "accent" : "primary"}>
+        <Button href={routes.app(slug)} variant={isGame ? "accent" : "primary"}>
           {isGame ? `Play ${app.name}` : "Back to the app"}
         </Button>
       }
@@ -198,8 +215,9 @@ function LaunchError({ error, slug, app }: { error: unknown; slug: string; app: 
 /* ---------------------------------------------------------------------- */
 
 /** The top bar plus the app's sandboxed iframe, bridged with a purpose-app LaunchContext. */
-function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: string | null; viewer: Profile }) {
+function AppStage({ app, versionId, viewer, immersiveButton }: { app: AppManifest; versionId: string | null; viewer: Profile; immersiveButton: boolean }) {
   const backend = useBackend();
+  const routes = useHostRoutes();
   const queryClient = useQueryClient();
   const reduced = useReducedMotion();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -208,7 +226,9 @@ function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: str
   const [status, setStatus] = useState<string | null>(null);
   const [seed] = useState(() => Math.random().toString(36).slice(2, 14));
   const [origin] = useState(() => (typeof window === "undefined" ? "" : window.location.origin));
-  const { immersive, toggle: toggleImmersive } = useImmersive();
+  const { immersive: immersivePref, toggle: toggleImmersive } = useImmersive();
+  // Without its button (in the X player), a saved full-screen preference would hide the top bar for good.
+  const immersive = immersiveButton && immersivePref;
 
   const testBuild = !!versionId;
   const appUrl = origin ? resolveAppUrl(app.url, origin) : null;
@@ -227,7 +247,7 @@ function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: str
       app: launchApp(app),
       user,
       match: standaloneMatch(user, { id: `app:${app.slug}`, seed }),
-      host: { name: "XApps", version: SDK_VERSION, origin: window.location.origin },
+      host: { name: "VibeCade", version: SDK_VERSION, origin: window.location.origin },
       locale: navigator.language,
     };
   };
@@ -349,10 +369,10 @@ function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: str
       return null;
     },
     "setup.submit": () => {
-      throw new XAppsError("forbidden", "setup.submit only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.submit only works in setup purpose");
     },
     "setup.cancel": () => {
-      throw new XAppsError("forbidden", "setup.cancel only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.cancel only works in setup purpose");
     },
   };
 
@@ -373,15 +393,15 @@ function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: str
     emitRef.current = emit;
   }, [emit]);
 
-  const share = () => openXIntent(`Check out ${app.name} on XApps ${app.icon}`, `${window.location.origin}/apps/${app.slug}`);
+  const share = () => openXIntent(`Check out ${app.name} on VibeCade ${app.icon}`, `${window.location.origin}${routes.share(app.slug)}`);
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-ink-950">
       <Backdrop accent={app.accent} />
       <ImmersiveChrome immersive={immersive}>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.06] bg-ink-950/70 px-2 backdrop-blur-xl sm:gap-3 sm:px-3">
-          <Button variant="ghost" size="icon-sm" href={`/apps/${app.slug}`} aria-label={`Back to ${app.name}`} icon={<ArrowLeft className="size-4" />} />
-          <Link href={`/apps/${app.slug}`} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl" aria-label={`${app.name} details`}>
+          <Button variant="ghost" size="icon-sm" href={routes.app(app.slug)} aria-label={`Back to ${app.name}`} icon={<ArrowLeft className="size-4" />} />
+          <Link href={routes.app(app.slug)} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl" aria-label={`${app.name} details`}>
             <AppGlyph app={app} size={32} />
             <span className="min-w-0">
               <span className="flex items-center gap-2">
@@ -413,7 +433,7 @@ function AppStage({ app, versionId, viewer }: { app: AppManifest; versionId: str
           <Button variant="glass" size="sm" onClick={share} icon={<Share className="size-3.5" />} aria-label={`Share ${app.name} on X`}>
             <span className="hidden sm:inline">Share</span>
           </Button>
-          <ImmersiveButton immersive={immersive} onToggle={toggleImmersive} className="size-9" />
+          {immersiveButton && <ImmersiveButton immersive={immersive} onToggle={toggleImmersive} className="size-9" />}
         </header>
       </ImmersiveChrome>
 

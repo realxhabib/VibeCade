@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { XAppsError } from "../src/protocol";
+import { VibeCadeError } from "../src/protocol";
 import {
   createServerClient,
   signWebhook,
@@ -61,8 +61,8 @@ async function expectCode(promise: Promise<unknown>, code: string) {
     () => null,
     (e: unknown) => e,
   );
-  expect(error).toBeInstanceOf(XAppsError);
-  expect((error as XAppsError).code).toBe(code);
+  expect(error).toBeInstanceOf(VibeCadeError);
+  expect((error as VibeCadeError).code).toBe(code);
 }
 
 describe("webhook signatures", () => {
@@ -208,13 +208,13 @@ describe("createServerClient", () => {
     expect(calls[1]!.headers["Content-Type"]).toBe("application/json");
   });
 
-  it("maps error JSON to XAppsError", async () => {
+  it("maps error JSON to VibeCadeError", async () => {
     const { fetch } = fakeFetch(() =>
       Response.json({ error: { code: "conflict", message: "State version moved" } }, { status: 409 }),
     );
     const api = createServerClient({ secret: SECRET_KEY, baseUrl: "https://xapps.test", fetch });
     const error = await api.setState(ID, 1, 0).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(XAppsError);
+    expect(error).toBeInstanceOf(VibeCadeError);
     expect(error).toMatchObject({ code: "conflict", message: "State version moved" });
   });
 
@@ -250,7 +250,7 @@ describe("createServerClient", () => {
     await expectCode(api.setRound(ID, 1.5), "invalid_params");
     await expectCode(api.reportResult(ID, {} as never), "invalid_params");
     expect(calls).toHaveLength(0);
-    expect(() => createServerClient({ secret: "", baseUrl: "https://x" })).toThrow(XAppsError);
+    expect(() => createServerClient({ secret: "", baseUrl: "https://x" })).toThrow(VibeCadeError);
   });
 
   it("updateState re-reads and retries on conflict", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
-import type { LaunchPurpose, MockHostOptions } from "@xapps/sdk";
-import { XAppsProvider } from "@xapps/sdk/react";
+import type { LaunchPurpose, MockHostOptions } from "vibecade-sdk";
+import { VibeCadeProvider } from "vibecade-sdk/react";
 import { motion } from "motion/react";
 import { useMemo, type ReactNode } from "react";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
@@ -56,30 +56,33 @@ export function EmbedRoot({
 
   return (
     <div
-      className="relative isolate flex min-h-dvh w-full flex-col overflow-hidden text-ink-50"
+      // On short screens (the 480×480 card in an X post) the app scrolls inside its frame rather than
+      // cutting off whatever doesn't fit. Full-screen games are exactly this tall, so they don't move.
+      className="relative isolate flex min-h-dvh w-full flex-col overflow-hidden text-ink-50 [@media(max-height:560px)]:h-dvh [@media(max-height:560px)]:overflow-y-auto"
       style={{ "--accent-from": app.accent[0], "--accent-to": app.accent[1] } as React.CSSProperties}
     >
       <EmbedBackdrop accent={app.accent} />
-      <XAppsProvider
+      <VibeCadeProvider
         options={options}
         fallback={<EmbedLoading app={app} />}
         errorFallback={(error) => (
           <div className="m-auto max-w-xs p-6 text-center text-sm text-ink-300">
             <p className="text-3xl">🔌</p>
-            <p className="mt-3 font-semibold text-ink-50">Couldn&apos;t reach XApps</p>
+            <p className="mt-3 font-semibold text-ink-50">Couldn&apos;t reach VibeCade</p>
             <p className="mt-1">{error.message}</p>
           </div>
         )}
       >
         {children}
-      </XAppsProvider>
+      </VibeCadeProvider>
     </div>
   );
 }
 
 export function EmbedBackdrop({ accent }: { accent: [string, string] }) {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-ink-950">
+    // Clipped here: the glows reach past the edges and would otherwise make a short (scrollable) root scroll sideways.
+    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-ink-950">
       <div
         className="absolute -left-1/4 -top-1/3 size-[80vmax] rounded-full opacity-25"
         style={{ background: `radial-gradient(circle, ${accent[0]}, transparent 70%)` }}

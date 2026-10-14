@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { X_FRAME_ANCESTORS } from "./src/lib/x-player";
+
+// Playable posts (src/lib/x-player.ts): X frames the player, and the app frames inside it
+// (frame-ancestors checks every ancestor). No X-Frame-Options anywhere: it would override this.
+const xFrameable = [{ key: "Content-Security-Policy", value: `frame-ancestors ${X_FRAME_ANCESTORS}` }];
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -27,6 +32,9 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=86400" },
         ],
       },
+      // After the site-wide rule, so these win (the player is never cached: see app/x/play/layout.tsx).
+      { source: "/x/play/:path*", headers: xFrameable },
+      { source: "/embed/:path*", headers: xFrameable },
     ];
   },
 };

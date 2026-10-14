@@ -6,7 +6,7 @@
  * on the right. Buttons buzz through the host's haptics.
  */
 
-import { useXApps } from "@xapps/sdk/react";
+import { useVibeCade } from "vibecade-sdk/react";
 import { RotateCcw, Zap } from "lucide-react";
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import type { MatchRuntime } from "./runtime";
 const RADIUS = 56;
 
 export function TouchControls({ rt }: { rt: MatchRuntime }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const hud = useHud(rt);
   const [stick, setStick] = useState<{ ox: number; oy: number; left: number; top: number; x: number; y: number } | null>(null);
   const pointer = useRef<number | null>(null);

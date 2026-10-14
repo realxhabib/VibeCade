@@ -86,6 +86,7 @@ export function LoadoutPicker({
   compact = false,
   disabled = false,
   keys = false,
+  summary = false,
 }: {
   value: Loadout;
   onChange: (l: Loadout) => void;
@@ -93,6 +94,8 @@ export function LoadoutPicker({
   disabled?: boolean;
   /** Show the number key for each primary. */
   keys?: boolean;
+  /** Compact only: a line on the picked gun (its stats) and perk under the tiles. */
+  summary?: boolean;
 }) {
   const pickPrimary = (id: WeaponId) => onChange({ ...value, primary: id });
   const pickPerk = (id: PerkId) => onChange({ ...value, perk: id });
@@ -147,6 +150,20 @@ export function LoadoutPicker({
           );
         })}
       </div>
+      {compact && summary && (
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-1.5">
+          <span className="w-24 shrink-0">
+            <span className="block truncate text-xs font-extrabold tracking-tight">{WEAPONS[value.primary].name}</span>
+            <span className="block truncate text-[10px] font-semibold uppercase tracking-wider text-ink-400">+ {WEAPONS.pistol.name}</span>
+          </span>
+          <span className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-1">
+            <Bar label="Damage" value={WEAPONS[value.primary].card.damage} />
+            <Bar label="Range" value={WEAPONS[value.primary].card.range} />
+            <Bar label="Rate" value={WEAPONS[value.primary].card.rate} />
+            <Bar label="Mobility" value={WEAPONS[value.primary].card.mobility} />
+          </span>
+        </div>
+      )}
       {!compact && (
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
           <GunGlyph id="pistol" className="h-6 w-14 text-ink-200" />
@@ -179,6 +196,7 @@ export function LoadoutPicker({
           );
         })}
       </div>
+      {compact && summary && <p className="-mt-0.5 truncate text-center text-[11px] text-ink-400">{PERKS[value.perk].blurb}</p>}
     </div>
   );
 }

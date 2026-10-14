@@ -1,6 +1,6 @@
 "use client";
 
-import { lockGestures } from "@xapps/sdk";
+import { lockGestures } from "vibecade-sdk";
 import { useEffect, useRef, type MutableRefObject } from "react";
 import type { PoolAudio } from "./audio";
 import {

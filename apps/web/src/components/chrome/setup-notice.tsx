@@ -31,7 +31,7 @@ export function SetupNotice() {
               <Database className="size-5" />
             </span>
             <div className="min-w-0 flex-1 text-sm">
-              <p className="font-semibold text-ink-50">Supabase is connected, but the XApps schema isn&apos;t installed.</p>
+              <p className="font-semibold text-ink-50">Supabase is connected, but the VibeCade schema isn&apos;t installed.</p>
               <p className="mt-1 text-ink-300">
                 Run <code className="font-mono text-ink-100">supabase/migrations/*.sql</code> in your project (SQL editor or{" "}
                 <code className="font-mono text-ink-100">supabase db push</code>), then reload. See the README for the X sign-in setup.

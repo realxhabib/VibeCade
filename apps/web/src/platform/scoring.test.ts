@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { levelInfo, placementXp, settle, xpForLevel, XP } from "./scoring";
 import type { MatchPlayer, Profile } from "./types";
 
@@ -160,7 +160,7 @@ describe("levels", () => {
 });
 
 describe("sdk alias", () => {
-  it("resolves @xapps/sdk from source", () => {
+  it("resolves vibecade-sdk from source", () => {
     expect(createRandom("x").int(1, 1)).toBe(1);
   });
 });

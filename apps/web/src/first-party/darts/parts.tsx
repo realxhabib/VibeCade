@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlayerInfo } from "@xapps/sdk";
+import type { PlayerInfo } from "vibecade-sdk";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode, RefObject } from "react";
 import { Avatar } from "@/components/ui/avatar";

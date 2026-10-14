@@ -1,6 +1,6 @@
 "use client";
 
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Plus, Trash2 } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";

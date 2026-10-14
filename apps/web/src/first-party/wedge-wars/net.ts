@@ -11,7 +11,7 @@
  * for their own truck, and bots only through a seated human (the bot driver).
  */
 
-import type { XAppsClient } from "@xapps/sdk";
+import type { VibeCadeClient } from "vibecade-sdk";
 import {
   FLAG,
   KO_CAUSE,
@@ -43,7 +43,7 @@ export class NetLink {
   private finSent = false;
 
   constructor(
-    private readonly xapps: XAppsClient,
+    private readonly xapps: VibeCadeClient,
     private readonly world: World,
   ) {}
 

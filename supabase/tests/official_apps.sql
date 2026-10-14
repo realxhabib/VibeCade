@@ -199,7 +199,7 @@ do $$
 begin
   assert current_setting('sync.cancelled')::int = 3, 'open, pending and active matches cancelled';
   assert (select array_agg(slug order by slug) from public.apps where status = 'rejected' and official)
-         = '{emoji-decode,hot-takes,trivia-royale}', 'retired exactly the official apps the catalog dropped';
+         = '{emoji-decode,hot-takes,meme-duel,trivia-royale}', 'retired exactly the official apps the catalog dropped';
   assert (select official and status = 'published' from public.apps where slug = 'rps-showdown'),
          'catalog apps outside the sync (not official there) are left alone';
   assert pg_temp.sync_drift() is null, 'catalog apps untouched';

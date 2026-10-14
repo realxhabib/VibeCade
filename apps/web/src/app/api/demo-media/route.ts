@@ -1,4 +1,4 @@
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import { demoMediaStore } from "@/lib/demo-media-store";
 import { isSupabaseConfigured } from "@/lib/env";
 import { baseMime, bytesMatchMime, DEMO_MEDIA_PREFIX, mediaKindOf, mediaProblem } from "@/lib/media";

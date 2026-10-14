@@ -1,8 +1,22 @@
 # Changelog
 
-All notable changes to `@xapps/sdk`. The wire protocol is still version 1:
+All notable changes to `vibecade-sdk`. The wire protocol is still version 1:
 every release is additive, and apps built against an older SDK keep working on
 newer hosts (and the other way round, minus the new features).
+
+## 0.9.0
+
+- **Renamed to `vibecade-sdk`** (was `@xapps/sdk`), with the platform's
+  rename to VibeCade. Install `vibecade-sdk` and import from `vibecade-sdk`,
+  `vibecade-sdk/react`, `vibecade-sdk/host` and `vibecade-sdk/server`.
+- New names: `VibeCadeProvider`, `useVibeCade`, `VibeCadeError` and
+  `VibeCadeClient`. The old ones (`XAppsProvider`, `useXApps`, `XAppsError`,
+  `XAppsClient`) still work as deprecated aliases, and the script-tag build
+  exposes `window.VibeCade` as well as `window.XApps`.
+- Unchanged, so apps already live keep working: the wire protocol (version 1)
+  and the webhook headers (`X-XApps-Signature`, `X-XApps-Event`,
+  `X-XApps-Delivery`).
+- The app starter is now `create-vibecade` (`npm create vibecade`).
 
 ## 0.8.1
 
@@ -74,7 +88,7 @@ Stat leaderboards and standings.
 - Host: request `stats.leaderboard` (handler key `stats.leaderboard` or
   `statLeaderboard`) receives `{ key, limit }` with `limit` already clamped.
   Types `StatStanding` and `StatLeaderEntry`; `statLeaderboardProblem`,
-  `clampStatLimit` and `rankStatValues` are exported from `@xapps/sdk/host`,
+  `clampStatLimit` and `rankStatValues` are exported from `vibecade-sdk/host`,
   and `LIMITS.statLeaderboard` holds the default and max limit.
 
 ## 0.5.0
@@ -97,7 +111,7 @@ Standalone apps.
 - React: `useUser()`, `useStandalone()`.
 - Mock host: `purpose: "app"` option and `?xapps-purpose=app`.
 - Host: `standaloneMatch(user, options)` and `purposeOf(purpose)` are exported
-  from `@xapps/sdk/host`.
+  from `vibecade-sdk/host`.
 
 ## 0.4.0
 
@@ -121,7 +135,7 @@ Shipping: logs and a publishable package.
   allowed for every purpose and role, spectators included; excess over
   60/min per app instance is dropped silently). Handler key `log` or
   `logEvent`. `LOG_LEVELS`, `isLogLevel` and `logProblem` are exported from
-  `@xapps/sdk/host`. Request `ui.resize` (handler `ui.resize` or `resize`)
+  `vibecade-sdk/host`. Request `ui.resize` (handler `ui.resize` or `resize`)
   receives the height already clamped; `LIMITS.frameHeight` and
   `clampFrameHeight` are exported.
 - Mock host: prints logs as `[xapps log]` console lines and keeps them in
@@ -130,8 +144,8 @@ Shipping: logs and a publishable package.
   `./server`, `./protocol`) carrying type declarations that also resolve under
   `moduleResolution: "node16"/"nodenext"`, `sideEffects: false`, MIT license.
   `react` is an optional peer dependency (only `./react` needs it).
-- New: [`create-xapp`](https://www.npmjs.com/package/create-xapp) scaffolds a
-  ready project: `npx create-xapp my-game`.
+- New: [`create-vibecade`](https://www.npmjs.com/package/create-vibecade) scaffolds a
+  ready project: `npx create-vibecade my-game`.
 
 ## 0.3.0
 
@@ -148,7 +162,7 @@ Media, data and trust.
   `onAchievement`.
 - React: `useMediaUpload()`, `useStats()`, `useAchievements()`,
   `useAchievementEvents()`.
-- **Server client** (`@xapps/sdk/server`): `verifyWebhook` / `signWebhook` for
+- **Server client** (`vibecade-sdk/server`): `verifyWebhook` / `signWebhook` for
   signed webhooks and `createServerClient` for the server API (settle matches,
   write app storage) with an app secret key.
 
@@ -182,5 +196,5 @@ The 1v1 core.
 - Host UI (`ui.toast/celebrate/haptic/setStatus/setScores/setTurn`),
   `social.share`, per-player key/value storage, seeded `random`.
 - A standalone mock host (open your app directly and play against a bot),
-  `@xapps/sdk/host` to embed apps, React bindings (`XAppsProvider`,
-  `useXApps`, `useRoomEvent`, …) and a no-build browser bundle.
+  `vibecade-sdk/host` to embed apps, React bindings (`VibeCadeProvider`,
+  `useVibeCade`, `useRoomEvent`, …) and a no-build browser bundle.

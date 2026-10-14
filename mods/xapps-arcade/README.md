@@ -10,7 +10,7 @@ turn, and your record against the bot is kept between sessions.
 ## Install
 
 ```
-/plugin install xapps-arcade --marketplace realxhabib/XApps
+/plugin install xapps-arcade --marketplace realxhabib/VibeCade
 /xapps
 ```
 

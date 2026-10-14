@@ -1,5 +1,5 @@
 /**
- * Touch gestures inside the XApps frame.
+ * Touch gestures inside the VibeCade frame.
  *
  * Mobile browsers turn drags into page scrolls, rubber-band bounces and
  * pull-to-refresh. The host page already switches overscroll off; these
@@ -9,7 +9,7 @@
 /**
  * Stops the app's own page from bouncing or chaining a drag to the host
  * (`overscroll-behavior: none` on `html` and `body`). Normal scrolling of
- * long pages still works. `connect()` calls this inside XApps unless
+ * long pages still works. `connect()` calls this inside VibeCade unless
  * `gestures: false`.
  */
 export function calmPage(doc: Document): void {
