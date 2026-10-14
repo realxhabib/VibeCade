@@ -391,7 +391,7 @@ function TitleCard({ hud }: { hud: HudSnapshot }) {
       transition={{ duration: 0.5 }}
     >
       <div className="rounded-full bg-black/45 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/85">
-        {hud.cupName} · Race {hud.raceIndex + 1}/{hud.raceCount} · {hud.cc}cc
+        {hud.raceCount > 1 ? `${hud.cupName} · Race ${hud.raceIndex + 1}/${hud.raceCount}` : hud.cupName} · {hud.cc}cc
       </div>
       <div
         className="text-[clamp(38px,10vw,84px)] font-black italic leading-none"

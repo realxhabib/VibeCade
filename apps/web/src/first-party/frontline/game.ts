@@ -238,6 +238,41 @@ export interface FeedEntry {
   at: number;
 }
 
+/** Ammo a kill left behind (see `Game.drops`). */
+export interface AmmoDrop {
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+  /** The killer's seat: the only one who can take it. */
+  owner: number;
+  at: number;
+  until: number;
+}
+
+/** How long a drop waits for its killer, how close they have to walk, and a moment before it can be taken. */
+export const AMMO_DROP_MS = 25_000;
+export const AMMO_PICKUP_R = 1.5;
+const AMMO_ARM_MS = 400;
+const MAX_DROPS = 12;
+
+/**
+ * What a drop gives: half of each gun's starting reserve (never past it) and a
+ * grenade back (up to a full set). Returns what it added.
+ */
+export function takeAmmo(s: Pick<Soldier, "weapons" | "reserve" | "nades">): { rounds: number; nades: number } {
+  let added = 0;
+  for (const slot of [0, 1] as const) {
+    const full = WEAPONS[s.weapons[slot]].reserve;
+    const next = Math.min(full, s.reserve[slot] + Math.ceil(full / 2));
+    added += Math.max(0, next - s.reserve[slot]);
+    s.reserve[slot] = Math.max(s.reserve[slot], next);
+  }
+  const nades = s.nades < NADES_PER_LIFE ? 1 : 0;
+  s.nades += nades;
+  return { rounds: added, nades };
+}
+
 export interface GameFx {
   shot(s: Soldier, w: WeaponDef, origin: Vec3, ends: readonly Vec3[], impacts: readonly Impact[]): void;
   hitMarker(kind: "hit" | "kill" | "head"): void;
@@ -250,6 +285,8 @@ export interface GameFx {
   swap(s: Soldier): void;
   dry(s: Soldier): void;
   streak(kind: "radar"): void;
+  /** `s` took the ammo a kill of theirs left (what it added across both guns, and grenades). */
+  pickup(s: Soldier, got: { rounds: number; nades: number }): void;
   /** A grenade left the thrower's hand (any client's). */
   nade(n: LiveNade): void;
   /** It went off. */
@@ -690,6 +727,7 @@ export class Game {
       if (!this.docShared && Date.now() >= this.doc.t0 + this.doc.dur + 8000) this.finish(now);
     }
     this.updateNades(now);
+    this.updateDrops(now);
     this.flushDoc();
     this.netTick(now);
     // Presence only reports changes; re-check the bot driver now and then (silence counts too).
@@ -1060,8 +1098,35 @@ export class Game {
       this.fx?.hitMarker("kill");
     }
     if (victim?.isMe) this.log.deaths++;
+    if (killer?.local && victim && killer !== victim && this.phase === "live") this.dropAmmo(victim, killer, now);
     this.fx?.kill(entry, mine);
     this.bump();
+  }
+
+  private dropAmmo(victim: Soldier, killer: Soldier, now: number): void {
+    const p = this.posOf(victim);
+    this.drops.push({ id: ++this.dropSeq, x: p.x, y: p.y, z: p.z, owner: killer.seat, at: now, until: now + AMMO_DROP_MS });
+    if (this.drops.length > MAX_DROPS) this.drops.shift();
+  }
+
+  /** Walk over a drop of yours to take it; uncollected ones fade out. */
+  private updateDrops(now: number): void {
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const d = this.drops[i]!;
+      const s = this.bySeat.get(d.owner);
+      if (now > d.until || !s?.local) {
+        this.drops.splice(i, 1);
+        continue;
+      }
+      if (!s.alive || this.phase !== "live" || now - d.at < AMMO_ARM_MS) continue;
+      const dx = s.body.x - d.x;
+      const dz = s.body.z - d.z;
+      if (dx * dx + dz * dz > AMMO_PICKUP_R * AMMO_PICKUP_R || Math.abs(s.body.y - d.y) > 2.2) continue;
+      const got = takeAmmo(s);
+      this.drops.splice(i, 1);
+      this.fx?.pickup(s, got);
+      this.bump();
+    }
   }
 
   private logFromLedger(seat: number): MatchLog {
@@ -1157,6 +1222,12 @@ export class Game {
 
   /** Grenades in flight (and ones that went off in the last few seconds, for blast checks). */
   readonly nades: LiveNade[] = [];
+
+  /* Ammo drops: a kill leaves the victim's ammo where they fell, for the killer only.
+     Only our own soldiers' kills drop (you, or the bots we drive), and only they can take
+     them, so nobody else needs to hear about it. */
+  readonly drops: AmmoDrop[] = [];
+  private dropSeq = 0;
   private readonly nadeLog: LiveNade[] = [];
   private nadeThinkAt = new Map<number, number>();
 

@@ -77,7 +77,7 @@ test("games with their own setup screen set up the challenge inside the card", a
   await page.getByRole("button", { name: /Post a challenge/ }).click();
   const setup = page.frameLocator("iframe[title='Nova Rally setup']");
   await expect(setup.getByText("Set up the race")).toBeVisible();
-  await setup.getByRole("button", { name: /^Challenge/ }).click();
+  await setup.getByRole("button", { name: /^(Send )?challenge/i }).click();
   await expect(page).toHaveURL(/\/x\/play\/match\//);
 });
 
