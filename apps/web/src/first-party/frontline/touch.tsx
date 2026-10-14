@@ -3,18 +3,19 @@
 /**
  * Twin-stick phone controls: a floating stick on the left (appears under
  * your thumb; push it to the edge to sprint), drag anywhere on the right to
- * look, and buttons for fire (drag it to keep aiming while you shoot), aim,
- * reload, jump, crouch and swap. Every touch surface is gesture-locked so
- * the page never scrolls or zooms mid-fight.
+ * look, and five buttons in the right thumb's reach: fire (drag it to keep
+ * aiming while you shoot), aim, jump, crouch and grenade. Reloading is
+ * automatic when the magazine runs dry, and the ammo readout at the top
+ * swaps weapons (hud.tsx). Every touch surface is gesture-locked so the page
+ * never scrolls or zooms mid-fight.
  */
 
 import { useGestureLock } from "@xapps/sdk/react";
-import { ArrowUpFromLine, Bomb, ChevronsDown, Crosshair, RotateCw, Scan } from "lucide-react";
+import { ArrowUpFromLine, Bomb, ChevronsDown, Crosshair, Scan } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Engine } from "./engine";
 import type { HudState } from "./game";
-import { GunGlyph } from "./loadout";
 
 const RADIUS = 52;
 
@@ -45,6 +46,12 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
     },
     [input],
   );
+  // Out of rounds: reload on its own (no reload button to find mid-fight).
+  const empty = !!me && me.alive && me.mag === 0 && me.reserve > 0 && !me.reloading;
+  useEffect(() => {
+    if (active && empty) input.setTouch({ reload: true });
+  }, [active, empty, input]);
+
   const endStick = () => {
     stickId.current = null;
     setStick(null);
@@ -86,16 +93,6 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
       lookEnd(e);
     },
   });
-
-  // Aim + fire in one touch (mobile shooters' "ADS fire"): automatic and other
-  // guns aim down sights and shoot while held; the sniper scopes in while held
-  // and fires on release (a quick-scope). Dragging on it aims, like Fire.
-  const sniper = me?.weapon === "sniper";
-  const aimFire = (down: boolean) => {
-    if (down) input.setTouch({ ads: true, fire: !sniper });
-    else if (sniper) input.pulseFire({ ads });
-    else input.setTouch({ fire: false, ads });
-  };
 
   const tap = (fn: () => void) => ({
     onPointerDown: (e: ReactPointerEvent) => {
@@ -161,17 +158,15 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
         </div>
       )}
 
-      {/* Buttons. */}
-      <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-3 grid grid-cols-[auto_auto_auto] items-end gap-2.5">
-        <div />
-        <Btn label="Swap weapon" size="sm" {...tap(() => input.setTouch({ swap: true }))}>
-          <GunGlyph id={me.weapons[me.slot === 0 ? 1 : 0]} className="h-4 w-9" />
-        </Btn>
-        <Btn label="Jump" size="sm" {...tap(() => input.setTouch({ jump: true }))}>
-          <ArrowUpFromLine className="size-5" />
-        </Btn>
-        <Btn label="Reload" size="sm" {...tap(() => input.setTouch({ reload: true }))} className={me.mag === 0 ? "animate-pulse border-[#ff6a5a]" : undefined}>
-          <RotateCw className="size-5" />
+      {/* Buttons: fire under the thumb, aim beside it, movement and the grenade in a row above. */}
+      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 grid grid-cols-[auto_auto_auto] items-center justify-items-center gap-x-2.5 gap-y-2 [@media(max-height:480px)]:gap-y-1.5">
+        <Btn
+          label="Grenade (hold to aim, release to throw)"
+          size="sm"
+          className={me.nades > 0 ? undefined : "opacity-35"}
+          {...press((down) => input.setTouch({ grenade: down && me.nades > 0 }), true)}
+        >
+          <Bomb className="size-5" />
         </Btn>
         <Btn
           label="Crouch"
@@ -184,8 +179,12 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
         >
           <ChevronsDown className="size-5" />
         </Btn>
+        <Btn label="Jump" size="sm" {...tap(() => input.setTouch({ jump: true }))}>
+          <ArrowUpFromLine className="size-5" />
+        </Btn>
+        <div />
         <Btn
-          label="Aim down sights"
+          label={me.weapon === "sniper" ? "Scope in" : "Aim down sights"}
           size="md"
           on={ads}
           {...tap(() => {
@@ -194,25 +193,6 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
           })}
         >
           <Scan className="size-6" />
-        </Btn>
-        <Btn
-          label="Grenade (hold to aim, release to throw)"
-          size="sm"
-          className={me.nades > 0 ? undefined : "opacity-35"}
-          {...press((down) => input.setTouch({ grenade: down && me.nades > 0 }), true)}
-        >
-          <Bomb className="size-5" />
-        </Btn>
-        <Btn
-          label={me.weapon === "sniper" ? "Aim and fire: hold to scope in, release to fire" : "Aim and fire: hold to aim down sights and shoot"}
-          size="md"
-          className="bg-[color-mix(in_oklab,var(--accent-to)_28%,transparent)]"
-          {...press((down) => aimFire(down), true)}
-        >
-          <span className="relative">
-            <Scan className="size-7" />
-            <Crosshair className="absolute inset-0 m-auto size-3.5" />
-          </span>
         </Btn>
         <Btn label="Fire" size="lg" {...press((down) => input.setTouch({ fire: down }), true)} className="bg-[color-mix(in_oklab,var(--accent-to)_40%,transparent)]">
           <Crosshair className="size-9" />
@@ -246,7 +226,8 @@ function Btn({
       {...handlers}
       className={cn(
         "flex items-center justify-center rounded-full border border-white/25 bg-ink-900/55 text-white backdrop-blur active:scale-95",
-        size === "sm" ? "size-12" : size === "md" ? "size-16" : "size-24",
+        // Short screens (a phone on its side, the post's card) get smaller buttons.
+        size === "sm" ? "size-12 [@media(max-height:480px)]:size-10" : size === "md" ? "size-16 [@media(max-height:480px)]:size-13" : "size-24 [@media(max-height:480px)]:size-19",
         on && "border-[var(--accent-from)] bg-[color-mix(in_oklab,var(--accent-from)_35%,transparent)]",
         className,
       )}

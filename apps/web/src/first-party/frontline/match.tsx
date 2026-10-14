@@ -271,7 +271,8 @@ export function MatchView({ settings, onSettings }: { settings: Settings; onSett
   // Host HUD + achievements as they happen (1 Hz).
   useEffect(() => {
     let lastScores = "";
-    let lastStatus = "";
+    // Null so the first tick also clears the lobby's "Deployed".
+    let lastStatus: string | null = null;
     const id = setInterval(() => {
       const hud = game.hud();
       const scores = Object.fromEntries(hud.scores.map((s) => [s.id, s.kills]));
@@ -281,15 +282,15 @@ export function MatchView({ settings, onSettings }: { settings: Settings; onSett
         xapps.ui.setScores(scores).catch(ignore);
       }
       const leader = Math.max(0, ...hud.scores.map((s) => s.kills));
-      const status =
-        hud.phase === "over"
-          ? "Match over"
-          : hud.teams
-            ? `${formatClock(hud.remainingMs)} · ${hud.teamScores.join("–")} of ${hud.limit}`
-            : `${formatClock(hud.remainingMs)} · leader ${leader}/${hud.limit}`;
+      const clock = hud.teams
+        ? `${formatClock(hud.remainingMs)} · ${hud.teamScores.join("–")} of ${hud.limit}`
+        : `${formatClock(hud.remainingMs)} · leader ${leader}/${hud.limit}`;
+      // Players have the clock and score in the game's own top bar: the host's line stays empty
+      // instead of repeating it (spectators watching from the host get it there).
+      const status = hud.phase === "over" ? "Match over" : isSpectator ? `Watching · ${clock}` : "";
       if (status !== lastStatus) {
         lastStatus = status;
-        xapps.ui.setStatus(isSpectator ? `Watching · ${status}` : status).catch(ignore);
+        xapps.ui.setStatus(status).catch(ignore);
       }
       if (game.me && game.phase === "live") unlockAchievements(xapps, earnedAchievements({ ...game.log, won: null }), TAG);
       game.refreshLinks();
