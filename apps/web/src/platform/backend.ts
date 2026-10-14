@@ -175,7 +175,8 @@ export interface Backend {
   watchMatch(matchId: string, handler: (match: Match) => void): () => void;
   /** Fires whenever anything relevant to the viewer's matches changes. */
   watchInbox(handler: () => void): () => void;
-  openRoom(matchId: string, viewerId: string): RoomTransport;
+  /** `appSlug` picks the transport (the live server for `liveServer` apps, see AppManifest). */
+  openRoom(matchId: string, viewerId: string, appSlug?: string): RoomTransport;
 
   // Per-app storage ----------------------------------------------------
   storageGet(appSlug: string, key: string, scope?: StorageScope): Promise<Json | null>;

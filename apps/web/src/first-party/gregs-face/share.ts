@@ -169,7 +169,7 @@ export function renderShareCard(
 
   ctx.fillStyle = "#8d96ad";
   ctx.font = `600 22px ${family}`;
-  ctx.fillText(options.handle ? `@${options.handle} · Play it on XApps` : "Play it on XApps", left, Math.max(568, y + 90));
+  ctx.fillText(options.handle ? `@${options.handle} · Play it on VibeCade` : "Play it on VibeCade", left, Math.max(568, y + 90));
   return c;
 }
 

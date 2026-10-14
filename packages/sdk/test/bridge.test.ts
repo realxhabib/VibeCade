@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { XAppsClient, connect, resetConnection } from "../src/client";
+import { VibeCadeClient, connect, resetConnection } from "../src/client";
 import { createHostCore, decideWinner, validateRequest, type HostHandlers } from "../src/host";
 import type { LaunchContext, MatchResult } from "../src/protocol";
 import { createMemoryTransportPair } from "../src/transport";
@@ -50,7 +50,7 @@ afterEach(() => resetConnection());
 describe("handshake", () => {
   it("delivers the launch context", async () => {
     const { client, onConnect } = await setup();
-    expect(client).toBeInstanceOf(XAppsClient);
+    expect(client).toBeInstanceOf(VibeCadeClient);
     expect(client.user.handle).toBe("alice");
     expect(client.opponent?.id).toBe("bob");
     expect(client.isHost).toBe(true);

@@ -5,7 +5,7 @@
  * React components only mount things and forward events into it.
  */
 
-import type { XAppsClient } from "@xapps/sdk";
+import type { VibeCadeClient } from "vibecade-sdk";
 import type { RapierRigidBody } from "@react-three/rapier";
 import type { Ray, World as RapierWorld } from "@dimforge/rapier3d-compat";
 import { PerspectiveCamera, Vector3 } from "three";
@@ -53,7 +53,7 @@ interface DamageNumber {
 }
 
 export interface RuntimeOptions {
-  xapps: XAppsClient;
+  xapps: VibeCadeClient;
   seats: SeatInfo[];
   meId: string | null;
   spectator: boolean;
@@ -79,7 +79,7 @@ export class MatchRuntime {
   readonly camera = new CameraRig();
   readonly layout: HazardLayout;
   readonly canPause: boolean;
-  private readonly xapps: XAppsClient;
+  private readonly xapps: VibeCadeClient;
   private readonly bodies = new Map<string, RapierRigidBody>();
   private readonly fx = new Map<string, TruckFx>();
   private vfx: Vfx | null = null;

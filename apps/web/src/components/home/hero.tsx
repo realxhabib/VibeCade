@@ -83,7 +83,7 @@ function GuestCopy() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45, ...spring.soft }}
       >
-        Reflex duels, meme battles and robot brawls. Pick an app, send the link, settle it — the crowd keeps score
+        Reflex duels, rocket runs and robot brawls. Pick an app, send the link, settle it — the crowd keeps score
         and the winner keeps the receipts.
       </motion.p>
       <motion.div

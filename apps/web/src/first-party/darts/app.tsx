@@ -1,7 +1,7 @@
 "use client";
 
-import type { PlayerInfo, XAppsClient } from "@xapps/sdk";
-import { useGestureLock, useMatchResult, useMatchStarted, usePlayers, useRoomEvent, useXApps } from "@xapps/sdk/react";
+import type { PlayerInfo, VibeCadeClient } from "vibecade-sdk";
+import { useGestureLock, useMatchResult, useMatchStarted, usePlayers, useRoomEvent, useVibeCade } from "vibecade-sdk/react";
 import { motion, useAnimate, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTimeouts } from "@/first-party/shared/hooks";
@@ -68,7 +68,7 @@ const MIN_ZONE = 150;
 const ZONE_SHARE = 0.2;
 
 type Phase = "aim" | "flight" | "round-end" | "pull" | "done";
-type HapticStyle = Parameters<XAppsClient["ui"]["haptic"]>[0];
+type HapticStyle = Parameters<VibeCadeClient["ui"]["haptic"]>[0];
 
 interface Session {
   kind: "pointer" | "key";
@@ -133,7 +133,7 @@ function clearSaved(matchId: string): void {
 }
 
 export function Darts() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const { players, me } = usePlayers();
   const readyRef = useRef(false);
@@ -149,7 +149,7 @@ export function Darts() {
 }
 
 function Game() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const result = useMatchResult();
   const { players, me, isSpectator } = usePlayers();
   const reduced = useReducedMotion() ?? false;

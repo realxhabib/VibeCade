@@ -2,7 +2,7 @@ import {
   LIMITS,
   PROTOCOL_VERSION,
   SDK_VERSION,
-  XAppsError,
+  VibeCadeError,
   byteLength,
   type EventMessage,
   type HapticStyle,
@@ -62,7 +62,7 @@ export interface ConnectOptions {
   /** Only trust these host origins (recommended in production), e.g. `["https://xapps.gg"]`. */
   hostOrigins?: string[];
   /**
-   * What to do when the page is opened directly instead of inside XApps.
+   * What to do when the page is opened directly instead of inside VibeCade.
    * By default a local mock host starts so you can build without the marketplace.
    * Pass `false` to throw instead.
    */
@@ -77,7 +77,7 @@ export interface ConnectOptions {
    */
   captureErrors?: boolean;
   /**
-   * Inside XApps, stop your page from bouncing or pull-to-refreshing when
+   * Inside VibeCade, stop your page from bouncing or pull-to-refreshing when
    * people drag (`overscroll-behavior: none`; scrolling still works). Default
    * true. For drag surfaces also call `xapps.ui.lockGestures(element)`.
    */
@@ -281,7 +281,7 @@ const UPLOAD_TIMEOUT_MS = 120_000;
  * await xapps.ready();
  * ```
  */
-export class XAppsClient {
+export class VibeCadeClient {
   /** Everything the host told us at launch. `match` stays up to date. */
   readonly context: LaunchContext;
   /** Seeded with `match.seed` — identical on every client in this match. */
@@ -519,13 +519,13 @@ export class XAppsClient {
       const denied = this.deny("room.send");
       if (denied) return denied;
       if (!type || type.length > LIMITS.eventTypeLength) {
-        return Promise.reject(new XAppsError("invalid_params", "room.send: invalid event type"));
+        return Promise.reject(new VibeCadeError("invalid_params", "room.send: invalid event type"));
       }
       if (byteLength(payload) > LIMITS.roomPayloadBytes) {
-        return Promise.reject(new XAppsError("invalid_params", "room.send: payload too large"));
+        return Promise.reject(new VibeCadeError("invalid_params", "room.send: payload too large"));
       }
       if (!this.takeSendBudget()) {
-        return Promise.reject(new XAppsError("rate_limited", "room.send: slow down"));
+        return Promise.reject(new VibeCadeError("rate_limited", "room.send: slow down"));
       }
       return this.request("room.send", { type, payload });
     },
@@ -585,7 +585,7 @@ export class XAppsClient {
      */
     resize: (height: number): Promise<null> => {
       if (typeof height !== "number" || !Number.isFinite(height)) {
-        return Promise.reject(new XAppsError("invalid_params", "ui.resize: height must be a finite number"));
+        return Promise.reject(new VibeCadeError("invalid_params", "ui.resize: height must be a finite number"));
       }
       return this.request("ui.resize", { height: clampFrameHeight(height) });
     },
@@ -639,12 +639,12 @@ export class XAppsClient {
     params: RequestParams<M>,
     options: { timeoutMs?: number } = {},
   ): Promise<RequestResult<M>> {
-    if (this.destroyed) return Promise.reject(new XAppsError("not_connected", "client destroyed"));
+    if (this.destroyed) return Promise.reject(new VibeCadeError("not_connected", "client destroyed"));
     const id = this.nextId++;
     return new Promise<RequestResult<M>>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new XAppsError("timeout", `${method} timed out`));
+        reject(new VibeCadeError("timeout", `${method} timed out`));
       }, options.timeoutMs ?? REQUEST_TIMEOUT_MS);
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
       this.transport.post({ xapps: PROTOCOL_VERSION, type: "request", id, method, params });
@@ -668,7 +668,7 @@ export class XAppsClient {
     this.unlisten();
     for (const [, pending] of this.pending) {
       clearTimeout(pending.timer);
-      pending.reject(new XAppsError("not_connected", "client destroyed"));
+      pending.reject(new VibeCadeError("not_connected", "client destroyed"));
     }
     this.pending.clear();
     this.listeners.clear();
@@ -709,12 +709,12 @@ export class XAppsClient {
         if (denied) return denied;
         const expected = expectedVersion ?? client.context.match.stateVersion;
         if (!Number.isInteger(expected) || expected < 0) {
-          throw new XAppsError("invalid_params", "state.set: expectedVersion must be a non-negative integer");
+          throw new VibeCadeError("invalid_params", "state.set: expectedVersion must be a non-negative integer");
         }
         const problem = jsonProblem(value, "state");
-        if (problem) throw new XAppsError("invalid_params", `state.set: ${problem}`);
+        if (problem) throw new VibeCadeError("invalid_params", `state.set: ${problem}`);
         if (byteLength(value) > LIMITS.matchStateBytes) {
-          throw new XAppsError("invalid_params", `state.set: state is larger than ${LIMITS.matchStateBytes} bytes`);
+          throw new VibeCadeError("invalid_params", `state.set: state is larger than ${LIMITS.matchStateBytes} bytes`);
         }
         const copy = cloneJson(value);
         const { version } = await client.request("state.set", { state: copy, expectedVersion: expected });
@@ -733,7 +733,7 @@ export class XAppsClient {
           try {
             return await api.set<T>(next, base.version);
           } catch (error) {
-            if (!(error instanceof XAppsError) || error.code !== "conflict" || attempt >= retries) throw error;
+            if (!(error instanceof VibeCadeError) || error.code !== "conflict" || attempt >= retries) throw error;
             await api.get();
             // Back off (40 ms, 80 ms, … up to 1 s, jittered) so contending writers spread out.
             await new Promise((r) => setTimeout(r, Math.min(1000, 40 * 2 ** attempt) * (0.5 + Math.random() * 0.5)));
@@ -765,7 +765,7 @@ export class XAppsClient {
         if (denied) return denied;
         if (next !== undefined && next !== null) {
           if (typeof next !== "string" || !client.players.some((p) => p.id === next)) {
-            return Promise.reject(new XAppsError("invalid_params", "turn.end: next must be a seated player id"));
+            return Promise.reject(new VibeCadeError("invalid_params", "turn.end: next must be a seated player id"));
           }
         }
         return client.request("turn.end", next === undefined ? {} : { next });
@@ -784,10 +784,10 @@ export class XAppsClient {
         const denied = client.deny("round.set");
         if (denied) return denied;
         if (!Number.isSafeInteger(round) || round < 0) {
-          throw new XAppsError("invalid_params", "round.set: round must be a non-negative integer");
+          throw new VibeCadeError("invalid_params", "round.set: round must be a non-negative integer");
         }
         if (round < client.context.match.round) {
-          throw new XAppsError("invalid_params", "round.set: the round can't go backwards");
+          throw new VibeCadeError("invalid_params", "round.set: the round can't go backwards");
         }
         await client.request("round.set", { round });
         client.applyRound(round);
@@ -807,7 +807,7 @@ export class XAppsClient {
         const denied = client.deny("setup.submit");
         if (denied) return denied;
         const problem = validateSetup(settings, summary);
-        if (problem) return Promise.reject(new XAppsError("invalid_params", `setup.submit: ${problem}`));
+        if (problem) return Promise.reject(new VibeCadeError("invalid_params", `setup.submit: ${problem}`));
         return client.request("setup.submit", summary === undefined ? { settings } : { settings, summary });
       },
       cancel(): Promise<null> {
@@ -818,7 +818,7 @@ export class XAppsClient {
 
   private createStorageApi(): StorageApi {
     const invalid = (method: string, problem: string) =>
-      Promise.reject(new XAppsError("invalid_params", `${method}: ${problem}`));
+      Promise.reject(new VibeCadeError("invalid_params", `${method}: ${problem}`));
     return {
       get: <T extends Json = Json>(key: string, options: StorageOptions = {}): Promise<T | null> => {
         const problem = storageKeyProblem(key) ?? storageScopeProblem(options.scope);
@@ -857,7 +857,7 @@ export class XAppsClient {
         const denied = this.deny("media.upload");
         if (denied) return denied;
         const problem = mediaProblem(file, options.alt);
-        if (problem) return Promise.reject(new XAppsError("invalid_params", `media.upload: ${problem}`));
+        if (problem) return Promise.reject(new VibeCadeError("invalid_params", `media.upload: ${problem}`));
         const params: RequestParams<"media.upload"> = options.alt === undefined ? { file } : { file, alt: options.alt };
         return this.request("media.upload", params, { timeoutMs: options.timeoutMs ?? UPLOAD_TIMEOUT_MS });
       },
@@ -876,12 +876,12 @@ export class XAppsClient {
         const denied = client.deny("stats.report");
         if (denied) return denied;
         const problem = statsProblem(values, client.context.app.stats ?? null);
-        if (problem) return Promise.reject(new XAppsError("invalid_params", `stats.report: ${problem}`));
+        if (problem) return Promise.reject(new VibeCadeError("invalid_params", `stats.report: ${problem}`));
         return client.request("stats.report", { values: { ...values } });
       },
       leaderboard(key: string, options: StatLeaderboardOptions = {}): Promise<StatStanding> {
         const problem = statLeaderboardProblem(key, options.limit, client.context.app.stats ?? null);
-        if (problem) return Promise.reject(new XAppsError("invalid_params", `stats.leaderboard: ${problem}`));
+        if (problem) return Promise.reject(new VibeCadeError("invalid_params", `stats.leaderboard: ${problem}`));
         const params: RequestParams<"stats.leaderboard"> =
           options.limit === undefined ? { key } : { key, limit: Math.min(options.limit, LIMITS.statLeaderboard.maxLimit) };
         return client.request("stats.leaderboard", params);
@@ -903,7 +903,7 @@ export class XAppsClient {
         const denied = client.deny("achievements.unlock");
         if (denied) return denied;
         const problem = achievementProblem(id, client.context.app.achievements ?? null);
-        if (problem) throw new XAppsError("invalid_params", `achievements.unlock: ${problem}`);
+        if (problem) throw new VibeCadeError("invalid_params", `achievements.unlock: ${problem}`);
         const result = await client.request("achievements.unlock", { id });
         client.markUnlocked(id);
         return { unlocked: result?.unlocked === true };
@@ -1002,7 +1002,7 @@ export class XAppsClient {
   /** A rejected promise when the launch purpose / role doesn't allow `method` (mirrors the host). */
   private deny(method: RequestMethod): Promise<never> | null {
     const problem = accessProblem(method, this.context);
-    return problem ? Promise.reject(new XAppsError("forbidden", problem)) : null;
+    return problem ? Promise.reject(new VibeCadeError("forbidden", problem)) : null;
   }
 
   /** Adopts a state if it's newer than ours; dispatches `state.change` once per version. */
@@ -1041,7 +1041,7 @@ export class XAppsClient {
       this.pending.delete(message.id);
       clearTimeout(pending.timer);
       if (message.ok) pending.resolve(message.result ?? null);
-      else pending.reject(new XAppsError(message.error?.code ?? "internal", message.error?.message ?? "Host error"));
+      else pending.reject(new VibeCadeError(message.error?.code ?? "internal", message.error?.message ?? "Host error"));
       return;
     }
     if (message.type === "event") {
@@ -1164,18 +1164,18 @@ function sanitizeSubmission(submission: Submission): Submission {
   const out: Submission = {};
   if (submission.score !== undefined) {
     if (typeof submission.score !== "number" || !Number.isFinite(submission.score)) {
-      throw new XAppsError("invalid_params", "submit: score must be a finite number");
+      throw new VibeCadeError("invalid_params", "submit: score must be a finite number");
     }
     out.score = submission.score;
   }
   if (submission.data !== undefined) out.data = submission.data;
   if (submission.display !== undefined) {
     const problem = displayProblem(submission.display);
-    if (problem) throw new XAppsError("invalid_params", `submit: ${problem}`);
+    if (problem) throw new VibeCadeError("invalid_params", `submit: ${problem}`);
     out.display = submission.display;
   }
   if (byteLength(out) > LIMITS.submissionBytes) {
-    throw new XAppsError("invalid_params", "submit: submission too large");
+    throw new VibeCadeError("invalid_params", "submit: submission too large");
   }
   return out;
 }
@@ -1238,7 +1238,7 @@ function describeReason(reason: unknown): { message: string; stack?: string } {
  * whichever client connected last with `captureErrors` on (so reconnecting
  * never duplicates reports).
  */
-const errorCapture: { client: XAppsClient | null; windows: WeakSet<Window>; reporting: boolean } = {
+const errorCapture: { client: VibeCadeClient | null; windows: WeakSet<Window>; reporting: boolean } = {
   client: null,
   windows: new WeakSet(),
   reporting: false,
@@ -1258,7 +1258,7 @@ function reportCaptured(message: string, data: { [key: string]: Json }): void {
   }
 }
 
-function installErrorCapture(win: Window | undefined, client: XAppsClient): void {
+function installErrorCapture(win: Window | undefined, client: VibeCadeClient): void {
   errorCapture.client = client;
   if (!win || typeof win.addEventListener !== "function" || errorCapture.windows.has(win)) return;
   errorCapture.windows.add(win);
@@ -1412,16 +1412,16 @@ function buildRoster(context: LaunchContext): Roster {
 /* connect()                                                            */
 /* -------------------------------------------------------------------- */
 
-let singleton: { promise: Promise<XAppsClient>; client: XAppsClient | null } | null = null;
+let singleton: { promise: Promise<VibeCadeClient>; client: VibeCadeClient | null } | null = null;
 
 /**
- * Connect to the XApps host. Safe to call many times — every call returns the
+ * Connect to the VibeCade host. Safe to call many times — every call returns the
  * same client.
  */
-export function connect(options: ConnectOptions = {}): Promise<XAppsClient> {
+export function connect(options: ConnectOptions = {}): Promise<VibeCadeClient> {
   if (singleton) return singleton.promise;
-  const entry: { promise: Promise<XAppsClient>; client: XAppsClient | null } = {
-    promise: Promise.resolve(null as unknown as XAppsClient),
+  const entry: { promise: Promise<VibeCadeClient>; client: VibeCadeClient | null } = {
+    promise: Promise.resolve(null as unknown as VibeCadeClient),
     client: null,
   };
   entry.promise = handshake(options).then(
@@ -1444,17 +1444,17 @@ export function resetConnection(): void {
   singleton = null;
 }
 
-async function handshake(options: ConnectOptions): Promise<XAppsClient> {
+async function handshake(options: ConnectOptions): Promise<VibeCadeClient> {
   const win = options.window ?? (typeof window !== "undefined" ? window : undefined);
   let transport = options.transport;
 
   if (!transport) {
-    if (!win) throw new XAppsError("not_connected", "connect() must run in a browser");
+    if (!win) throw new VibeCadeError("not_connected", "connect() must run in a browser");
     const embedded = win.parent !== win;
     if (embedded && options.gestures !== false) calmPage(win.document);
     if (!embedded) {
       if (options.mock === false) {
-        throw new XAppsError("not_connected", "Not running inside XApps (no parent window)");
+        throw new VibeCadeError("not_connected", "Not running inside VibeCade (no parent window)");
       }
       const mock = createMockHost(typeof options.mock === "object" ? options.mock : {});
       transport = mock.transport;
@@ -1465,13 +1465,13 @@ async function handshake(options: ConnectOptions): Promise<XAppsClient> {
 
   const timeoutMs = options.timeoutMs ?? 8_000;
   const activeTransport = transport;
-  const onConnected = (client: XAppsClient) => {
+  const onConnected = (client: VibeCadeClient) => {
     if (options.captureErrors === false) errorCapture.client = null; // listeners (if any) stay idle
     else installErrorCapture(win, client);
     return client;
   };
 
-  return new Promise<XAppsClient>((resolve, reject) => {
+  return new Promise<VibeCadeClient>((resolve, reject) => {
     let settled = false;
     const session = randomId(10);
     const hello = () =>
@@ -1484,7 +1484,7 @@ async function handshake(options: ConnectOptions): Promise<XAppsClient> {
       settled = true;
       clearInterval(knock);
       stop();
-      reject(new XAppsError("timeout", "The XApps host did not answer. Is the app running inside XApps?"));
+      reject(new VibeCadeError("timeout", "The VibeCade host did not answer. Is the app running inside VibeCade?"));
     }, timeoutMs);
 
     const stop = activeTransport.listen((message, origin) => {
@@ -1494,7 +1494,7 @@ async function handshake(options: ConnectOptions): Promise<XAppsClient> {
       clearTimeout(timer);
       stop();
       activeTransport.pin?.(origin);
-      resolve(onConnected(new XAppsClient(activeTransport, message.context)));
+      resolve(onConnected(new VibeCadeClient(activeTransport, message.context)));
     });
 
     hello();

@@ -1,4 +1,4 @@
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import { runAppServerApi, ServerApiError } from "@/lib/server-api";
 
 /** Server API: the app-scope keys (sorted) → `{ keys }`, optionally `?prefix=`. */

@@ -3,7 +3,7 @@
  * `xapps.stats.leaderboard("best_face")`: formatting, and the moments worth
  * celebrating between two standings (a new personal best, places climbed).
  */
-import type { StatStanding } from "@xapps/sdk";
+import type { StatStanding } from "vibecade-sdk";
 
 /** The stat the global board ranks (aggregate `max`). */
 export const BOARD_STAT = "best_face";

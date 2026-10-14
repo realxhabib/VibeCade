@@ -39,7 +39,6 @@ so 1.5 → 1920×1080).
 | `wwroom` | `node ww-room.mjs 1.5 wwroom 150` | Wedge Wars in the play room: lock in, free-for-all intro, charge |
 | `ww3` | `node ww-scout.mjs 3 shoot 16.7 ww3` | Seed 3 pile-up and KO (scout seeds first with `scout` mode) |
 | `sl` | `node sl-shoot.mjs shoot sl 40` | Starship League practice in the play room |
-| `arena` | `node arena.mjs 1.3333333 arena` | Meme Duel voting in the Arena |
 | `chal` | `node challenge.mjs 1.5 chal` | Challenge → VS intro → 3-2-1 → Reflexes → Victory |
 | `dev`, `dev2` | `node dev.mjs 1.5 dev` | Register an app with images, console Versions, review queue |
 

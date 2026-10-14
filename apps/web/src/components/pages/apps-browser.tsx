@@ -153,7 +153,7 @@ export function AppsBrowser() {
                       </motion.span>
                       <div>
                         <p className="font-display text-xl font-extrabold">Submit your app</p>
-                        <p className="mt-1 text-sm text-ink-300">Ship it with @xapps/sdk and list it here.</p>
+                        <p className="mt-1 text-sm text-ink-300">Ship it with vibecade-sdk and list it here.</p>
                       </div>
                     </div>
                   </TiltCard>

@@ -1,6 +1,6 @@
-# @xapps/sdk
+# vibecade-sdk
 
-Build multiplayer apps for **XApps**, the social app marketplace on X: 1v1 duels, 2–8 player tables, team games, turn-based games that last days, and games with their own challenge setup. The SDK is a small bridge (~66 KB minified / ~22 KB gzipped including the standalone mock host and WebRTC mesh, zero dependencies) between your app, running in a sandboxed iframe, and the XApps host. The host gives your app:
+Build multiplayer apps for **VibeCade**, the social app marketplace on X: 1v1 duels, 2–8 player tables, team games, turn-based games that last days, and games with their own challenge setup. The SDK is a small bridge (~66 KB minified / ~22 KB gzipped including the standalone mock host and WebRTC mesh, zero dependencies) between your app, running in a sandboxed iframe, and the VibeCade host. The host gives your app:
 
 - **Identity**: every player is signed in with X (`handle`, `name`, `avatarUrl`).
 - **Realtime rooms**: `room.send` / `room.on`, plus presence.
@@ -11,40 +11,40 @@ Build multiplayer apps for **XApps**, the social app marketplace on X: 1v1 duels
 - **Progression**: key/value storage (per player and per app), custom stats with leaderboards, and achievements.
 - **Host UI**: VS intro, countdown, HUD, emoji reactions, confetti, results screen, rematch and share.
 
-Not building a game? XApps also hosts **standalone apps** (news readers, dashboards, tools, meme makers) that people simply open: see [Standalone apps](#standalone-apps).
+Not building a game? VibeCade also hosts **standalone apps** (news readers, dashboards, tools, meme makers) that people simply open: see [Standalone apps](#standalone-apps).
 
 ## Install
 
 ```bash
-npm i @xapps/sdk          # React bindings need react ≥ 18 (optional peer)
+npm i vibecade-sdk          # React bindings need react ≥ 18 (optional peer)
 ```
 
-Entry points: `@xapps/sdk` (apps), `@xapps/sdk/react` (hooks), `@xapps/sdk/host` (embed apps / integration tests), `@xapps/sdk/server` (your app's server: webhooks + server API) and `@xapps/sdk/protocol` (wire types). ESM only, with TypeScript declarations.
+Entry points: `vibecade-sdk` (apps), `vibecade-sdk/react` (hooks), `vibecade-sdk/host` (embed apps / integration tests), `vibecade-sdk/server` (your app's server: webhooks + server API) and `vibecade-sdk/protocol` (wire types). ESM only, with TypeScript declarations.
 
 Starting from scratch? Scaffold a ready project:
 
 ```bash
-npx create-xapp my-game                         # Vite + React + TypeScript, a 1v1 tap race
-npx create-xapp my-board --template turn-based  # shared state + turns (tic-tac-toe)
-npx create-xapp my-page --template vanilla      # one HTML file, no build
+npx create-vibecade my-game                         # Vite + React + TypeScript, a 1v1 tap race
+npx create-vibecade my-board --template turn-based  # shared state + turns (tic-tac-toe)
+npx create-vibecade my-page --template vanilla      # one HTML file, no build
 cd my-game && npm install && npm run dev        # plays standalone against a bot (mock host)
 ```
 
 Each template ships an `xapps.manifest.json` and a README with the path to launch: `npm run dev` → register at `<xapps-host>/developers/new` → test in the Sandbox → add versions → submit for review.
 
-No build step? Import the browser bundle from your XApps host:
+No build step? Import the browser bundle from your VibeCade host:
 
 ```html
 <script type="module">
   import { connect } from "https://<xapps-host>/sdk/v1.js";
 </script>
-<!-- or classic: <script src="https://<xapps-host>/sdk/v1.global.js"></script> → window.XApps -->
+<!-- or classic: <script src="https://<xapps-host>/sdk/v1.global.js"></script> → window.VibeCade -->
 ```
 
 ## Quick start
 
 ```ts
-import { connect } from "@xapps/sdk";
+import { connect } from "vibecade-sdk";
 
 const xapps = await connect();                 // players, seed, mode…
 const bot = xapps.opponents.find((p) => p.isBot); // practice: your app plays the bot
@@ -62,11 +62,11 @@ xapps.onEnd((result) => console.log(result.winnerId));
 ### React
 
 ```tsx
-import { XAppsProvider, useXApps, useRoomEvent, useMatchStarted, useMatchResult } from "@xapps/sdk/react";
+import { VibeCadeProvider, useVibeCade, useRoomEvent, useMatchStarted, useMatchResult } from "vibecade-sdk/react";
 
-<XAppsProvider fallback={<Spinner />}>
+<VibeCadeProvider fallback={<Spinner />}>
   <Game />
-</XAppsProvider>;
+</VibeCadeProvider>;
 ```
 
 More hooks: `useUser()`, `useStandalone()`, `useMatch()`, `usePresence()`, `useReactions(fn)`, for v2 matches `useMatchState()`, `useTurn()`, `useRound()`, `usePlayers()`, `useSetup()`, for media and progression `useMediaUpload()`, `useStats()`, `useStatStanding(key)`, `useAchievements()`, `useAchievementEvents(fn)`, `useLogger()` and `useAutoResize()` (see below).
@@ -108,16 +108,16 @@ More hooks: `useUser()`, `useStandalone()`, `useMatch()`, `usePresence()`, `useR
 | `setup.active` · `setup.submit(settings, summary?)` · `setup.cancel()` | Setup purpose only. Settings ≤ 4 KB JSON object, summary ≤ 140 chars |
 | `log.debug` · `log.info` · `log.warn` · `log.error` `(message, data?)` | Your app's log, fire and forget. See [Logs](#logs) |
 
-`@xapps/sdk/host` exports `createHostBridge` / `createHostCore` if you want to embed XApps apps yourself or write integration tests. `@xapps/sdk/protocol` has the wire types.
+`vibecade-sdk/host` exports `createHostBridge` / `createHostCore` if you want to embed VibeCade apps yourself or write integration tests. `vibecade-sdk/protocol` has the wire types.
 
 ## Standalone apps
 
-Not everything is a game. A **standalone app** (manifest `kind: "app"`) is something people simply open: a news reader, an analytics dashboard, a trading tool, a meme maker. There are no challenges, lobbies, scoring or results. XApps opens it full screen at `/apps/<slug>/open` with `purpose: "app"`, and the viewer is always signed in with X.
+Not everything is a game. A **standalone app** (manifest `kind: "app"`) is something people simply open: a news reader, an analytics dashboard, a trading tool, a meme maker. There are no challenges, lobbies, scoring or results. VibeCade opens it full screen at `/apps/<slug>/open` with `purpose: "app"`, and the viewer is always signed in with X.
 
 ```ts
-import { connect } from "@xapps/sdk";
+import { connect } from "vibecade-sdk";
 
-// Outside XApps the mock host opens it as a standalone app too.
+// Outside VibeCade the mock host opens it as a standalone app too.
 const xapps = await connect({ mock: { purpose: "app" } });
 
 greet(`Hi @${xapps.user.handle}`);                        // the signed-in viewer
@@ -150,15 +150,15 @@ No `ready()`, no `onStart`, no `submit`: render as soon as `connect()` resolves.
 - Test builds (`?version=<id>` for you and your testers) run with the version's manifest; their stats and achievements are shown but never saved.
 - Mock host: `connect({ mock: { purpose: "app", stats, achievements } })` or `?xapps-purpose=app` gives you the same one-player stub with storage (localStorage), stats, achievements and media working. `stats.leaderboard` ranks what you reported among a handful of made-up players (`mock.leaderboard` to choose their values).
 - React: `useUser()` and `useStandalone()`; the storage, stats, achievements, media and log hooks work unchanged.
-- Hosts: the host core refuses the match-only methods for `purpose: "app"` contexts (or `access: () => ({ purpose: "app" })`). `standaloneMatch(user, { id, seed })` from `@xapps/sdk/host` builds the stub match.
+- Hosts: the host core refuses the match-only methods for `purpose: "app"` contexts (or `access: () => ({ purpose: "app" })`). `standaloneMatch(user, { id, seed })` from `vibecade-sdk/host` builds the stub match.
 
 A complete one-file example lives in [`examples/notes`](../../examples/notes/index.html).
 
 ## Touch & drag
 
-On phones a drag can turn into a page scroll, a rubber-band bounce or pull-to-refresh. XApps switches that off on the host page for every app. Inside your own page:
+On phones a drag can turn into a page scroll, a rubber-band bounce or pull-to-refresh. VibeCade switches that off on the host page for every app. Inside your own page:
 
-- `connect()` sets `overscroll-behavior: none` on your `html` and `body` when running inside XApps, so the page never bounces or pulls-to-refresh (long pages still scroll). Opt out with `connect({ gestures: false })`.
+- `connect()` sets `overscroll-behavior: none` on your `html` and `body` when running inside VibeCade, so the page never bounces or pulls-to-refresh (long pages still scroll). Opt out with `connect({ gestures: false })`.
 - For anything people drag on (a canvas, a board, a slider), call `xapps.ui.lockGestures(element)`: touches on it never scroll or zoom the page, even on iOS Safari (which ignores `touch-action` alone mid-gesture), and long-press doesn't select text. Pointer events keep working. It returns a function that undoes it. In React: `useGestureLock(ref)`. Both also exist as plain exports (`lockGestures`, `calmPage`) if you haven't connected yet.
 
 ```ts
@@ -273,7 +273,7 @@ xapps.state.onChange((state) => render(state));                 // same stream a
 ### React
 
 ```tsx
-import { useMatchState, usePlayers, useRound, useSetup, useTurn } from "@xapps/sdk/react";
+import { useMatchState, usePlayers, useRound, useSetup, useTurn } from "vibecade-sdk/react";
 
 function Board() {
   const { state, version, update } = useMatchState<Board>();   // also `set(value, expectedVersion?)`
@@ -313,7 +313,7 @@ Opened directly, `connect()` starts the mock host. Configure it through `connect
 | Method | Alias | Params → result |
 | --- | --- | --- |
 | `state.get` | `getState` | `{}` → `{ state, version }` |
-| `state.set` | `setState` | `{ state, expectedVersion }` → `{ version }`. Throw `new XAppsError("conflict", …)` when the version moved. |
+| `state.set` | `setState` | `{ state, expectedVersion }` → `{ version }`. Throw `new VibeCadeError("conflict", …)` when the version moved. |
 | `turn.end` | `endTurn` | `{ next? }` → `null` |
 | `round.set` | `setRound` | `{ round }` → `null` |
 | `setup.submit` | `submitSetup` | `{ settings, summary? }` → `null` |
@@ -324,14 +324,14 @@ Opened directly, `connect()` starts the mock host. Configure it through `connect
 | `storage.list` | `storageList` | `{ prefix?, scope? }` → `string[]` |
 | `media.upload` | `uploadMedia` | `{ file: Blob, alt? }` → `MediaRef`. Type and size are already checked; enforce the daily quotas. |
 | `stats.report` | `reportStats` | `{ values }` → `{ [key]: newValue }` |
-| `stats.leaderboard` | `statLeaderboard` | `{ key, limit }` → `StatStanding { key, top: [{ rank, player, value }], me: { rank, value } \| null, total }`. `limit` arrives clamped to 1–50 (default 10). Read-only: allowed for every purpose and role. `rankStatValues(rows, aggregate)` ranks like XApps. |
+| `stats.leaderboard` | `statLeaderboard` | `{ key, limit }` → `StatStanding { key, top: [{ rank, player, value }], me: { rank, value } \| null, total }`. `limit` arrives clamped to 1–50 (default 10). Read-only: allowed for every purpose and role. `rankStatValues(rows, aggregate)` ranks like VibeCade. |
 | `achievements.unlock` | `unlockAchievement` | `{ id }` → `{ unlocked }`. Call `bridge.emitAchievement(id, userId)` when it's new. |
 | `log` | `logEvent` | `{ level, message, data? }` → `null`. Validated (≤ 500 chars, data ≤ 4 KB); past 60 a minute per app instance the core answers `ok` and drops the entry without calling you. |
 | `ui.resize` | `resize` | `{ height }` → `null`. `height` arrives as whole CSS px clamped to 120–2000. |
 
 The core validates params and refuses by purpose and role (read from `context()`, or from an `access()` option) before calling your handler. Push changes with `bridge.emitState(state, version, by)`, `bridge.emitTurn(turn, deadline)` and `bridge.emitRound(round)`, or emit a `match.update`, from which the client derives the same events. Emit before you answer `turn.end` so the app sees the new turn first. `rankPlayers(entries, "high" | "low", { teams })` computes placements, ties and team sums.
 
-The `file` of a `media.upload` comes from the app's window, so it is a `Blob` of *another realm*: `instanceof Blob` is false on the host. Use `isBlobLike()` (duck-typed), `mediaKindOf(mime)` and `mediaProblem(file)` from `@xapps/sdk/host`; `displayProblem(display)`, `statsProblem(values, defs?)`, `statLeaderboardProblem(key, limit?, defs?)`, `achievementProblem(id, defs?)` and `aggregateStat(aggregate, previous, value)` are there too. When `context().app.stats` / `.achievements` are set, the core also refuses undeclared stat keys and achievement ids.
+The `file` of a `media.upload` comes from the app's window, so it is a `Blob` of *another realm*: `instanceof Blob` is false on the host. Use `isBlobLike()` (duck-typed), `mediaKindOf(mime)` and `mediaProblem(file)` from `vibecade-sdk/host`; `displayProblem(display)`, `statsProblem(values, defs?)`, `statLeaderboardProblem(key, limit?, defs?)`, `achievementProblem(id, defs?)` and `aggregateStat(aggregate, previous, value)` are there too. When `context().app.stats` / `.achievements` are set, the core also refuses undeclared stat keys and achievement ids.
 
 
 ## Direct connections (WebRTC)
@@ -440,7 +440,7 @@ The iframe needs camera/microphone permission from the host for `getUserMedia`; 
 React:
 
 ```tsx
-import { useMediaUpload } from "@xapps/sdk/react";
+import { useMediaUpload } from "vibecade-sdk/react";
 
 function DropPicker({ onPicked }: { onPicked: (url: string) => void }) {
   const { upload, uploading, error } = useMediaUpload();
@@ -522,7 +522,7 @@ xapps.onAchievement(({ id, userId }, def) => {
 React:
 
 ```tsx
-import { useAchievementEvents, useAchievements, useStatStanding, useStats } from "@xapps/sdk/react";
+import { useAchievementEvents, useAchievements, useStatStanding, useStats } from "vibecade-sdk/react";
 
 const { defs, report } = useStats();
 const { standing, loading, error, refresh } = useStatStanding("best_time", { limit: 5 }); // call refresh() after report()
@@ -550,20 +550,20 @@ xapps.log.error("desync", { expected, got });
 React:
 
 ```tsx
-import { useLogger } from "@xapps/sdk/react";
+import { useLogger } from "vibecade-sdk/react";
 
 const log = useLogger();                         // stable across renders
 useEffect(() => log.debug("board mounted"), [log]);
 ```
 
-Hosts (`@xapps/sdk/host`) receive entries through the `log` handler (alias `logEvent`), already validated and limited to 60 a minute per app instance.
+Hosts (`vibecade-sdk/host`) receive entries through the `log` handler (alias `logEvent`), already validated and limited to 60 a minute per app instance.
 
 ## Testing
 
 - **Standalone**: open your app directly (not in an iframe), and `connect()` starts a mock host where you play against a bot.
 - **Standalone, N players**: see [Testing multiplayer locally](#testing-multiplayer-locally) for more seats, teams, turns, spectating and setup mode.
-- **Sandbox**: `/developers/sandbox` on any XApps host runs two seats side by side with a protocol log.
-- **Framing**: your server must allow XApps to embed you, e.g. `Content-Security-Policy: frame-ancestors https://<xapps-host>`.
+- **Sandbox**: `/developers/sandbox` on any VibeCade host runs two seats side by side with a protocol log.
+- **Framing**: your server must allow VibeCade to embed you, e.g. `Content-Security-Policy: frame-ancestors https://<xapps-host>`.
 
 ## Trust model
 
@@ -573,22 +573,22 @@ For matches that must not trust clients at all, run a server: see below.
 
 ## Server authority & webhooks
 
-An app with its own server can be the referee. Players' browsers stay untrusted; your server holds two secrets from the app's **Server** panel on XApps (each shown once):
+An app with its own server can be the referee. Players' browsers stay untrusted; your server holds two secrets from the app's **Server** panel on VibeCade (each shown once):
 
 - the **app secret** (`xas_…`) to call the server API, and
-- the **webhook signing secret** (`whsec_…`) to verify the events XApps sends to your webhook URL.
+- the **webhook signing secret** (`whsec_…`) to verify the events VibeCade sends to your webhook URL.
 
 Switch the app to `authority: "server"` and `xapps.submit()` only records entries (the score is a *claim*): the match settles when your server calls `reportResult`. If every player has submitted and your server hasn't reported within 24 h, the platform settles a draw and sends `match.ended` with `reason: "server_timeout"`.
 
-`@xapps/sdk/server` uses only `fetch` and Web Crypto, so it runs on Node 20+, Deno, Bun, Cloudflare Workers and edge runtimes. Never import it in browser code.
+`vibecade-sdk/server` uses only `fetch` and Web Crypto, so it runs on Node 20+, Deno, Bun, Cloudflare Workers and edge runtimes. Never import it in browser code.
 
 ```ts
-import { createServerClient } from "@xapps/sdk/server";
+import { createServerClient } from "vibecade-sdk/server";
 
 const xapps = createServerClient({ secret: process.env.XAPPS_SECRET!, baseUrl: "https://<xapps-host>" });
 
 await xapps.getMatch(id);                                  // every player's entry (data included)
-await xapps.setState(id, state, expectedVersion);           // → { version }; XAppsError "conflict" if it moved
+await xapps.setState(id, state, expectedVersion);           // → { version }; VibeCadeError "conflict" if it moved
 await xapps.updateState(id, (state, match) => next);        // read-modify-write, retries on conflict
 await xapps.endTurn(id, nextPlayerId);                      // or endTurn(id) for the next seat
 await xapps.setRound(id, 3);
@@ -607,7 +607,7 @@ Server-authoritative apps should report stats and unlock achievements from their
 
 ```ts
 // app/api/xapps/webhook/route.ts
-import { createServerClient, verifyWebhook, XAppsError } from "@xapps/sdk/server";
+import { createServerClient, verifyWebhook, VibeCadeError } from "vibecade-sdk/server";
 
 const xapps = createServerClient({ secret: process.env.XAPPS_SECRET!, baseUrl: process.env.XAPPS_URL! });
 
@@ -617,7 +617,7 @@ export async function POST(request: Request) {
   try {
     event = await verifyWebhook(raw, request.headers.get("x-xapps-signature"), process.env.XAPPS_WEBHOOK_SECRET!);
   } catch (error) {
-    if (error instanceof XAppsError) return new Response(error.code, { status: 400 });
+    if (error instanceof VibeCadeError) return new Response(error.code, { status: 400 });
     throw error;
   }
 
@@ -629,7 +629,7 @@ export async function POST(request: Request) {
       const scores = Object.fromEntries(players.map((p) => [p.userId, scoreEntry(p.submission?.data)]));
       await xapps.reportResult(match.id, { scores }).catch((error) => {
         // Another delivery already settled it.
-        if (!(error instanceof XAppsError && error.code === "invalid_state")) throw error;
+        if (!(error instanceof VibeCadeError && error.code === "invalid_state")) throw error;
       });
     }
   }
@@ -642,7 +642,7 @@ With Express, verify against the raw bytes: `app.post("/xapps/webhook", express.
 ### Cloudflare Worker
 
 ```ts
-import { createServerClient, verifyWebhook, XAppsError } from "@xapps/sdk/server";
+import { createServerClient, verifyWebhook, VibeCadeError } from "vibecade-sdk/server";
 
 interface Env {
   XAPPS_URL: string;
@@ -662,8 +662,8 @@ export default {
       }
       return new Response("ok");
     } catch (error) {
-      if (error instanceof XAppsError && error.code.endsWith("_signature")) return new Response(error.code, { status: 400 });
-      throw error; // a 5xx makes XApps retry
+      if (error instanceof VibeCadeError && error.code.endsWith("_signature")) return new Response(error.code, { status: 400 });
+      throw error; // a 5xx makes VibeCade retry
     }
   },
 };
@@ -681,11 +681,11 @@ export default {
 | `ping` | "Send test event" in the Server panel (`match` is null) |
 | `achievement.unlocked` | A player unlocked one of your achievements (from their client or your server): `{ userId, achievementId }`, `match` is null |
 
-Each delivery is a `POST` with the JSON body `{ id, type, createdAt, app: { slug }, match }` (the match as it was when the event was queued; call `getMatch` for the latest) and the headers `X-XApps-Event`, `X-XApps-Delivery` (a uuid) and `X-XApps-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(signing secret, t + "." + body)>`. `verifyWebhook` rejects signatures older than 5 minutes (`toleranceSeconds`), accepts any of several `v1` values, and throws `XAppsError` with code `invalid_signature`, `stale_signature` or `invalid_payload`. Non-2xx responses are retried with backoff (1, 2, 4 … 256 min, 9 attempts), so handle events idempotently (dedupe by `event.id`). `signWebhook(body, secret)` builds a header for tests.
+Each delivery is a `POST` with the JSON body `{ id, type, createdAt, app: { slug }, match }` (the match as it was when the event was queued; call `getMatch` for the latest) and the headers `X-XApps-Event`, `X-XApps-Delivery` (a uuid) and `X-XApps-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(signing secret, t + "." + body)>`. `verifyWebhook` rejects signatures older than 5 minutes (`toleranceSeconds`), accepts any of several `v1` values, and throws `VibeCadeError` with code `invalid_signature`, `stale_signature` or `invalid_payload`. Non-2xx responses are retried with backoff (1, 2, 4 … 256 min, 9 attempts), so handle events idempotently (dedupe by `event.id`). `signWebhook(body, secret)` builds a header for tests.
 
 ### Server API
 
-The client wraps these routes on the XApps host. Call them directly from any language with `Authorization: Bearer xas_…`:
+The client wraps these routes on the VibeCade host. Call them directly from any language with `Authorization: Bearer xas_…`:
 
 | Route | Body | Success |
 | --- | --- | --- |

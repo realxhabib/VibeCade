@@ -1,7 +1,7 @@
 import { APP_IMAGES_BUCKET, APP_IMAGE_MAX_BYTES, APP_IMAGE_UPLOADS_PER_DAY, type AppImageKind } from "@/lib/app-images";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import { LIMITS } from "@xapps/sdk";
-import { isBlobLike } from "@xapps/sdk/host";
+import { LIMITS } from "vibecade-sdk";
+import { isBlobLike } from "vibecade-sdk/host";
 import { env } from "@/lib/env";
 import { APP_MEDIA_BUCKET, baseMime, displayProblem, mediaExtension, mediaKindOf, mediaProblem, probeMedia } from "@/lib/media";
 import { BackendError, type Backend, type RoomTransport } from "../backend";
@@ -37,7 +37,9 @@ import type {
   WebhookDelivery,
 } from "../types";
 import { getBrowserSupabase } from "./client";
+import { createLiveRoom } from "./live-room";
 import {
+  APP_COLUMNS,
   appInsert,
   challengeArgs,
   isSchemaMissing,
@@ -90,8 +92,6 @@ interface ProfileRow {
   is_admin?: boolean | null;
 }
 
-const APP_COLUMNS = "*, developer:profiles!apps_developer_id_fkey(handle, name)";
-
 function toProfile(row: ProfileRow): Profile {
   return {
     id: row.id,
@@ -122,7 +122,7 @@ function fail(error: PostgrestError | Error | null | undefined, fallback = "Some
  * picks one explicitly. Otherwise use `twitter` when the auth settings say it's on
  * (those settings don't report `x` at all), and `x` in every other case.
  */
-async function resolveXProvider(): Promise<"x" | "twitter"> {
+export async function resolveXProvider(): Promise<"x" | "twitter"> {
   if (env.xProvider) return env.xProvider;
   try {
     const res = await fetch(`${env.supabaseUrl}/auth/v1/settings`, { headers: { apikey: env.supabaseKey } });
@@ -793,9 +793,11 @@ export class SupabaseBackend implements Backend {
     };
   }
 
-  openRoom(matchId: string, viewerId: string): RoomTransport {
+  openRoom(matchId: string, viewerId: string, appSlug?: string): RoomTransport {
     const local = this.localFor(matchId);
     if (local) return local.openRoom(matchId, viewerId);
+    // Fast first-party games use the live server when there is one (AppManifest.liveServer).
+    if (env.liveServerUrl && appSlug && getOfficialApp(appSlug)?.liveServer) return createLiveRoom(this.sb, env.liveServerUrl, matchId);
     return createSupabaseRoom(this.sb, matchId, viewerId);
   }
 

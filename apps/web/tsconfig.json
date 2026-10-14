@@ -20,10 +20,10 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@xapps/sdk": ["../../packages/sdk/src/index.ts"],
-      "@xapps/sdk/react": ["../../packages/sdk/src/react.tsx"],
-      "@xapps/sdk/host": ["../../packages/sdk/src/host.ts"],
-      "@xapps/sdk/protocol": ["../../packages/sdk/src/protocol.ts"]
+      "vibecade-sdk": ["../../packages/sdk/src/index.ts"],
+      "vibecade-sdk/react": ["../../packages/sdk/src/react.tsx"],
+      "vibecade-sdk/host": ["../../packages/sdk/src/host.ts"],
+      "vibecade-sdk/protocol": ["../../packages/sdk/src/protocol.ts"]
     }
   },
   "include": [

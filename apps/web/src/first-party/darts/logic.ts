@@ -4,7 +4,7 @@
  * the highest total wins.
  */
 
-import type { Json } from "@xapps/sdk";
+import type { Json } from "vibecade-sdk";
 import { hitTest, radiusOf, type Hit, type Point } from "./board";
 
 export const DARTS_PER_ROUND = 3;

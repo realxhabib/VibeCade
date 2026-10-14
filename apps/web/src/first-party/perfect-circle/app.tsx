@@ -1,7 +1,7 @@
 "use client";
 
-import type { StatStanding, XAppsClient } from "@xapps/sdk";
-import { useXApps } from "@xapps/sdk/react";
+import type { StatStanding, VibeCadeClient } from "vibecade-sdk";
+import { useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -51,7 +51,7 @@ interface PendingCircle {
 }
 
 /** The worldwide best-circle board. Never throws: a host that can't answer rejects. */
-function loadStanding(xapps: XAppsClient): Promise<StatStanding> {
+function loadStanding(xapps: VibeCadeClient): Promise<StatStanding> {
   try {
     return xapps.stats.leaderboard(BOARD_STAT, { limit: TOP_N });
   } catch (error) {
@@ -69,7 +69,7 @@ const maxOf = (...values: (number | null | undefined)[]): number | null =>
  * worldwide board is `stats.leaderboard("best_circle")`.
  */
 export function PerfectCircle() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
 
   const [session, setSession] = useState<Session>(EMPTY_SESSION);
   const sessionRef = useRef<Session>(EMPTY_SESSION);

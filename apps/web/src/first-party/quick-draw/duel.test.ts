@@ -1,4 +1,4 @@
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import { DuelEngine, type Clock, type DuelEvent, type Phase } from "./duel";
 import {

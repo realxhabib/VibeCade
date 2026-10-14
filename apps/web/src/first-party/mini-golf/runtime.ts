@@ -10,7 +10,7 @@
  * positions it produced.
  */
 
-import type { Json, MatchResult, PlayerInfo, XAppsClient } from "@xapps/sdk";
+import type { Json, MatchResult, PlayerInfo, VibeCadeClient } from "vibecade-sdk";
 import { reportStats, unlockAchievements } from "@/first-party/shared/progress";
 import { GolfAudio } from "./audio";
 import { getCompiled, type CompiledHole } from "./compile";
@@ -215,7 +215,7 @@ class BotRunner {
 /* ------------------------------------------------------------------ */
 
 export class GolfRuntime {
-  readonly xapps: XAppsClient;
+  readonly xapps: VibeCadeClient;
   readonly audio = new GolfAudio();
   readonly reduced: boolean;
   readonly spectator: boolean;
@@ -262,7 +262,7 @@ export class GolfRuntime {
   private disposed = false;
   private started = false;
 
-  constructor(xapps: XAppsClient, reduced: boolean) {
+  constructor(xapps: VibeCadeClient, reduced: boolean) {
     this.xapps = xapps;
     this.reduced = reduced;
     this.spectator = xapps.isSpectator;

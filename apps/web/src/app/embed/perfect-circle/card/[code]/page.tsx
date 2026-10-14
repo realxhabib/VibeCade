@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps<"/embed/perfect-cir
   const card = decodeCard(code);
   if (!card) return { title: "Perfect Circle" };
   const title = `A ${formatAccuracy(card.accuracy)} perfect circle`;
-  const description = "Drawn freehand in one stroke on XApps. Can you draw a rounder one?";
+  const description = "Drawn freehand in one stroke on VibeCade. Can you draw a rounder one?";
   return {
     title,
     description,

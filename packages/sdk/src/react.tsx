@@ -1,13 +1,13 @@
 /**
- * React bindings for @xapps/sdk.
+ * React bindings for vibecade-sdk.
  *
  * ```tsx
- * <XAppsProvider fallback={<Spinner />}>
+ * <VibeCadeProvider fallback={<Spinner />}>
  *   <Game />
- * </XAppsProvider>
+ * </VibeCadeProvider>
  *
  * function Game() {
- *   const xapps = useXApps();
+ *   const xapps = useVibeCade();
  *   const started = useMatchStarted();
  *   useRoomEvent("move", (move, from) => apply(move, from));
  * }
@@ -15,7 +15,7 @@
  * // A standalone app (purpose "app") skips the match hooks:
  * function Notes() {
  *   const user = useUser();          // the signed-in viewer
- *   const standalone = useStandalone(); // true inside XApps' app room
+ *   const standalone = useStandalone(); // true inside VibeCade' app room
  * }
  * ```
  */
@@ -41,7 +41,7 @@ import {
   type StateSnapshot,
   type StateUpdateOptions,
   type StateUpdater,
-  type XAppsClient,
+  type VibeCadeClient,
 } from "./client";
 import { lockGestures } from "./gestures";
 import type {
@@ -58,9 +58,9 @@ import type {
   StatStanding,
 } from "./protocol";
 
-const ClientContext = createContext<XAppsClient | null>(null);
+const ClientContext = createContext<VibeCadeClient | null>(null);
 
-export interface XAppsProviderProps {
+export interface VibeCadeProviderProps {
   children: ReactNode;
   /** Rendered while connecting to the host. */
   fallback?: ReactNode;
@@ -69,8 +69,8 @@ export interface XAppsProviderProps {
   options?: ConnectOptions;
 }
 
-export function XAppsProvider({ children, fallback = null, errorFallback, options }: XAppsProviderProps) {
-  const [client, setClient] = useState<XAppsClient | null>(null);
+export function VibeCadeProvider({ children, fallback = null, errorFallback, options }: VibeCadeProviderProps) {
+  const [client, setClient] = useState<VibeCadeClient | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const optionsRef = useRef(options);
 
@@ -90,16 +90,16 @@ export function XAppsProvider({ children, fallback = null, errorFallback, option
   return <ClientContext.Provider value={client}>{children}</ClientContext.Provider>;
 }
 
-/** The connected client. Must be used under `<XAppsProvider>`. */
-export function useXApps(): XAppsClient {
+/** The connected client. Must be used under `<VibeCadeProvider>`. */
+export function useVibeCade(): VibeCadeClient {
   const client = useContext(ClientContext);
-  if (!client) throw new Error("useXApps() must be used inside <XAppsProvider>");
+  if (!client) throw new Error("useVibeCade() must be used inside <VibeCadeProvider>");
   return client;
 }
 
 /** The person using this copy of your app (signed in with X). */
 export function useUser(): LaunchContext["user"] {
-  return useXApps().user;
+  return useVibeCade().user;
 }
 
 /**
@@ -107,7 +107,7 @@ export function useUser(): LaunchContext["user"] {
  * `useMatchStarted()` stays false and match-only calls are refused.
  */
 export function useStandalone(): boolean {
-  return useXApps().isStandalone;
+  return useVibeCade().isStandalone;
 }
 
 /**
@@ -133,14 +133,14 @@ export function useRoomEvent<P extends Json = Json>(
   type: string,
   handler: (payload: P, from: string, message: RoomMessage<P>) => void,
 ): void {
-  const client = useXApps();
+  const client = useVibeCade();
   const latest = useLatest(handler);
   useEffect(() => client.room.on<P>(type, (p, from, m) => latest.current(p, from, m)), [client, type, latest]);
 }
 
 /** Ids of the players currently connected to the room. */
 export function usePresence(): string[] {
-  const client = useXApps();
+  const client = useVibeCade();
   const [online, setOnline] = useState<string[]>(() => client.room.online());
   useEffect(() => client.room.onPresence(setOnline), [client]);
   return online;
@@ -148,7 +148,7 @@ export function usePresence(): string[] {
 
 /** `true` once the host fires `match.start` (never for setup screens or standalone apps). */
 export function useMatchStarted(): boolean {
-  const client = useXApps();
+  const client = useVibeCade();
   return useSyncExternalStore(
     (notify) => client.on("match.start", notify),
     () => client.hasStarted,
@@ -158,7 +158,7 @@ export function useMatchStarted(): boolean {
 
 /** Final result, or `null` while the match is still being decided. */
 export function useMatchResult(): MatchResult | null {
-  const client = useXApps();
+  const client = useVibeCade();
   return useSyncExternalStore(
     (notify) => client.on("match.end", notify),
     () => client.finalResult,
@@ -168,7 +168,7 @@ export function useMatchResult(): MatchResult | null {
 
 /** The live match object (players, statuses, scores…). */
 export function useMatch(): LaunchContext["match"] {
-  const client = useXApps();
+  const client = useVibeCade();
   const [, force] = useState(0);
   useEffect(() => client.onUpdate(() => force((n) => n + 1)), [client]);
   return client.match;
@@ -176,7 +176,7 @@ export function useMatch(): LaunchContext["match"] {
 
 /** Emoji reactions fired from the host HUD. */
 export function useReactions(handler: (reaction: { from: string; emoji: string }) => void): void {
-  const client = useXApps();
+  const client = useVibeCade();
   const latest = useLatest(handler);
   useEffect(() => client.onReaction((r) => latest.current(r)), [client, latest]);
 }
@@ -197,7 +197,7 @@ export interface MatchStateHook<T extends Json> {
 
 /** Shared, persistent match state; re-renders on every change. */
 export function useMatchState<T extends Json = Json>(): MatchStateHook<T> {
-  const client = useXApps();
+  const client = useVibeCade();
   const subscribe = useCallback((notify: () => void) => client.state.onChange(notify), [client]);
   const state = useSyncExternalStore(subscribe, () => client.state.current, () => client.state.current);
   const version = useSyncExternalStore(subscribe, () => client.state.version, () => client.state.version);
@@ -223,7 +223,7 @@ export interface TurnHook {
 
 /** Whose turn it is; re-renders when the turn passes. */
 export function useTurn(): TurnHook {
-  const client = useXApps();
+  const client = useVibeCade();
   const subscribe = useCallback((notify: () => void) => client.onTurn(notify), [client]);
   const turn = useSyncExternalStore(subscribe, () => client.turn.current, () => client.turn.current);
   const deadline = useSyncExternalStore(subscribe, () => client.turn.deadline, () => client.turn.deadline);
@@ -240,7 +240,7 @@ export function useTurn(): TurnHook {
 
 /** The round counter shown in the host HUD. */
 export function useRound(): { round: number; set: (round: number) => Promise<null> } {
-  const client = useXApps();
+  const client = useVibeCade();
   const subscribe = useCallback((notify: () => void) => client.onRound(notify), [client]);
   const round = useSyncExternalStore(subscribe, () => client.round.current, () => client.round.current);
   return useMemo(() => ({ round, set: (n: number) => client.round.set(n) }), [client, round]);
@@ -258,7 +258,7 @@ export interface SetupHook {
 
 /** Challenge setup (apps that declare `setup: true`). */
 export function useSetup(): SetupHook {
-  const client = useXApps();
+  const client = useVibeCade();
   return useMemo(
     () => ({
       purpose: client.purpose,
@@ -285,7 +285,7 @@ export interface PlayersHook {
 
 /** The table: players, opponents, teammates, you and your role. Re-renders on match updates. */
 export function usePlayers(): PlayersHook {
-  const client = useXApps();
+  const client = useVibeCade();
   const subscribe = useCallback((notify: () => void) => client.onUpdate(notify), [client]);
   const players = useSyncExternalStore(subscribe, () => client.players, () => client.players);
   const me = useSyncExternalStore(subscribe, () => client.me, () => client.me);
@@ -319,7 +319,7 @@ export interface MediaUploadHook {
 
 /** Uploads with progress state for your UI. */
 export function useMediaUpload(): MediaUploadHook {
-  const client = useXApps();
+  const client = useVibeCade();
   const [running, setRunning] = useState(0);
   const [error, setError] = useState<Error | null>(null);
   const upload = useCallback(
@@ -349,7 +349,7 @@ export interface StatsHook {
 
 /** Your manifest stats and `report`. */
 export function useStats(): StatsHook {
-  const client = useXApps();
+  const client = useVibeCade();
   return useMemo(
     () => ({ defs: client.stats.defs, report: (values: { [key: string]: number }) => client.stats.report(values) }),
     [client],
@@ -378,7 +378,7 @@ export interface StatStandingHook {
  * ```
  */
 export function useStatStanding(key: string | null, options: StatLeaderboardOptions = {}): StatStandingHook {
-  const client = useXApps();
+  const client = useVibeCade();
   const limit = options.limit;
   const [nonce, setNonce] = useState(0);
   const [read, setRead] = useState<{ request: string; standing: StatStanding | null; error: Error | null } | null>(
@@ -425,7 +425,7 @@ export interface AchievementsHook {
 
 /** Your manifest achievements, `unlock`, and what's been unlocked this session. */
 export function useAchievements(): AchievementsHook {
-  const client = useXApps();
+  const client = useVibeCade();
   const subscribe = useCallback((notify: () => void) => client.achievements.onChange(notify), [client]);
   const unlocked = useSyncExternalStore(
     subscribe,
@@ -442,7 +442,7 @@ export function useAchievements(): AchievementsHook {
 export function useAchievementEvents(
   handler: (unlock: AchievementUnlock, def: AchievementDef | undefined) => void,
 ): void {
-  const client = useXApps();
+  const client = useVibeCade();
   const latest = useLatest(handler);
   useEffect(() => client.onAchievement((unlock, def) => latest.current(unlock, def)), [client, latest]);
 }
@@ -461,7 +461,7 @@ export function useAchievementEvents(
  * ```
  */
 export function useLogger(): LogApi {
-  return useXApps().log;
+  return useVibeCade().log;
 }
 
 /**
@@ -470,7 +470,7 @@ export function useLogger(): LogApi {
  * height changes. Pass `false` to pause it.
  */
 export function useAutoResize(enabled = true, options?: AutoResizeOptions): void {
-  const client = useXApps();
+  const client = useVibeCade();
   const element = options?.element;
   const intervalMs = options?.intervalMs;
   useEffect(() => {
@@ -478,3 +478,11 @@ export function useAutoResize(enabled = true, options?: AutoResizeOptions): void
     return client.ui.autoResize({ element, intervalMs });
   }, [client, enabled, element, intervalMs]);
 }
+
+// The names from before the VibeCade rename (the SDK was @xapps/sdk), so existing apps keep working.
+/** @deprecated Renamed: use `VibeCadeProvider`. */
+export const XAppsProvider = VibeCadeProvider;
+/** @deprecated Renamed: use `useVibeCade`. */
+export const useXApps = useVibeCade;
+/** @deprecated Renamed: use `VibeCadeProviderProps`. */
+export type XAppsProviderProps = VibeCadeProviderProps;

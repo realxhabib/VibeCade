@@ -1,20 +1,20 @@
 {
-  "name": "@xapps/sdk",
-  "version": "0.8.1",
-  "description": "Build head-to-head social apps for the XApps marketplace: identity, realtime rooms, matchmaking results, crowd voting and host UI in one tiny bridge.",
+  "name": "vibecade-sdk",
+  "version": "0.9.0",
+  "description": "Build head-to-head social apps for the VibeCade arcade: identity, realtime rooms, matchmaking results, crowd voting and host UI in one tiny bridge.",
   "license": "MIT",
-  "author": "XApps contributors",
-  "homepage": "https://github.com/realxhabib/XApps/tree/main/packages/sdk#readme",
+  "author": "VibeCade contributors",
+  "homepage": "https://github.com/realxhabib/VibeCade/tree/HEAD/packages/sdk#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/realxhabib/XApps.git",
+    "url": "git+https://github.com/realxhabib/VibeCade.git",
     "directory": "packages/sdk"
   },
   "bugs": {
-    "url": "https://github.com/realxhabib/XApps/issues"
+    "url": "https://github.com/realxhabib/VibeCade/issues"
   },
   "keywords": [
-    "xapps",
+    "vibecade",
     "x",
     "twitter",
     "multiplayer",

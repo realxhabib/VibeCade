@@ -1,7 +1,7 @@
 export {
   connect,
   resetConnection,
-  XAppsClient,
+  VibeCadeClient,
   type AchievementUnlock,
   type AchievementsApi,
   type AutoResizeOptions,
@@ -49,7 +49,7 @@ export {
   LIMITS,
   PROTOCOL_VERSION,
   SDK_VERSION,
-  XAppsError,
+  VibeCadeError,
   type ErrorCode,
   type HapticStyle,
   type HostEvent,
@@ -75,4 +75,14 @@ export {
   type SubmissionDisplay,
   type SubmitResult,
   type ToastTone,
+} from "./protocol";
+
+// The names from before the VibeCade rename (the SDK was @xapps/sdk), so existing apps keep working.
+export {
+  /** @deprecated Renamed: use `VibeCadeClient`. */
+  VibeCadeClient as XAppsClient,
+} from "./client";
+export {
+  /** @deprecated Renamed: use `VibeCadeError`. */
+  VibeCadeError as XAppsError,
 } from "./protocol";

@@ -7,7 +7,7 @@
  * the host fires `match.start`.
  */
 
-import { useMatchStarted, usePlayers, useSetup, useXApps } from "@xapps/sdk/react";
+import { useMatchStarted, usePlayers, useSetup, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -42,7 +42,7 @@ function loadChoice(): ShipChoice {
 }
 
 export function NovaRallyApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#07051a]">
       {xapps.purpose === "setup" ? <Setup /> : <Race />}
@@ -55,7 +55,7 @@ function Race() {
   const [choice, setChoice] = useState<ShipChoice | null>(null);
   const [locked, setLocked] = useState<ShipChoice | null>(null);
   const [trial, setTrial] = useState<{ track: string; run: number } | null>(null);
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const readyRef = useRef(false);
 
   useEffect(() => {
@@ -138,7 +138,7 @@ function Garage({
   onTrial: (track: string) => void;
   locked: boolean;
 }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const { players, me } = usePlayers();
   const [choice, setChoice] = useState<ShipChoice>(() => (typeof window === "undefined" ? { design: 0, livery: -1, pilot: 0 } : loadChoice()));
@@ -483,7 +483,12 @@ function TimeTrials({ onTrial }: { onTrial: (track: string) => void }) {
 /* ------------------------------------------------------------------ */
 
 function Setup() {
+  const xapps = useVibeCade();
   const { submit, cancel, settings: initial } = useSetup();
+  // The host shows the setup screen once it's ready.
+  useEffect(() => {
+    xapps.ready().catch((error: unknown) => console.warn("[nova-rally] setup ready failed", error));
+  }, [xapps]);
   const start = parseSettings(initial);
   const [cup, setCup] = useState<string>(start.cup.id.startsWith("single:") ? start.cup.id.slice(7) : start.cup.id);
   const [cc, setCc] = useState<SpeedClass>(start.cc);

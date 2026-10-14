@@ -1,6 +1,6 @@
 "use client";
 
-import type { StatStanding } from "@xapps/sdk";
+import type { StatStanding } from "vibecade-sdk";
 import { AnimatePresence, animate, motion, useMotionValue, useTransform } from "motion/react";
 import { useEffect } from "react";
 import { Avatar, type AvatarPerson } from "@/components/ui/avatar";

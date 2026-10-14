@@ -152,7 +152,7 @@ describe("apps", () => {
   it("reads upvotes and whether the viewer upvoted (zero and false before the migration)", () => {
     expect(toApp(appRow)).toMatchObject({ upvotes: 0, upvoted: false });
     expect(toApp({ ...appRow, upvotes: 12, viewer_upvoted: true })).toMatchObject({ upvotes: 12, upvoted: true });
-    expect(toApp({ ...appRow, slug: "meme-duel", official: true, upvotes: 5, viewer_upvoted: false })).toMatchObject({ name: "Meme Duel", upvotes: 5, upvoted: false });
+    expect(toApp({ ...appRow, slug: "four-in-a-row", official: true, upvotes: 5, viewer_upvoted: false })).toMatchObject({ name: "Four in a Row", upvotes: 5, upvoted: false });
     // app_row_json (open_app, the review queue) carries both.
     expect(toAppLoose({ ...appRow, upvotes: 3, viewer_upvoted: true })).toMatchObject({ upvotes: 3, upvoted: true });
     expect(toAppLoose({ slug: "x", name: "X", upvotes: "4", viewerUpvoted: true })).toMatchObject({ upvotes: 4, upvoted: true });
@@ -175,9 +175,9 @@ describe("apps", () => {
   });
 
   it("gives official apps their catalog manifest with defaults", () => {
-    expect(toApp({ ...appRow, slug: "meme-duel", official: true, play_count: 9 })).toMatchObject({
-      name: "Meme Duel",
-      setup: true,
+    expect(toApp({ ...appRow, slug: "four-in-a-row", official: true, play_count: 9 })).toMatchObject({
+      name: "Four in a Row",
+      turnBased: true,
       spectators: true,
       playCount: 9,
     });

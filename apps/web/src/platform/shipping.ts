@@ -3,7 +3,7 @@
  * labels, manifest checks, log limits and test-build labels. Pure — no
  * backend, no React.
  */
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import { CATEGORIES, type AppManifest, type AppVersion, type AppVersionStatus, type LogLevel, type Match, type VersionManifest } from "./types";
 import { manifestShapeError, withManifestDefaults } from "./catalog";
 import { appImageKeyError } from "@/lib/app-images";

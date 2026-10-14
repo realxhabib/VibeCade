@@ -184,6 +184,34 @@
 }
 
 /* ---------------------------------------------------------------------- */
+/* The X player full screen                                               */
+/* ---------------------------------------------------------------------- */
+
+/* The X apps open a playable post's player full screen in their own browser,
+   whose toolbar (close, back, address, reload) floats over the bottom of the
+   page. There (not framed: `data-x-chrome`, on phones and tablets) the player
+   keeps clear of it: full-height screens end above it and the page can scroll
+   its last row out from under it. Unlayered, so it wins over the utilities. */
+[data-x-player] {
+  --x-chrome-bottom: 0px;
+  padding-bottom: var(--x-chrome-bottom);
+}
+@media (pointer: coarse) {
+  html[data-x-chrome] [data-x-player] {
+    --x-chrome-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+  }
+}
+[data-x-player] .h-dvh {
+  height: calc(100dvh - var(--x-chrome-bottom));
+}
+[data-x-player] .min-h-dvh {
+  min-height: calc(100dvh - var(--x-chrome-bottom));
+}
+[data-x-player] .fixed.inset-0 {
+  bottom: var(--x-chrome-bottom);
+}
+
+/* ---------------------------------------------------------------------- */
 /* Utilities                                                              */
 /* ---------------------------------------------------------------------- */
 

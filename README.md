@@ -1,19 +1,20 @@
-# XApps
+# VibeCade
 
-**A social app marketplace on X.** Sign in with X, pick an app and go head-to-head with anyone:
-reflex duels, meme battles judged by the crowd, strategy and 3D robot brawls.
-Anyone can build and list their own app with the `@xapps/sdk`.
+<img src="apps/web/public/brand/vibecade-logo.png" alt="VibeCade" width="240">
+
+**A social arcade on X.** Sign in with X, pick an app and go head-to-head with anyone:
+reflex duels, rocket runs, strategy and 3D robot brawls.
+Anyone can build and list their own app with the `vibecade-sdk`. (The code and SDK keep their original XApps names.)
 
 - **Marketplace**: browse, search and filter apps. Each app card is a live animated vignette.
 - **Challenges**: quick match, invite one or several `@handles`, or post an open challenge link to your timeline. Tables seat 2–8 players, with teams and spectators.
 - **Play room**: every app runs inside a host that adds the drama: a VS intro, a 3-2-1 countdown, a HUD with presence and turn indicators, emoji reactions, results with XP and level-ups, rematch and share.
-- **The Arena**: the crowd judges meme duels and other crowd-voted contests. Entries stay anonymous until you vote, and every vote earns XP.
+- **The Arena**: the crowd judges crowd-voted contests. Entries stay anonymous until you vote, and every vote earns XP.
 - **Profiles and leaderboards**: XP, levels, streaks, and rankings overall and per app.
 - **Developer portal**: SDK docs, app registration with a live preview, and a **Sandbox** that runs two copies of your app side by side with a live protocol log.
 
 | Default app | Format | Scoring |
 | --- | --- | --- |
-| 🖼️ Meme Duel | Caption the same real meme template, or an image the challenger drops (upload or an X post's photo), optionally on a topic; add stickers and let the crowd vote | votes |
 | ⚡ Reflexes | Best-of-five reflex duel, with reaction times measured on each device | rounds won |
 | 🔴 Four in a Row | Connect-four with physics and a minimax bot; play live or turn by turn over days | win/draw/loss |
 | 🛻 Wedge Wars | 3D arena brawl for 2–4 players: armored wedge trucks with spinners, flippers, hammers and flamethrowers, with saws, flame vents and a KO pit | placement + damage |
@@ -55,8 +56,6 @@ Without Supabase keys, XApps runs in **demo mode**. Everything lives in your bro
 
 **App servers & webhooks (optional).** Apps can have their own server settle results through `/api/v1` and receive signed webhooks. Webhooks are sent from the database, so enable the **pg_net** and **pg_cron** extensions in Supabase (*Database → Extensions*) before running `20261001000000_trust.sql`. The migration schedules the jobs itself; if an extension is missing it skips that step and tells you. Developers manage secrets, webhooks and authority from the **Server** panel on their app's page.
 
-**Trending memes (optional).** Add a server-only `XAI_API_KEY` from [console.x.ai](https://console.x.ai) and Meme Duel's *Trending* tab shows images going viral on X, found by Grok's X Search. Grok's X Search bills per post it reads, so the list refreshes every `TRENDING_MEMES_REFRESH_HOURS` (default 6), roughly 20–60 posts per refresh. Without a key, *Trending* shows imgflip's currently popular templates.
-
 If the keys are set but the schema isn't installed yet, the app says so and offers a one-click switch to demo mode.
 
 ## Deploy
@@ -73,6 +72,40 @@ If the keys are set but the schema isn't installed yet, the app says so and offe
 update public.apps set status = 'published' where slug = 'their-app';
 ```
 
+## Playable posts on X
+
+Paste `https://<your-domain>/x` (the whole catalog) or `https://<your-domain>/x/<slug>` (one app) into a post,
+with no image attached. X reads its **player card** and runs `/x/play…` inline in the post (480×480) on desktop
+web: guests pick a game and play the practice bots on their device, no sign-in. Challenging people opens the
+site in a new tab. The mobile apps show the preview still (`/x/preview.png`, `/x/<slug>/preview.png`) and open
+the link, which forwards to the site.
+
+- **Challenging people from the post:** the card signs in with X through a popup (`/x/auth`), on its own session
+  kept in the frame's storage (X's login page can't load in a frame and your session cookie isn't sent there). Then
+  people quick-match, challenge an @handle, or post an open challenge whose link (`/x/m/<match>`) is itself a
+  playable post: whoever sees it signs in and takes the seat inside the post. Add
+  `https://<your-domain>/x/auth/callback` to Supabase's redirect URLs (Authentication → URL Configuration; for
+  Vercel previews a wildcard like `https://*-<team>.vercel.app/**`), and apply the `x_auth_handoff` migration.
+- Only `/x/play/*` and `/embed/*` may be framed, and only by x.com and twitter.com (`frame-ancestors` in
+  `apps/web/next.config.ts`). No `X-Frame-Options` is sent, and the player is never cached.
+- Try it in a browser at `/x/preview` (`?app=<slug>` for one app): the player in a 480×480 frame inside a mock post.
+- X caches a card's title, text and image for about a week, but the player is live. Add `?v=2` to force a new card.
+- Set `NEXT_PUBLIC_X_HANDLE` to name your account as `twitter:site`. Validate a link with X's card validator, or by posting it.
+- X has restricted and paused player cards before (they're meant for audio and video), so treat this as experimental.
+
+## Live server for fast games
+
+Frontline, Nova Rally and Wedge Wars send their live match traffic through the [Claude Arcade](https://github.com/realxhabib/ClaudeArcade)
+server on your droplet instead of Supabase Realtime, whose message quota they outgrow. Match state, scores and results stay
+in Supabase; turn-based games keep Supabase Realtime.
+
+1. On the droplet, create `/etc/claudearcade.env` (see the Claude Arcade README, *XApps match rooms*) with your Supabase
+   project URL, its anon / publishable key and `XAPPS_ORIGINS=https://<your-domain>`, re-run the arcade's install command,
+   then `systemctl restart claudearcade`.
+2. On Vercel, set `NEXT_PUBLIC_LIVE_SERVER_URL` to the arcade's address (e.g. `https://174-138-34-59.sslip.io`) and redeploy.
+
+Unset, every game uses Supabase Realtime as before.
+
 ## Architecture
 
 ```
@@ -84,7 +117,7 @@ update public.apps set status = 'published' where slug = 'their-app';
 │      ▼                                                                       │
 │  ┌───────────────── sandboxed <iframe> ─────────────────┐                    │
 │  │  Any app: first-party (/embed/*) or community (https) │                   │
-│  │  connect() · room.send/on · submit() · ui.* · storage │  ← @xapps/sdk     │
+│  │  connect() · room.send/on · submit() · ui.* · storage │  ← vibecade-sdk     │
 │  └────────────────────────────────────────────────────────┘                  │
 │      │                                                                       │
 │  Backend interface ── SupabaseBackend (Postgres RPCs + RLS, Realtime rooms)  │
@@ -103,8 +136,8 @@ apps/web/                  Next.js 16 app (App Router, React 19, Tailwind v4, Mo
   src/app/embed/<slug>/    first-party app frames  src/first-party/  their code
   src/platform/            backend interface, demo + Supabase backends, queries
   src/components/          chrome, motion primitives, marketplace, play room
-packages/sdk/              @xapps/sdk: protocol, client, host bridge, React hooks
-packages/create-xapp/      `npx create-xapp`: project templates (React, turn-based, one HTML file)
+packages/sdk/              vibecade-sdk: protocol, client, host bridge, React hooks
+packages/create-vibecade/      `npx create-vibecade`: project templates (React, turn-based, one HTML file)
 examples/rps/              a complete app in one HTML file
 supabase/migrations/       schema, RLS, RPCs, realtime auth
 supabase/tests/            lifecycle tests against a plain local Postgres
@@ -113,7 +146,7 @@ supabase/tests/            lifecycle tests against a plain local Postgres
 ## Build and ship an app
 
 ```bash
-npx create-xapp my-game            # templates: react (default), turn-based, vanilla
+npx create-vibecade my-game            # templates: react (default), turn-based, vanilla
 cd my-game && npm install && npm run dev   # runs standalone against the SDK's mock host
 ```
 
@@ -125,21 +158,21 @@ cd my-game && npm install && npm run dev   # runs standalone against the SDK's m
 
 To make someone an admin, run `update public.profiles set is_admin = true where handle = '<handle>';` in the SQL editor. In demo mode, the review page has a "Become admin" switch.
 
-`@xapps/sdk` and `create-xapp` are ready for npm (`npm publish` from `packages/sdk` and `packages/create-xapp`). Until you publish them, scaffolded projects can't install the SDK.
+`vibecade-sdk` and `create-vibecade` are ready for npm (`npm publish` from `packages/sdk` and `packages/create-vibecade`). Until you publish them, scaffolded projects can't install the SDK.
 
 ## The SDK in 10 lines
 
 Start from a template (no network needed to scaffold):
 
 ```bash
-npx create-xapp my-game          # --template react (default) | turn-based | vanilla
+npx create-vibecade my-game          # --template react (default) | turn-based | vanilla
 cd my-game && npm install && npm run dev
 ```
 
-Or add the SDK to any project (`npm i @xapps/sdk`):
+Or add the SDK to any project (`npm i vibecade-sdk`):
 
 ```ts
-import { connect } from "@xapps/sdk"; // or "https://<xapps-host>/sdk/v1.js" with no build step
+import { connect } from "vibecade-sdk"; // or "https://<xapps-host>/sdk/v1.js" with no build step
 
 const xapps = await connect();
 xapps.room.on("move", (move, from) => apply(move, from));
@@ -169,3 +202,4 @@ Full reference: the `/developers` page in the app and [`packages/sdk/README.md`]
 - **Demo uploads live in memory.** In demo mode, `/api/demo-media` keeps files in the server process, so they're lost on restart and aren't shared across serverless instances.
 - **Crowd-judged content is user-generated.** Before a public launch, add reporting and moderation for captions and takes.
 - **Async runs aren't locked.** A player who leaves before submitting can replay the run.
+

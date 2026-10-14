@@ -105,8 +105,8 @@ if (kind === "open") {
 } else if (kind === "end") {
   root.innerHTML = background() + `<div class="center" id="c">
     <div class="brand" id="m" style="gap:22px"><div>${mark(120)}</div><div class="word" style="font-size:120px">Apps</div></div>
-    <div class="tag" id="t" style="font-size:${p.get("v") === "1" ? 92 : 104}px;margin-top:64px">${p.get("tag") || `Build yours${p.get("v") === "1" ? "<br>" : " "}with <span class="grad">@xapps/sdk</span>`}</div>
-    <div class="chip" id="chip">${p.get("chip") || "<b>$</b> npm i @xapps/sdk"}</div>
+    <div class="tag" id="t" style="font-size:${p.get("v") === "1" ? 92 : 104}px;margin-top:64px">${p.get("tag") || `Build yours${p.get("v") === "1" ? "<br>" : " "}with <span class="grad">vibecade-sdk</span>`}</div>
+    <div class="chip" id="chip">${p.get("chip") || "<b>$</b> npm i vibecade-sdk"}</div>
     </div>`;
   window.render = (t) => {
     drift(t + 3);

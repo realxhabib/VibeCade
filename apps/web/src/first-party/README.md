@@ -1,6 +1,6 @@
 # First-party apps
 
-Every default app is built on the **public** `@xapps/sdk`, exactly like a
+Every default app is built on the **public** `vibecade-sdk`, exactly like a
 community app. The only difference is hosting: these are served same-origin
 from `/embed/<slug>` instead of from a developer's own domain.
 
@@ -82,7 +82,7 @@ What the host does:
    app's `ui.status` line), a test-build badge, Share on X and fullscreen.
 4. The bridge launches it with `purpose: "app"` and a one-player stub match
    (`standaloneMatch(user, { id: "app:<slug>", seed })` from
-   `@xapps/sdk/host`). The cover lifts on connect: `ready()` is optional and
+   `vibecade-sdk/host`). The cover lifts on connect: `ready()` is optional and
    answers `{ startedAt: null }`; `match.start` / `match.end` are never sent.
 5. The host core refuses match-only requests for purpose `app` before any
    handler runs (`room.send`, `match.submit`, `match.forfeit`, `state.*`,

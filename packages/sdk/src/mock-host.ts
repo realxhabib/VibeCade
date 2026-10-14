@@ -1,8 +1,8 @@
 /**
- * A tiny in-page host used when an app is opened directly (not inside XApps).
+ * A tiny in-page host used when an app is opened directly (not inside VibeCade).
  * It gives you a table of players (you + bots), a start signal, shared match
  * state, turns, rounds and a result so you can build and debug without the
- * marketplace. For true multi-player testing use the XApps Sandbox, which runs
+ * marketplace. For true multi-player testing use the VibeCade Sandbox, which runs
  * several copies of your app side by side.
  *
  * Handy URL switches (they override the options passed in code):
@@ -24,7 +24,7 @@ import { createHostCore, rankPlayers, type HostBridge } from "./host";
 import {
   LIMITS,
   SDK_VERSION,
-  XAppsError,
+  VibeCadeError,
   type AchievementDef,
   type Json,
   type LaunchContext,
@@ -349,7 +349,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
     },
     user,
     match,
-    host: { name: "XApps Mock Host", version: SDK_VERSION, origin: "memory://host" },
+    host: { name: "VibeCade Mock Host", version: SDK_VERSION, origin: "memory://host" },
     locale: typeof navigator !== "undefined" ? navigator.language : "en",
   };
 
@@ -440,7 +440,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
   };
 
   const raiseRound = (round: number) => {
-    if (round < match.round) throw new XAppsError("invalid_params", "round.set: the round can't go backwards");
+    if (round < match.round) throw new VibeCadeError("invalid_params", "round.set: the round can't go backwards");
     if (round === match.round) return;
     match.round = round;
     log("round", round);
@@ -459,7 +459,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       "box-shadow:0 8px 30px rgba(0,0,0,.35);border:1px solid #8b5cf6";
     const title = document.createElement("strong");
     title.textContent =
-      outcome.status === "submitted" ? "XApps mock · setup submitted" : "XApps mock · setup cancelled";
+      outcome.status === "submitted" ? "VibeCade mock · setup submitted" : "VibeCade mock · setup cancelled";
     el.append(title);
     if (outcome.summary) {
       const summary = document.createElement("div");
@@ -550,7 +550,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         const target = player(id);
         if (!target) throw new Error(`Unknown player ${id}`);
         if (id !== user.id && !target.isBot) throw new Error("You can only submit for yourself or a bot");
-        if (target.submitted) throw new XAppsError("forbidden", `${id} already submitted`);
+        if (target.submitted) throw new VibeCadeError("forbidden", `${id} already submitted`);
         submissions.set(id, submission);
         target.submitted = true;
         target.score = submission.score ?? null;
@@ -615,7 +615,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         if (typeof localStorage === "undefined") return null;
         const id = `${storagePrefix}${key}`;
         if (localStorage.getItem(id) === null && userKeys().length >= LIMITS.storageKeysPerUser) {
-          throw new XAppsError("invalid_params", `storage.set: at most ${LIMITS.storageKeysPerUser} keys per player`);
+          throw new VibeCadeError("invalid_params", `storage.set: at most ${LIMITS.storageKeysPerUser} keys per player`);
         }
         localStorage.setItem(id, JSON.stringify(value));
         return null;
@@ -630,14 +630,14 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       },
       "media.upload": async ({ file, alt }) => {
         const kind = mediaKindOf(file.type);
-        if (!kind) throw new XAppsError("invalid_params", "media.upload: unsupported type");
+        if (!kind) throw new VibeCadeError("invalid_params", "media.upload: unsupported type");
         const dayAgo = Date.now() - 86_400_000;
         const recent = uploads.filter((u) => u.at > dayAgo);
         if (
           recent.length >= LIMITS.media.uploadsPerDay ||
           recent.reduce((n, u) => n + u.bytes, 0) + file.size > LIMITS.media.bytesPerDay
         ) {
-          throw new XAppsError("rate_limited", "media.upload: daily upload quota reached");
+          throw new VibeCadeError("rate_limited", "media.upload: daily upload quota reached");
         }
         let url = `blob:xapps-mock/${randomId(12)}`; // placeholder where object URLs aren't available
         try {
@@ -661,7 +661,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         for (const [key, value] of Object.entries(values)) {
           const def = statDefs.find((d) => d.key === key);
           if (!def) {
-            throw new XAppsError(
+            throw new VibeCadeError(
               "invalid_params",
               `stats.report: "${key}" is not a declared stat (mock: pass stats in connect({ mock }) or ?xapps-stats=)`,
             );
@@ -674,7 +674,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       "stats.leaderboard": ({ key, limit }) => {
         const def = statDefs.find((d) => d.key === key);
         if (!def) {
-          throw new XAppsError(
+          throw new VibeCadeError(
             "invalid_params",
             `stats.leaderboard: "${key}" is not a declared stat (mock: pass stats in connect({ mock }) or ?xapps-stats=)`,
           );
@@ -706,7 +706,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       "achievements.unlock": ({ id }) => {
         const def = achievementDefs.find((d) => d.id === id);
         if (!def) {
-          throw new XAppsError(
+          throw new VibeCadeError(
             "invalid_params",
             `achievements.unlock: "${id}" is not a declared achievement (mock: pass achievements in connect({ mock }) or ?xapps-achievements=)`,
           );
@@ -733,9 +733,9 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       },
       "state.get": () => ({ state: cloneJson(match.state), version: match.stateVersion }),
       "state.set": ({ state, expectedVersion }) => {
-        if (match.status !== "active") throw new XAppsError("forbidden", "the match is not active");
+        if (match.status !== "active") throw new VibeCadeError("forbidden", "the match is not active");
         if (expectedVersion !== match.stateVersion) {
-          throw new XAppsError(
+          throw new VibeCadeError(
             "conflict",
             `state.set: version is ${match.stateVersion}, expected ${expectedVersion} — re-read and retry`,
           );
@@ -746,10 +746,10 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         // In the mock your app drives the bots, so it may also end a bot's turn.
         const holder = match.turn ? player(match.turn) : undefined;
         if (match.turn && match.turn !== user.id && !holder?.isBot) {
-          throw new XAppsError("forbidden", "turn.end: it's not your turn");
+          throw new VibeCadeError("forbidden", "turn.end: it's not your turn");
         }
         if (next != null && !active().some((p) => p.id === next)) {
-          throw new XAppsError("invalid_params", "turn.end: next must be a seated player");
+          throw new VibeCadeError("invalid_params", "turn.end: next must be a seated player");
         }
         passTurn(next, user.id);
         return null;

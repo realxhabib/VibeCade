@@ -21,7 +21,7 @@
  * interpolated between snapshots, extrapolated briefly when packets drop.
  */
 
-import type { Json } from "@xapps/sdk";
+import type { Json } from "vibecade-sdk";
 import type { KillRec } from "./rules";
 
 export const NET_HZ = 15;

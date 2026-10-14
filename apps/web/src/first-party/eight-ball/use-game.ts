@@ -1,6 +1,6 @@
 "use client";
 
-import type { Json, MatchResult, PlayerInfo } from "@xapps/sdk";
+import type { Json, MatchResult, PlayerInfo } from "vibecade-sdk";
 import {
   useMatch,
   useMatchResult,
@@ -10,8 +10,8 @@ import {
   usePresence,
   useRoomEvent,
   useTurn,
-  useXApps,
-} from "@xapps/sdk/react";
+  useVibeCade,
+} from "vibecade-sdk/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBot } from "../shared/hooks";
 import { reportStats, unlockAchievements } from "../shared/progress";
@@ -81,7 +81,7 @@ function outcomeOf(game: Game, abandonedBy: Seat | null): Outcome | null {
  * over the room. Bots are played by this client.
  */
 export function useEightBall() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const matchStatus = useMatch().status;
   const result: MatchResult | null = useMatchResult();

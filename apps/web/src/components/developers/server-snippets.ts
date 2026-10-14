@@ -2,7 +2,7 @@
 
 export function webhookSnippet(): string {
   return `// app/api/xapps/webhook/route.ts — a Next.js route handler
-import { verifyWebhook } from "@xapps/sdk/server";
+import { verifyWebhook } from "vibecade-sdk/server";
 
 export async function POST(request: Request) {
   const body = await request.text();                  // the raw body, before any JSON.parse
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 /** `host`: this XApps site's origin (see `useOrigin`). */
 export function reportSnippet(host: string): string {
   return `// lib/xapps.ts — runs on your server only, never in the browser
-import { createServerClient } from "@xapps/sdk/server";
+import { createServerClient } from "vibecade-sdk/server";
 
 const xapps = createServerClient({
   secret: process.env.XAPPS_SECRET!,                  // xas_…
