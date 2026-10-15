@@ -12,7 +12,8 @@
 --    the quiet ones are marked left, exactly as claim_forfeit would (45 s),
 --    and maybe_settle settles the match: the one left wins by forfeit. Bots
 --    still in keep the match going.
---  * Live and practice matches nobody has written to for 30 minutes expire.
+--  * Live and practice matches nobody has written to, and no seated player
+--    has sent a heartbeat to, for 30 minutes expire.
 --    Async matches wait on turn deadlines (expire_turn) and never expire here.
 --
 -- Liveness is match_players.last_seen_at, from the heartbeat RPC the play room
@@ -67,14 +68,15 @@ begin
     n := n + 1;
   end loop;
 
-  -- Activity is matches.updated_at, which any write to the match bumps (update_match_state,
-  -- submit_entry, turns, rounds...); nothing here assumes live state goes through
-  -- update_match_state. If a writer holds a live lease instead (e.g. a live-server room that
-  -- checkpoints its state), count it here: `and not (x.state_lease_until > now())`.
+  -- Activity is any write to the match (updated_at) or any seated player's heartbeat: a
+  -- live-server match writes nothing to the match until its results.
   update public.matches x
      set status = 'expired', updated_at = now()
    where x.status = 'active' and x.mode in ('live', 'practice')
      and x.updated_at < now() - interval '30 minutes'
+     and not exists (select 1 from public.match_players mp
+                      where mp.match_id = x.id and mp.role = 'player'
+                        and coalesce(mp.last_seen_at, x.started_at) >= now() - interval '30 minutes')
      and (p_user is null or exists (select 1 from public.match_players mp where mp.match_id = x.id and mp.user_id = p_user));
   get diagnostics v_expired = row_count;
   return n + v_expired;

@@ -600,6 +600,19 @@ describe("demo backend: leaving N-player matches", () => {
     expect(listed.find((m) => m.id === slow.id)?.status).toBe("active");
   });
 
+  it("keeps a live match with fresh heartbeats but no writes (live-server games write only results)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const match = await backend.markStarted((await fourPlayerLive()).id);
+    vi.setSystemTime(Date.now() + ABANDONED_MATCH_TTL_MS - 5 * 60_000);
+    await backend.heartbeat(match.id);
+    vi.setSystemTime(Date.now() + 10 * 60_000); // no write for 35 minutes, a heartbeat 10 minutes ago
+    let listed = await backend.listMyMatches();
+    expect(listed.find((m) => m.id === match.id)?.status).toBe("active");
+    vi.setSystemTime(Date.now() + ABANDONED_MATCH_TTL_MS);
+    listed = await backend.listMyMatches();
+    expect(listed.find((m) => m.id === match.id)?.status).toBe("expired");
+  });
+
   it("settles a team match once a whole team is gone", async () => {
     const match = await fourPlayerLive("teamup", { players: { min: 4, max: 4 }, teams: 2 });
     await as("bob");

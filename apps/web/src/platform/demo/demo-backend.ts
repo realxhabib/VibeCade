@@ -284,7 +284,7 @@ export const ABANDONED_MATCH_TTL_MS = 30 * 60_000;
 /**
  * Mirrors end_abandoned_matches: in a live match where a single human is still connected, the quiet
  * ones are marked left and the match settles if too few remain (the last player standing wins by
- * forfeit); live and practice matches nobody wrote to in 30 minutes expire. Async matches wait on
+ * forfeit); live and practice matches nobody wrote to or sent a heartbeat to in 30 minutes expire. Async matches wait on
  * their turn deadlines instead. Only `userId`'s matches, when given. Returns whether any changed.
  */
 export function endAbandonedMatches(db: DemoDb, now = Date.now(), userId?: string): boolean {
@@ -306,7 +306,13 @@ export function endAbandonedMatches(db: DemoDb, now = Date.now(), userId?: strin
         continue;
       }
     }
-    if (Date.parse(row.updatedAt) < now - ABANDONED_MATCH_TTL_MS) {
+    // A live-server match writes nothing until its results, so heartbeats count as activity too.
+    const startedAt = row.startedAt ? Date.parse(row.startedAt) : null;
+    const heard = seatRows(row).some((p) => {
+      const seen = p.lastSeenAt ? Date.parse(p.lastSeenAt) : startedAt;
+      return seen !== null && seen >= now - ABANDONED_MATCH_TTL_MS;
+    });
+    if (Date.parse(row.updatedAt) < now - ABANDONED_MATCH_TTL_MS && !heard) {
       row.status = "expired";
       row.updatedAt = nowIso();
       changed = true;
