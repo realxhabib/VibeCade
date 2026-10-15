@@ -558,8 +558,8 @@ do $$
 begin
   perform public.update_match_state(pg_temp.mid('p4'), '{"board":[2]}', 0);
   raise exception 'expected failure';
-exception when serialization_failure then
-  assert sqlstate = '40001' and sqlerrm = 'state_conflict', sqlerrm;
+exception when sqlstate 'PT409' then
+  assert sqlerrm = 'state_conflict', sqlerrm;
 end $$;
 do $$
 begin
@@ -1374,7 +1374,7 @@ select pg_temp.expect(format('select public.app_api_report_result(%L, %L, %L)', 
 -- Shared state: compare-and-set (two writes -> one debounced match.state webhook)
 select public.app_api_set_state(pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[1]}', 0);
 select pg_temp.expect(format('select public.app_api_set_state(%L, %L, %L, 0)', pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[2]}'),
-  '40001', 'state_conflict');
+  'PT409', 'state_conflict');
 do $$
 begin
   assert public.app_api_set_state(pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[1,2]}', 1) = 2, 'second write';
@@ -3663,6 +3663,21 @@ reset role;
 do $$
 begin
   assert exists (select 1 from loop_match), 'had an active match to finish';
+end $$;
+
+
+-- ---------------------------------------------------------------- No RPC raises 40001
+-- PostgREST re-runs a transaction that fails with serialization_failure, without limit: a
+-- conflict raised as 40001 loops inside PostgREST until the match moves on. Use PT409.
+-- 20261015000000_no_serialization_failure.
+do $$
+declare
+  v_bad text;
+begin
+  select string_agg(p.proname, ', ') into v_bad
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prosrc ~ '''40001''|serialization_failure';
+  assert v_bad is null, 'functions raising 40001: ' || v_bad;
 end $$;
 
 \echo 'All database lifecycle checks passed ✔'

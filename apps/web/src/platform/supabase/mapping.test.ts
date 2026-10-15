@@ -233,9 +233,10 @@ describe("create_challenge args", () => {
 
 describe("errors", () => {
   it("maps state conflicts to conflict", () => {
+    expect(errorKind("PT409")).toBe("conflict");
     expect(errorKind("40001")).toBe("conflict");
     expect(errorKind(undefined, "state_conflict")).toBe("conflict");
-    const error = toBackendError({ code: "40001", message: "state_conflict" });
+    const error = toBackendError({ code: "PT409", message: "state_conflict" });
     expect(error.code).toBe("conflict");
   });
 

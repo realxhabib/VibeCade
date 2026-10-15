@@ -275,7 +275,7 @@ export const PG_ERROR_RULES: readonly PgErrorRule[] = [
   { sqlstates: ["42501"], status: 403, code: "forbidden", message: "This match belongs to another app" },
   { sqlstates: ["P0002"], status: 404, code: "not_found", message: "Match not found" },
   {
-    sqlstates: ["40001"],
+    sqlstates: ["PT409", "40001"],
     messages: ["state_conflict"],
     status: 409,
     code: "conflict",
