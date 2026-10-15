@@ -1812,6 +1812,24 @@ export class DemoBackend implements Backend {
     return { version, match };
   }
 
+  /** Mirrors `rebase_match_state`. */
+  async rebaseState(matchId: string, state: Json, version: number): Promise<{ version: number; match: Match }> {
+    const viewer = this.requireViewer();
+    if (state === undefined) throw new BackendError("State must be JSON", "invalid");
+    const match = this.withMatch(matchId, (_db, row) => {
+      this.requirePlayer(row, viewer.id, "change the match state");
+      if (row.status !== "active") throw new BackendError("This match isn't running", "forbidden");
+      if (state !== null && byteLength(state) > LIMITS.matchStateBytes) {
+        throw new BackendError("Match state is too large (max 64 KB)", "invalid");
+      }
+      if (!Number.isInteger(version) || version > row.stateVersion + 1_000_000) throw new BackendError("Invalid state version", "invalid");
+      if (version <= row.stateVersion) throw new BackendError("state_conflict", "conflict");
+      row.state = structuredClone(state);
+      row.stateVersion = version;
+    });
+    return { version, match };
+  }
+
   async endTurn(matchId: string, next?: string | null): Promise<Match> {
     const viewer = this.requireViewer();
     return this.withMatch(matchId, (db, row) => {

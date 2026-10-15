@@ -458,6 +458,17 @@ describe("demo backend: shared state, turns and rounds", () => {
     await expectCode(backend.updateState(match.id, { blob: "x".repeat(70_000) }, 2), "invalid");
   });
 
+  it("rebases the state forward only (after a live server room held it)", async () => {
+    const match = await fourPlayerLive();
+    await backend.updateState(match.id, { board: [1] }, 0);
+    await expectCode(backend.rebaseState(match.id, { board: [9] }, 1), "conflict");
+    await expectCode(backend.rebaseState(match.id, {}, 2_000_000), "invalid");
+    const rebased = await backend.rebaseState(match.id, { board: [1, 2, 3] }, 7);
+    expect(rebased.version).toBe(7);
+    expect(rebased.match).toMatchObject({ state: { board: [1, 2, 3] }, stateVersion: 7 });
+    expect((await backend.updateState(match.id, { board: [1, 2, 3, 4] }, 7)).version).toBe(8);
+  });
+
   it("rotates turns through seated players, skipping anyone who left", async () => {
     const match = await fourPlayerLive("turns", { turnBased: true });
     const ids = ["alice", "bob", "carol", "dave"].map((h) => people[h]!.id);

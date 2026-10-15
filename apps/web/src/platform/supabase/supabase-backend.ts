@@ -4,7 +4,7 @@ import { LIMITS } from "vibecade-sdk";
 import { isBlobLike } from "vibecade-sdk/host";
 import { env } from "@/lib/env";
 import { APP_MEDIA_BUCKET, baseMime, displayProblem, mediaExtension, mediaKindOf, mediaProblem, probeMedia } from "@/lib/media";
-import { BackendError, type Backend, type RoomTransport } from "../backend";
+import { BackendError, type Backend, type RoomOptions, type RoomTransport } from "../backend";
 import { OFFICIAL_APPS, getOfficialApp, manifestShapeError, withManifestDefaults } from "../catalog";
 import { OUTAGE_MESSAGE, OutageError, isOfflineMatch, isOutage, noteHealthy, noteOutage } from "../health";
 import { DemoBackend } from "../demo/demo-backend";
@@ -633,6 +633,17 @@ export class SupabaseBackend implements Backend {
     return { version: Number.isFinite(version) ? version : match.stateVersion, match };
   }
 
+  async rebaseState(matchId: string, state: Json, version: number): Promise<{ version: number; match: Match }> {
+    const local = this.localFor(matchId);
+    if (local) return local.rebaseState(matchId, state, version);
+    const { data, error } = await this.sb.rpc("rebase_match_state", { p_match: matchId, p_state: state, p_version: version });
+    if (error) fail(error);
+    const stored = typeof data === "number" ? data : Number(data);
+    const match = await this.getMatch(matchId);
+    if (!match) throw new BackendError("Match not found", "not_found");
+    return { version: Number.isFinite(stored) ? stored : match.stateVersion, match };
+  }
+
   endTurn(matchId: string, next?: string | null): Promise<Match> {
     const local = this.localFor(matchId);
     if (local) return local.endTurn(matchId, next);
@@ -793,11 +804,11 @@ export class SupabaseBackend implements Backend {
     };
   }
 
-  openRoom(matchId: string, viewerId: string, appSlug?: string): RoomTransport {
+  openRoom(matchId: string, viewerId: string, appSlug?: string, options: RoomOptions = {}): RoomTransport {
     const local = this.localFor(matchId);
     if (local) return local.openRoom(matchId, viewerId);
     // Fast first-party games use the live server when there is one (AppManifest.liveServer).
-    if (env.liveServerUrl && appSlug && getOfficialApp(appSlug)?.liveServer) return createLiveRoom(this.sb, env.liveServerUrl, matchId);
+    if (env.liveServerUrl && appSlug && getOfficialApp(appSlug)?.liveServer) return createLiveRoom(this.sb, env.liveServerUrl, matchId, options);
     return createSupabaseRoom(this.sb, matchId, viewerId);
   }
 
