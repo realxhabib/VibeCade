@@ -68,7 +68,8 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
   const [setupFor, setSetupFor] = useState<{ opponentHandle?: string } | null>(null);
   const inPost = playsInPost(app);
   const canChallenge = mounted && challengeableInPost(app);
-  const mode = app.modes.includes("live") ? "live" : "async";
+  const live = app.modes.includes("live");
+  const mode = live ? "live" : "async";
   const players = app.players.min === app.players.max ? `${app.players.min} players` : `${app.players.min}–${app.players.max} players`;
   const busy = practice.isPending || quick.isPending || challenge.isPending;
 
@@ -80,6 +81,8 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
       toast(errorText(error, fallback), { tone: "danger" });
     }
   };
+
+  const quickMatch = () => void go(() => quick.mutateAsync(app.slug), "Couldn't find a match");
 
   const sendChallenge = (opponentHandle?: string, settings?: AppSetupResult["settings"]) =>
     go(
@@ -140,16 +143,15 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
           </Button>
         ) : canChallenge && forReal ? (
           <>
-            <Button
-              size="lg"
-              variant="accent"
-              icon={<Megaphone className="size-5" />}
-              loading={challenge.isPending && !handleOpen}
-              disabled={busy}
-              onClick={() => startChallenge()}
-            >
-              Post a challenge
-            </Button>
+            {live ? (
+              <Button size="lg" variant="accent" icon={<Zap className="size-5" />} loading={quick.isPending} disabled={busy} onClick={quickMatch}>
+                Quick match
+              </Button>
+            ) : (
+              <Button size="lg" variant="accent" icon={<Megaphone className="size-5" />} loading={challenge.isPending && !handleOpen} disabled={busy} onClick={() => startChallenge()}>
+                Post a challenge
+              </Button>
+            )}
             {handleOpen ? (
               <form
                 className="flex gap-2"
@@ -180,9 +182,15 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
               </form>
             ) : (
               <div className={`grid gap-2 ${inPost ? "grid-cols-3" : "grid-cols-2"}`}>
-                <Button size="md" variant="glass" icon={<Zap className="size-4" />} loading={quick.isPending} disabled={busy} onClick={() => void go(() => quick.mutateAsync(app.slug), "Couldn't find a match")}>
-                  Quick match
-                </Button>
+                {live ? (
+                  <Button size="md" variant="glass" icon={<Megaphone className="size-4" />} loading={challenge.isPending} disabled={busy} onClick={() => startChallenge()} aria-label="Post a challenge">
+                    Post
+                  </Button>
+                ) : (
+                  <Button size="md" variant="glass" icon={<Zap className="size-4" />} loading={quick.isPending} disabled={busy} onClick={quickMatch}>
+                    Quick match
+                  </Button>
+                )}
                 <Button size="md" variant="glass" icon={<AtSign className="size-4" />} disabled={busy} onClick={() => setHandleOpen(true)}>
                   Friend
                 </Button>
