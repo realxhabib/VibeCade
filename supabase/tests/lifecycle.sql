@@ -3680,4 +3680,95 @@ begin
   assert v_bad is null, 'functions raising 40001: ' || v_bad;
 end $$;
 
+
+-- ---------------------------------------------------------------- Abandoned live/practice matches end
+-- 20261015000100_end_abandoned_matches: the last player still connected wins a live match by forfeit
+-- after a 2-minute grace; live and practice matches nobody wrote to in 30 minutes expire; async waits.
+set role authenticated;
+select pg_temp.party('ab_live', array['alice_x', 'bob', 'carol']);
+select pg_temp.login('alice_x');
+select public.mark_started(pg_temp.mid('ab_live'));
+select pg_temp.expect('select public.end_abandoned_matches()', '42501');
+reset role;
+-- Bob is a minute behind (within the grace), Carol is gone: two still connected, nothing happens.
+update public.match_players
+   set last_seen_at = now() - case when user_id = pg_temp.uid('alice_x') then interval '0'
+                                   when user_id = pg_temp.uid('bob') then interval '1 minute'
+                                   else interval '5 minutes' end
+ where match_id = pg_temp.mid('ab_live');
+update public.matches set started_at = now() - interval '10 minutes' where id = pg_temp.mid('ab_live');
+select public.end_abandoned_matches();
+do $$
+declare m jsonb := public.get_match(pg_temp.mid('ab_live'));
+begin
+  assert m->>'status' = 'active', 'two still connected: the match goes on';
+  assert pg_temp.pl(m, 'carol')->>'state' = 'joined', 'carol is claim_forfeit''s to take';
+end $$;
+-- Bob goes quiet too: Alice is the last player standing.
+update public.match_players set last_seen_at = now() - interval '3 minutes'
+ where match_id = pg_temp.mid('ab_live') and user_id = pg_temp.uid('bob');
+do $$
+begin
+  assert public.end_abandoned_matches() >= 1, 'ended some';
+end $$;
+do $$
+declare p jsonb := pg_temp.placements(pg_temp.mid('ab_live'));
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_live')) = 'completed', 'settled';
+  assert (select winner_id from public.matches where id = pg_temp.mid('ab_live')) = pg_temp.uid('alice_x'), 'alice wins';
+  assert p->'alice_x'->>1 = 'win', p::text;
+  assert p->'bob'->>1 = 'loss' and p->'bob'->>3 = 'left', p::text;
+  assert p->'carol'->>1 = 'loss' and p->'carol'->>3 = 'left', p::text;
+end $$;
+
+-- Nobody wrote or sent a heartbeat for 30 minutes: live and practice expire, async keeps waiting,
+-- a fresh live match stays, and so does one whose players still send heartbeats (a live-server
+-- match writes nothing until its results).
+set role authenticated;
+select pg_temp.party('ab_stale', array['dave', 'erin']);
+select pg_temp.party('ab_heard', array['erin', 'dave']);
+select pg_temp.party('ab_fresh', array['bob', 'carol']);
+select pg_temp.login('carol');
+insert into ctx values ('ab_prac', public.start_practice('party-four')::text);
+insert into ctx values ('ab_async', public.create_challenge('ref-party', 'async', '@bob', p_max_players => 2)::text);
+select pg_temp.login('bob');
+select public.join_match(pg_temp.mid('ab_async'));
+reset role;
+update public.matches
+   set updated_at = now() - interval '31 minutes',
+       started_at = case when started_at is not null then now() - interval '31 minutes' end
+ where id in (pg_temp.mid('ab_stale'), pg_temp.mid('ab_prac'), pg_temp.mid('ab_async'), pg_temp.mid('ab_heard'));
+update public.match_players set last_seen_at = now() - interval '10 minutes'
+ where match_id = pg_temp.mid('ab_heard') and user_id = pg_temp.uid('erin');
+update public.matches set updated_at = now() - interval '29 minutes' where id = pg_temp.mid('ab_fresh');
+do $$
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_async')) = 'active', 'async running';
+  assert (select status from public.matches where id = pg_temp.mid('ab_prac')) = 'active', 'practice running';
+end $$;
+-- Listing my matches ends my own abandoned ones (no pg_cron needed).
+set role authenticated;
+select pg_temp.login('dave');
+do $$
+declare l jsonb := public.list_my_matches();
+begin
+  assert (select x->>'status' from jsonb_array_elements(l) x where x->>'id' = pg_temp.cv('ab_stale')) = 'expired', l::text;
+  assert (select x->>'status' from jsonb_array_elements(l) x where x->>'id' = pg_temp.cv('ab_heard')) = 'active', l::text;
+end $$;
+reset role;
+select public.end_abandoned_matches();
+do $$
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_prac')) = 'expired', 'stale practice';
+  assert (select status from public.matches where id = pg_temp.mid('ab_async')) = 'active', 'async waits';
+  assert (select status from public.matches where id = pg_temp.mid('ab_fresh')) = 'active', 'fresh live stays';
+  assert (select status from public.matches where id = pg_temp.mid('ab_heard')) = 'active', 'heartbeats keep it';
+  assert not exists (select 1 from public.matches m where status = 'active' and mode in ('live', 'practice')
+                       and updated_at < now() - interval '30 minutes'
+                       and not exists (select 1 from public.match_players mp
+                                        where mp.match_id = m.id and mp.role = 'player'
+                                          and coalesce(mp.last_seen_at, m.started_at) >= now() - interval '30 minutes')),
+         'none left';
+end $$;
+
 \echo 'All database lifecycle checks passed ✔'
