@@ -577,6 +577,50 @@ declare m jsonb := public.get_match(pg_temp.mid('p4'));
 begin
   assert m->'state' = '{"board":[1,2]}'::jsonb and (m->>'stateVersion')::int = 2, 'state persisted';
 end $$;
+-- Back from a live room: a host's newer copy is stored at its own version, then compare-and-set as usual
+do $$
+declare m jsonb;
+begin
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{"board":[9]}', 2);
+    raise exception 'expected failure';
+  exception when sqlstate 'PT409' then
+    assert sqlerrm = 'state_conflict', sqlerrm;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 2000003);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', null);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), jsonb_build_object('blob', repeat('x', 70000)), 9);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then
+    assert sqlerrm like '%too large%', sqlerrm;
+  end;
+  assert public.rebase_match_state(pg_temp.mid('p4'), '{"board":[1,2,3]}', 9) = 9, 'jumps to the room''s version';
+  assert public.update_match_state(pg_temp.mid('p4'), '{"board":[1,2,3,4]}', 9) = 10, 'then compare-and-set goes on from there';
+  m := public.get_match(pg_temp.mid('p4'));
+  assert m->'state' = '{"board":[1,2,3,4]}'::jsonb and (m->>'stateVersion')::int = 10, 'rebased state persisted';
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 10);
+    raise exception 'expected failure';
+  exception when sqlstate 'PT409' then null;
+  end;
+end $$;
+select pg_temp.login('erin');
+do $$
+begin
+  perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 50);
+  raise exception 'expected failure';
+exception when insufficient_privilege then null;
+end $$;
+select pg_temp.login('bob');
 
 -- ---------------------------------------------------------------- Turns + rounds (seats: alice 0, bob 1, dave 3)
 -- Turn-based app: the lowest seat moves first once the match starts.
