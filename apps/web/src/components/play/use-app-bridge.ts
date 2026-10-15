@@ -195,3 +195,29 @@ export function createLogThrottle(perMinute: number, now: () => number = Date.no
     return true;
   };
 }
+
+/** Saves per second one match may send to the backend (across every app instance on the page). */
+export const STATE_WRITES_PER_SECOND = 4;
+
+/**
+ * Screens `state.set` before it reaches the backend: versions only go up, so a save based on an
+ * older version than the host already holds is a conflict we answer locally (the SDK re-reads and
+ * gets the newer one), and a match gets at most `perSecond` saves a second. Returns the refusal,
+ * or null to let the save through.
+ */
+export function createStateWriteGate(
+  perSecond: number = STATE_WRITES_PER_SECOND,
+  now: () => number = Date.now,
+): (expectedVersion: number, knownVersion: number) => VibeCadeError | null {
+  let stamps: number[] = [];
+  return (expectedVersion, knownVersion) => {
+    if (expectedVersion < knownVersion) {
+      return new VibeCadeError("conflict", `state.set: version ${expectedVersion} is stale (current ${knownVersion}); re-read and retry`);
+    }
+    const t = now();
+    stamps = stamps.filter((s) => t - s < 1000);
+    if (stamps.length >= perSecond) return new VibeCadeError("rate_limited", "state.set: slow down");
+    stamps.push(t);
+    return null;
+  };
+}

@@ -118,6 +118,7 @@ describe("mapPgError", () => {
     [{ code: "P0001", message: "invalid_secret" }, 401, "unauthorized"],
     [{ code: "42501", message: "Match belongs to another app" }, 403, "forbidden"],
     [{ code: "P0002", message: "Match not found" }, 404, "not_found"],
+    [{ code: "PT409", message: "state moved" }, 409, "conflict"],
     [{ code: "40001", message: "state moved" }, 409, "conflict"],
     [{ code: "P0001", message: "state_conflict" }, 409, "conflict"],
     [{ code: "55000", message: "Match already settled" }, 409, "invalid_state"],
@@ -229,7 +230,7 @@ describe("runServerApi", () => {
   });
 
   it("maps RPC errors", async () => {
-    const rpc = vi.fn<RpcCall>(async () => ({ data: null, error: { code: "40001", message: "state_conflict" } }));
+    const rpc = vi.fn<RpcCall>(async () => ({ data: null, error: { code: "PT409", message: "state_conflict" } }));
     const { status, body } = await run(request({ body: JSON.stringify({ state: 1, expectedVersion: 0 }) }), rpc);
     expect(status).toBe(409);
     expect(body.error.code).toBe("conflict");

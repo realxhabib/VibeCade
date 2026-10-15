@@ -43,6 +43,7 @@ import {
   APP_SANDBOX,
   LOGGED_REFUSALS,
   createLogThrottle,
+  createStateWriteGate,
   emitMatchChanges,
   readStatStanding,
   toSdkError,
@@ -472,6 +473,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
   /** Fire-and-forget developer logs (the backend drops them past its rate limit). */
   const [hostLogBudget] = useState(() => createLogThrottle(30));
+  /** Stale or too-fast saves are refused here, before they cost a database call. */
+  const [stateWriteGate] = useState(() => createStateWriteGate());
   const logEvent = (level: LogLevel, message: string, data: Json | undefined, source: "app" | "host") => {
     if (source === "host" && !hostLogBudget()) return;
     backend.logAppEvent({ appSlug: app.slug, matchId: match.id, level, message, data, source }).catch(() => undefined);
@@ -655,6 +658,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     },
     "state.set": async ({ state, expectedVersion }) => {
       seatedOnly("state.set");
+      const refused = stateWriteGate(expectedVersion, latest().stateVersion);
+      if (refused) throw refused;
       try {
         const { version, match: updated } = await backend.updateState(match.id, state, expectedVersion);
         ownWrites.current.add(version);
