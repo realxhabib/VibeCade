@@ -401,6 +401,76 @@ describe("demo backend: settlement", () => {
   });
 });
 
+describe("demo backend: rematch", () => {
+  /** alice beats bob at a live Quick Draw. */
+  async function finishedDuel(): Promise<Match> {
+    await signUp("bob");
+    await as("alice");
+    const match = await backend.createChallenge({ appSlug: "quick-draw", mode: "live", opponentHandle: "bob", settings: { topic: "cats" } });
+    await as("bob");
+    await backend.joinMatch(match.id);
+    await backend.submit(match.id, { score: 300 });
+    await as("alice");
+    return backend.submit(match.id, { score: 900 });
+  }
+
+  it("puts both players in one match when they both press Rematch", async () => {
+    const done = await finishedDuel();
+    const matchCount = Object.keys(load().matches).length;
+    const first = await backend.rematch(done.id);
+    expect(first.status).toBe("pending");
+    expect(first.settings).toEqual({ topic: "cats" });
+    expect([seat(first, "alice")?.state, seat(first, "bob")?.state]).toEqual(["joined", "invited"]);
+    // Pressing again goes back to the same one.
+    expect((await backend.rematch(done.id)).id).toBe(first.id);
+
+    await as("bob");
+    const second = await backend.rematch(done.id);
+    expect(second.id).toBe(first.id);
+    expect(second.status).toBe("active");
+    expect(seat(second, "bob")?.state).toBe("joined");
+    expect(Object.keys(load().matches)).toHaveLength(matchCount + 1);
+  });
+
+  it("invites everyone back to the same table, and the others' presses seat them", async () => {
+    const match = await fourPlayerLive();
+    for (const [i, handle] of ["alice", "bob", "carol", "dave"].entries()) {
+      await as(handle);
+      await backend.submit(match.id, { score: i });
+    }
+    const first = await backend.rematch(match.id);
+    expect(first.maxPlayers).toBe(4);
+    expect(first.players.filter((p) => p.state === "invited")).toHaveLength(3);
+    for (const handle of ["alice", "bob", "carol"]) {
+      await as(handle);
+      expect((await backend.rematch(match.id)).id).toBe(first.id);
+    }
+    await as("dave");
+    expect((await backend.joinMatch(first.id)).status).toBe("active");
+  });
+
+  it("opens a new rematch once the asked one is declined", async () => {
+    const done = await finishedDuel();
+    const first = await backend.rematch(done.id);
+    await as("bob");
+    await backend.declineMatch(first.id);
+    const second = await backend.rematch(done.id);
+    expect(second.id).not.toBe(first.id);
+    expect([seat(second, "bob")?.state, seat(second, "alice")?.state]).toEqual(["joined", "invited"]);
+  });
+
+  it("refuses matches that aren't over, practice and people who didn't play", async () => {
+    const done = await finishedDuel();
+    await as("carol");
+    await expectCode(backend.rematch(done.id), "forbidden");
+    await as("alice");
+    const pending = await backend.createChallenge({ appSlug: "quick-draw", mode: "live", opponentHandle: "bob" });
+    await expectCode(backend.rematch(pending.id), "conflict");
+    const practice = await backend.startPractice("quick-draw");
+    await expectCode(backend.rematch(practice.id), "not_found");
+  });
+});
+
 describe("demo backend: spectators", () => {
   it("adds spectators without a seat and refuses them everything a player does", async () => {
     const match = await fourPlayerLive();

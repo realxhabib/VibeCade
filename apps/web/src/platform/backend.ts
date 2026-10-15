@@ -137,6 +137,11 @@ export interface Backend {
 
   // Matches ------------------------------------------------------------
   createChallenge(input: CreateChallengeInput): Promise<Match>;
+  /**
+   * The same game again with everyone else from a finished match (same table and setup). The first
+   * press opens the challenge; anyone from the match pressing it later takes their seat in that one.
+   */
+  rematch(matchId: string): Promise<Match>;
   /** Join someone who's waiting, or open a new public lobby (with `versionId`: a test-build lobby for owner/testers). */
   quickMatch(appSlug: string, versionId?: string | null): Promise<Match>;
   /** Solo match against bots the app drives (`players` seats, default the app's minimum). */
