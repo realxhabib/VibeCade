@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
 import { X_FRAME_ANCESTORS } from "./src/lib/x-player";
 
+// Vibras embeds VibeCade inline, so it may frame the whole site (and the apps framed inside it).
+const VIBRAS_FRAME_ANCESTORS = "https://vibras.si https://www.vibras.si";
+
 // Playable posts (src/lib/x-player.ts): X frames the player, and the app frames inside it
 // (frame-ancestors checks every ancestor). No X-Frame-Options anywhere: it would override this.
-const xFrameable = [{ key: "Content-Security-Policy", value: `frame-ancestors ${X_FRAME_ANCESTORS}` }];
+const xFrameable = [{ key: "Content-Security-Policy", value: `frame-ancestors ${X_FRAME_ANCESTORS} ${VIBRAS_FRAME_ANCESTORS}` }];
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -16,10 +19,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // The marketplace may only be framed by itself (first-party apps run in /embed/*).
+        // The marketplace may only be framed by itself and Vibras (first-party apps run in /embed/*).
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "Content-Security-Policy", value: `frame-ancestors 'self' ${VIBRAS_FRAME_ANCESTORS}` },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
