@@ -87,8 +87,8 @@ the link, which forwards to the site.
   playable post: whoever sees it signs in and takes the seat inside the post. Add
   `https://<your-domain>/x/auth/callback` to Supabase's redirect URLs (Authentication → URL Configuration; for
   Vercel previews a wildcard like `https://*-<team>.vercel.app/**`), and apply the `x_auth_handoff` migration.
-- Only `/x/play/*` and `/embed/*` may be framed, and only by x.com and twitter.com (`frame-ancestors` in
-  `apps/web/next.config.ts`). No `X-Frame-Options` is sent, and the player is never cached.
+- Only `/x/play/*` and `/embed/*` may be framed by x.com and twitter.com, and the whole site by vibras.si
+  (`frame-ancestors` in `apps/web/next.config.ts`). No `X-Frame-Options` is sent, and the player is never cached.
 - Try it in a browser at `/x/preview` (`?app=<slug>` for one app): the player in a 480×480 frame inside a mock post.
 - X caches a card's title, text and image for about a week, but the player is live. Add `?v=2` to force a new card.
 - Set `NEXT_PUBLIC_X_HANDLE` to name your account as `twitter:site`. Validate a link with X's card validator, or by posting it.
