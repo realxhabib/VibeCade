@@ -37,6 +37,7 @@ import type {
   WebhookDelivery,
 } from "../types";
 import { getBrowserSupabase } from "./client";
+import { isFramed, signInThroughPopup } from "../x-session";
 import { createLiveRoom } from "./live-room";
 import {
   APP_COLUMNS,
@@ -196,6 +197,12 @@ export class SupabaseBackend implements Backend {
   }
 
   async signInWithX(next = "/"): Promise<void> {
+    // Framed by another site: sign in through a popup, then reload so the server sees the session.
+    if (isFramed()) {
+      await signInThroughPopup(this.sb);
+      window.location.assign(next);
+      return;
+    }
     const provider = await resolveXProvider();
     // Always come back to the address sign-in started on: the PKCE verifier cookie lives there.
     const { error } = await this.sb.auth.signInWithOAuth({

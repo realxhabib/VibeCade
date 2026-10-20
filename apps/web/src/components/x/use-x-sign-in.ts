@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isSupabaseConfigured } from "@/lib/env";
 import {
+  HANDOFF_POLL_MS,
   HANDOFF_TTL_MS,
   X_PLAYER_STORAGE_KEY,
   claimHandoff,
@@ -12,9 +13,6 @@ import {
   newNonce,
   rememberSameTabSignIn,
 } from "@/platform/x-session";
-
-/** How often the card checks whether the popup has finished. */
-const POLL_MS = 1500;
 
 export type XSignInState = "idle" | "waiting" | "blocked";
 
@@ -81,7 +79,7 @@ export function useXSignIn() {
         .finally(() => {
           busy = false;
         });
-    }, POLL_MS);
+    }, HANDOFF_POLL_MS);
   }, [stop]);
 
   const cancel = useCallback(() => {
