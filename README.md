@@ -89,6 +89,9 @@ the link, which forwards to the site.
   Vercel previews a wildcard like `https://*-<team>.vercel.app/**`), and apply the `x_auth_handoff` migration.
 - Only `/x/play/*` and `/embed/*` may be framed by x.com and twitter.com, and the whole site by vibras.si
   (`frame-ancestors` in `apps/web/next.config.ts`). No `X-Frame-Options` is sent, and the player is never cached.
+- Framed by vibras.si, the site keeps its session in partitioned cookies (`SameSite=None; Secure; Partitioned`) and
+  signs in through the same popup and hand-off as the player card (`apps/web/src/platform/supabase/embedded.ts`).
+  Normal visits are unchanged. Test: `e2e/embedded-sign-in.spec.ts` (opt-in, like `e2e/x-sign-in.spec.ts`).
 - Try it in a browser at `/x/preview` (`?app=<slug>` for one app): the player in a 480×480 frame inside a mock post.
 - X caches a card's title, text and image for about a week, but the player is live. Add `?v=2` to force a new card.
 - Set `NEXT_PUBLIC_X_HANDLE` to name your account as `twitter:site`. Validate a link with X's card validator, or by posting it.

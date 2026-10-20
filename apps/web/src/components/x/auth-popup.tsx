@@ -34,9 +34,9 @@ function PopupFrame({ status }: { status: Status }) {
       )}
       {status.kind === "confirm" && (
         <>
-          <p className="font-display text-xl font-extrabold text-ink-50">Sign in to the post showing</p>
+          <p className="font-display text-xl font-extrabold text-ink-50">Sign in to the VibeCade window showing</p>
           <p className="rounded-2xl bg-white/10 px-5 py-2 font-mono text-3xl font-bold tracking-[0.3em] text-ink-50">{status.code}</p>
-          <p className="max-w-xs text-sm text-ink-300">Only continue if the VibeCade post you&apos;re playing shows this code. If you didn&apos;t start this, close the window.</p>
+          <p className="max-w-xs text-sm text-ink-300">Only continue if the VibeCade post or page you&apos;re playing shows this code. If you didn&apos;t start this, close the window.</p>
           <div className="flex gap-2">
             <button type="button" onClick={closeOrBack} className="rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-ink-50">
               Close
@@ -50,7 +50,7 @@ function PopupFrame({ status }: { status: Status }) {
       {status.kind === "done" && (
         <>
           <p className="font-display text-xl font-extrabold text-ink-50">You&apos;re signed in</p>
-          <p className="text-sm text-ink-300">Head back to the post. This window closes on its own.</p>
+          <p className="text-sm text-ink-300">Head back to VibeCade. This window closes on its own.</p>
         </>
       )}
       {status.kind === "error" && (
@@ -96,7 +96,7 @@ export function XAuthStart() {
       // Drop the code from the address bar (and history) right away.
       window.history.replaceState(null, "", window.location.pathname);
       if (!isSupabaseConfigured) throw new Error("Sign in with X isn't set up on this site.");
-      if (!nonce) throw new Error("This sign-in link is broken. Start again from the post.");
+      if (!nonce) throw new Error("This sign-in link is broken. Start again from VibeCade.");
       try {
         window.sessionStorage.setItem(POPUP_NONCE_KEY, nonce);
       } catch {
@@ -127,7 +127,7 @@ export function XAuthCallback() {
       } catch {
         // Handled below.
       }
-      if (!code || !nonce) throw new Error("This sign-in expired. Start again from the post.");
+      if (!code || !nonce) throw new Error("This sign-in expired. Start again from VibeCade.");
       const sb = getPopupSupabase();
       const { data, error } = await sb.auth.exchangeCodeForSession(code);
       if (error) throw error;

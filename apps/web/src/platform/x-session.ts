@@ -204,3 +204,37 @@ export async function claimHandoff(nonce: string, client: SupabaseClient = getXP
   if (error) throw error;
   return toHandoffTokens(data);
 }
+
+/** How often a page waiting on the popup checks whether it has finished. */
+export const HANDOFF_POLL_MS = 1500;
+
+/**
+ * Signs `client` in through the popup and hand-off above, for the site framed
+ * by another one (platform/supabase/embedded.ts): X's login page won't load in
+ * the frame, and the popup's cookies aren't the frame's. Resolves once `client`
+ * holds the session. Call it from a click, before any await (popups need one).
+ */
+export function signInThroughPopup(client: SupabaseClient): Promise<void> {
+  const nonce = newNonce();
+  // Not "noopener": that always returns null, and null is how we spot a blocked popup.
+  const popup = window.open(`/x/auth#n=${nonce}`, "xapps-sign-in", "popup,width=520,height=720");
+  if (!popup) return Promise.reject(new Error("Your browser blocked the sign-in window. Allow pop-ups for this site and try again."));
+  const until = Date.now() + HANDOFF_TTL_MS;
+  return new Promise((resolve, reject) => {
+    const check = async () => {
+      if (Date.now() > until) return reject(new Error("Sign-in timed out. Try again."));
+      let tokens: HandoffTokens | null = null;
+      try {
+        tokens = await claimHandoff(nonce, client);
+      } catch (error) {
+        // A failed check (offline, a blip) just tries again on the next tick.
+        console.warn("[sign-in] check failed", error);
+      }
+      if (!tokens) return void setTimeout(check, HANDOFF_POLL_MS);
+      const { error } = await client.auth.setSession(tokens);
+      if (error) reject(error);
+      else resolve();
+    };
+    setTimeout(check, HANDOFF_POLL_MS);
+  });
+}
