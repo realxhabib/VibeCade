@@ -29,3 +29,4 @@ fi
 "${psql_cmd[@]}" -d "$db" -f "$here/stat_standing.sql"
 "${psql_cmd[@]}" -d "$db" -f "$here/x_auth_handoff.sql"
 "${psql_cmd[@]}" -d "$db" -f "$here/rematch.sql"
+"${psql_cmd[@]}" -d "$db" -f "$here/drop_no_shows.sql"

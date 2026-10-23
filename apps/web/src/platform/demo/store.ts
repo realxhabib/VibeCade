@@ -35,6 +35,8 @@ export interface PlayerRow {
   result: PlayerResult;
   xpDelta: number;
   lastSeenAt: string | null;
+  /** When the seat was taken or the invite accepted (older demo data has none: the match's createdAt). */
+  joinedAt?: string;
 }
 
 export interface MatchRow {
@@ -411,6 +413,7 @@ export function newPlayerRow(userId: string, seat: number | null, extra: Partial
     result: null,
     xpDelta: 0,
     lastSeenAt: null,
+    joinedAt: new Date().toISOString(),
     ...extra,
   };
 }

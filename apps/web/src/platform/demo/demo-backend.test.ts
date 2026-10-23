@@ -8,6 +8,7 @@ import {
   DemoBackend,
   LAST_STANDING_GRACE_MS,
   LOST_WRITE_CHECKS_MS,
+  NO_SHOW_AFTER_MS,
   TURN_TIMEOUT_MS,
 } from "./demo-backend";
 import { PRACTICE_BOTS } from "./seed";
@@ -592,6 +593,45 @@ describe("demo backend: shared state, turns and rounds", () => {
     expect((await backend.setRound(match.id, 2)).round).toBe(2);
     await expectCode(backend.setRound(match.id, 1), "invalid");
     expect((await backend.setRound(match.id, 2)).round).toBe(2);
+  });
+});
+
+describe("demo backend: starting without no-shows", () => {
+  it("drops players who never got in, with no forfeit, once the wait is up", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const match = await fourPlayerLive();
+    const ids = [people.carol!.id, people.dave!.id, people.alice!.id];
+    await expectCode(backend.dropNoShows(match.id, ids), "conflict"); // too early
+    vi.setSystemTime(Date.now() + NO_SHOW_AFTER_MS + 1_000);
+    let m = await backend.dropNoShows(match.id, ids);
+    expect(m.status).toBe("active");
+    expect(seat(m, "alice")?.state).toBe("joined"); // never the caller
+    expect(seat(m, "bob")?.state).toBe("joined");
+    expect(seat(m, "carol")?.state).toBe("declined"); // out of contention
+
+    await backend.markStarted(match.id);
+    await expectCode(backend.dropNoShows(match.id, [people.bob!.id]), "conflict"); // started: claims only
+    await backend.submit(match.id, { score: 1 });
+    await as("bob");
+    m = await backend.submit(match.id, { score: 2 });
+    expect(m.status).toBe("completed");
+    expect(m.winnerId).toBe(people.bob!.id);
+    expect(seat(m, "carol")?.xpDelta).toBe(0);
+    expect(seat(m, "carol")?.rank ?? null).toBeNull();
+  });
+
+  it("calls a 1v1 off instead of handing out a win", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    await signUp("bob");
+    await as("alice");
+    const match = await backend.createChallenge({ appSlug: "quick-draw", mode: "live", opponentHandle: "bob" });
+    await as("bob");
+    await backend.joinMatch(match.id);
+    vi.setSystemTime(Date.now() + NO_SHOW_AFTER_MS + 1_000);
+    await as("alice");
+    const m = await backend.dropNoShows(match.id, [people.bob!.id]);
+    expect(m.status).toBe("cancelled");
+    expect(m.winnerId).toBeNull();
   });
 });
 
