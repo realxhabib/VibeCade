@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { XLogo } from "@/components/ui/x-logo";
 import { haptic } from "@/lib/haptics";
+import { copyText, openXIntent } from "@/lib/share";
 import { play } from "@/lib/sfx";
 import { BLUR_TWEEN, spring } from "@/lib/motion";
 import { useMounted } from "@/lib/use-mounted";
@@ -80,14 +81,13 @@ function ShareBox({ link, text, buttonLabel = "Post the challenge on X" }: { lin
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(link);
-              setCopied(true);
-              play("pop");
-              setTimeout(() => setCopied(false), 1800);
-            } catch {
-              // ignore
+            if (!(await copyText(link))) {
+              toast("Couldn't copy. Press and hold the link to copy it.", { tone: "warning" });
+              return;
             }
+            setCopied(true);
+            play("pop");
+            setTimeout(() => setCopied(false), 1800);
           }}
           className="flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-xs font-semibold transition hover:bg-white/15"
         >
@@ -110,12 +110,7 @@ function ShareBox({ link, text, buttonLabel = "Post the challenge on X" }: { lin
         variant="primary"
         size="lg"
         icon={<XLogo className="size-4" />}
-        onClick={() => {
-          const intent = new URL("https://x.com/intent/post");
-          intent.searchParams.set("text", text);
-          intent.searchParams.set("url", link);
-          window.open(intent.toString(), "_blank", "noopener,noreferrer,width=600,height=520");
-        }}
+        onClick={() => openXIntent(text, link)}
       >
         {buttonLabel}
       </Button>

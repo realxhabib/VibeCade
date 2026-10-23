@@ -8,6 +8,7 @@ import { HostRoutesProvider, type HostRoutes } from "@/components/play/host-rout
 import { xChallengesPath, xMatchPlayerPath, xMatchSharePath, xPlayerPath, xSharePath } from "@/lib/x-player";
 import { PlatformProvider, useBackend } from "@/platform/client";
 import { isFramed } from "@/platform/x-session";
+import { XShareSheet } from "./share-sheet";
 
 /** Inside the post: leaving a match comes back to the player, and links shared from it are playable posts too. */
 const X_ROUTES: Omit<HostRoutes, "guest"> = {
@@ -45,6 +46,7 @@ export function XPlayerShell({ children }: { children: ReactNode }) {
         <div data-app-host className="contents">
           {children}
         </div>
+        <XShareSheet />
         <Toaster />
         <ConfettiLayer />
         <AchievementLayer />
