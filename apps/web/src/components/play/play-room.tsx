@@ -747,10 +747,11 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       } catch {
         // ignore
       }
-      if (!match.startedAt && !spectating) backend.markStarted(match.id).catch(() => undefined);
+      // Also when the match already started: entering it ends my other live games.
+      if (!spectating) backend.markStarted(match.id).catch(() => undefined);
       later(() => iframeRef.current?.focus(), 50);
     },
-    [backend, emit, later, match.id, match.startedAt, spectating],
+    [backend, emit, later, match.id, spectating],
   );
 
   const startIntro = useCallback(() => {

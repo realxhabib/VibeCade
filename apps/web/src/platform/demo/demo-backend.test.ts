@@ -471,6 +471,39 @@ describe("demo backend: rematch", () => {
   });
 });
 
+describe("demo backend: one live game at a time", () => {
+  it("leaves my other running live and practice matches when I start playing one", async () => {
+    await signUp("bob");
+    await as("alice");
+    await backend.registerApp(appInput("turns"));
+    const async = await backend.createChallenge({ appSlug: "turns", mode: "async", opponentHandle: "bob" });
+    const live = await backend.createChallenge({ appSlug: "quick-draw", mode: "live", opponentHandle: "bob" });
+    await as("bob");
+    await backend.joinMatch(async.id);
+    await backend.joinMatch(live.id);
+    await backend.markStarted(live.id);
+    await as("alice");
+    await backend.markStarted(live.id);
+    expect((await backend.getMatch(live.id))!.status).toBe("active");
+
+    // A practice game ends the live one: bob wins by forfeit. The async match waits.
+    const practice = await backend.startPractice("quick-draw");
+    await backend.markStarted(practice.id);
+    const forfeited = (await backend.getMatch(live.id))!;
+    expect(forfeited.status).toBe("completed");
+    expect(forfeited.winnerId).toBe(people.bob!.id);
+    expect(seat(forfeited, "alice")?.state).toBe("left");
+    expect((await backend.getMatch(async.id))!.status).toBe("active");
+
+    // Starting another one cancels the practice game; starting the same one again changes nothing.
+    const next = await backend.startPractice("quick-draw");
+    await backend.markStarted(next.id);
+    await backend.markStarted(next.id);
+    expect((await backend.getMatch(practice.id))!.status).toBe("cancelled");
+    expect((await backend.getMatch(next.id))!.status).toBe("active");
+  });
+});
+
 describe("demo backend: spectators", () => {
   it("adds spectators without a seat and refuses them everything a player does", async () => {
     const match = await fourPlayerLive();

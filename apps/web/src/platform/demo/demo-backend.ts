@@ -321,6 +321,29 @@ export function endAbandonedMatches(db: DemoDb, now = Date.now(), userId?: strin
   return changed;
 }
 
+/**
+ * Mirrors leave_other_matches: `userId` leaves every other running live or practice match they're
+ * still playing (live: marked left, and the match settles if too few remain; practice: cancelled).
+ * Async matches and lobbies are left alone. Returns how many they left.
+ */
+export function leaveOtherMatches(db: DemoDb, userId: string, keepId: string): number {
+  let n = 0;
+  for (const row of Object.values(db.matches)) {
+    if (row.id === keepId || row.status !== "active" || row.mode === "async") continue;
+    const me = seatRows(row).find((p) => p.userId === userId && p.state === "joined");
+    if (!me) continue;
+    if (row.mode === "practice") {
+      row.status = "cancelled";
+    } else {
+      me.state = "left";
+      afterLeave(db, row, userId);
+    }
+    row.updatedAt = nowIso();
+    n++;
+  }
+  return n;
+}
+
 function hydrate(db: DemoDb, row: MatchRow, viewerId = getViewerId()): Match {
   const seated = row.players.filter((p) => p.role === "player").sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0));
   const spectators = row.players.filter((p) => p.role === "spectator");
@@ -1933,8 +1956,11 @@ export class DemoBackend implements Backend {
   }
 
   async markStarted(matchId: string): Promise<Match> {
-    return this.withMatch(matchId, (_db, row) => {
+    return this.withMatch(matchId, (db, row, viewerId) => {
       row.startedAt = row.startedAt ?? nowIso();
+      // Starting a live or practice game ends my other ones.
+      const playing = seatRows(row).some((p) => p.userId === viewerId && p.state === "joined");
+      if (viewerId && playing && row.status === "active" && row.mode !== "async") leaveOtherMatches(db, viewerId, row.id);
     });
   }
 
