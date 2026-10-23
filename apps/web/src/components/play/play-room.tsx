@@ -21,7 +21,7 @@ import { spring } from "@/lib/motion";
 import { copyText, openXIntent } from "@/lib/share";
 import { shareLinkFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
-import type { RoomPeer, RoomTransport } from "@/platform/backend";
+import type { RoomPeer, RoomStateCopy, RoomTransport } from "@/platform/backend";
 import { BackendError } from "@/platform/backend";
 import { useBackend, useViewer } from "@/platform/client";
 import { buildLaunchContext, opponentOf, playerOf, toLaunchMatch, toMatchResult } from "@/platform/match-utils";
@@ -43,6 +43,7 @@ import {
   APP_SANDBOX,
   LOGGED_REFUSALS,
   createLogThrottle,
+  createStateWriteGate,
   emitMatchChanges,
   readStatStanding,
   toSdkError,
@@ -472,6 +473,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
   /** Fire-and-forget developer logs (the backend drops them past its rate limit). */
   const [hostLogBudget] = useState(() => createLogThrottle(30));
+  /** Stale or too-fast saves are refused here, before they cost a database call. */
+  const [stateWriteGate] = useState(() => createStateWriteGate());
   const logEvent = (level: LogLevel, message: string, data: Json | undefined, source: "app" | "host") => {
     if (source === "host" && !hostLogBudget()) return;
     backend.logAppEvent({ appSlug: app.slug, matchId: match.id, level, message, data, source }).catch(() => undefined);
@@ -655,6 +658,26 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     },
     "state.set": async ({ state, expectedVersion }) => {
       seatedOnly("state.set");
+      // A live server room that holds the state takes the write instead of the database.
+      const roomState = roomRef.current?.state;
+      const refused = stateWriteGate(expectedVersion, Math.max(latest().stateVersion, roomState?.copy()?.version ?? 0));
+      if (refused) throw refused;
+      if (roomState?.holds()) {
+        // The room isn't told when the match ends; we hear it from the database.
+        if (latest().status !== "active") throw new VibeCadeError("forbidden", "state.set: this match isn't running");
+        try {
+          const version = await roomState.set(state, expectedVersion);
+          ownWrites.current.add(version);
+          const current = latest();
+          if (version > current.stateVersion) announce({ ...current, state, stateVersion: version });
+          return { version };
+        } catch (error) {
+          // A conflict already brought the room's copy into the cache; a drop is retried by the app.
+          const sdkError = toSdkError(error);
+          if (sdkError.code !== "conflict" && sdkError.code !== "internal") toast(errorMessage(error), { tone: "danger" });
+          throw sdkError;
+        }
+      }
       try {
         const { version, match: updated } = await backend.updateState(match.id, state, expectedVersion);
         ownWrites.current.add(version);
@@ -665,8 +688,27 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
         // A conflict is routine (the SDK re-reads and retries), so no toast for it. The re-read
         // (state.get) serves our cached match, which may have missed realtime updates: pull the
         // database's copy first, or every retry would repeat the same stale version.
-        if (sdkError.code === "conflict") await refreshMatch();
-        else toast(errorMessage(error), { tone: "danger" });
+        if (sdkError.code !== "conflict") {
+          toast(errorMessage(error), { tone: "danger" });
+          throw sdkError;
+        }
+        const fresh = await backend.getMatch(match.id).catch(() => null);
+        if (fresh && fresh.stateVersion > latest().stateVersion) announce(fresh);
+        // A live server room held the state and is gone: the database is still at the version from
+        // before it, so compare-and-set can't catch up. Store our copy at its own version instead.
+        if (roomState && fresh && fresh.stateVersion < expectedVersion && expectedVersion === latest().stateVersion) {
+          try {
+            const { version, match: updated } = await backend.rebaseState(match.id, state, expectedVersion + 1);
+            ownWrites.current.add(version);
+            announce(updated);
+            return { version };
+          } catch (rebaseError) {
+            const rebaseSdkError = toSdkError(rebaseError);
+            if (rebaseSdkError.code === "conflict") await refreshMatch();
+            else toast(errorMessage(rebaseError), { tone: "danger" });
+            throw rebaseSdkError;
+          }
+        }
         throw sdkError;
       }
     },
@@ -773,9 +815,29 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     onPeerAchievementRef.current = onPeerAchievement;
   });
 
+  /** A new copy of the state from a live server room that holds it (see RoomState). */
+  const onRoomState = (copy: RoomStateCopy, by: string | null) => {
+    const current = latest();
+    if (copy.version > current.stateVersion) {
+      if (by === viewer.id) ownWrites.current.add(copy.version);
+      announce({ ...current, state: copy.state, stateVersion: copy.version });
+    }
+  };
+  /** Our latest copy of the state, offered to a live server room that has none or an older one. */
+  const latestCopy = (): RoomStateCopy => {
+    const current = latest();
+    return { state: current.state, version: current.stateVersion };
+  };
+  const onRoomStateRef = useRef(onRoomState);
+  const latestCopyRef = useRef(latestCopy);
+  useLayoutEffect(() => {
+    onRoomStateRef.current = onRoomState;
+    latestCopyRef.current = latestCopy;
+  });
+
   useEffect(() => {
     if (!live) return;
-    const room = backend.openRoom(match.id, viewer.id, match.appSlug);
+    const room = backend.openRoom(match.id, viewer.id, match.appSlug, { latestState: () => latestCopyRef.current() });
     roomRef.current = room;
     room.track({ ready: false });
     const offPresence = room.onPresence(setPeers);
@@ -792,9 +854,11 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
         onPeerAchievementRef.current(event.id, from);
       }
     });
+    const offState = room.state?.onChange((copy, by) => onRoomStateRef.current(copy, by));
     return () => {
       offPresence();
       offEvent();
+      offState?.();
       room.close();
       roomRef.current = null;
     };

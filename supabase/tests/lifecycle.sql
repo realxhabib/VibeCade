@@ -558,8 +558,8 @@ do $$
 begin
   perform public.update_match_state(pg_temp.mid('p4'), '{"board":[2]}', 0);
   raise exception 'expected failure';
-exception when serialization_failure then
-  assert sqlstate = '40001' and sqlerrm = 'state_conflict', sqlerrm;
+exception when sqlstate 'PT409' then
+  assert sqlerrm = 'state_conflict', sqlerrm;
 end $$;
 do $$
 begin
@@ -577,6 +577,50 @@ declare m jsonb := public.get_match(pg_temp.mid('p4'));
 begin
   assert m->'state' = '{"board":[1,2]}'::jsonb and (m->>'stateVersion')::int = 2, 'state persisted';
 end $$;
+-- Back from a live room: a host's newer copy is stored at its own version, then compare-and-set as usual
+do $$
+declare m jsonb;
+begin
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{"board":[9]}', 2);
+    raise exception 'expected failure';
+  exception when sqlstate 'PT409' then
+    assert sqlerrm = 'state_conflict', sqlerrm;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 2000003);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', null);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), jsonb_build_object('blob', repeat('x', 70000)), 9);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then
+    assert sqlerrm like '%too large%', sqlerrm;
+  end;
+  assert public.rebase_match_state(pg_temp.mid('p4'), '{"board":[1,2,3]}', 9) = 9, 'jumps to the room''s version';
+  assert public.update_match_state(pg_temp.mid('p4'), '{"board":[1,2,3,4]}', 9) = 10, 'then compare-and-set goes on from there';
+  m := public.get_match(pg_temp.mid('p4'));
+  assert m->'state' = '{"board":[1,2,3,4]}'::jsonb and (m->>'stateVersion')::int = 10, 'rebased state persisted';
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 10);
+    raise exception 'expected failure';
+  exception when sqlstate 'PT409' then null;
+  end;
+end $$;
+select pg_temp.login('erin');
+do $$
+begin
+  perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 50);
+  raise exception 'expected failure';
+exception when insufficient_privilege then null;
+end $$;
+select pg_temp.login('bob');
 
 -- ---------------------------------------------------------------- Turns + rounds (seats: alice 0, bob 1, dave 3)
 -- Turn-based app: the lowest seat moves first once the match starts.
@@ -1374,7 +1418,7 @@ select pg_temp.expect(format('select public.app_api_report_result(%L, %L, %L)', 
 -- Shared state: compare-and-set (two writes -> one debounced match.state webhook)
 select public.app_api_set_state(pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[1]}', 0);
 select pg_temp.expect(format('select public.app_api_set_state(%L, %L, %L, 0)', pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[2]}'),
-  '40001', 'state_conflict');
+  'PT409', 'state_conflict');
 do $$
 begin
   assert public.app_api_set_state(pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[1,2]}', 1) = 2, 'second write';
@@ -3663,6 +3707,112 @@ reset role;
 do $$
 begin
   assert exists (select 1 from loop_match), 'had an active match to finish';
+end $$;
+
+
+-- ---------------------------------------------------------------- No RPC raises 40001
+-- PostgREST re-runs a transaction that fails with serialization_failure, without limit: a
+-- conflict raised as 40001 loops inside PostgREST until the match moves on. Use PT409.
+-- 20261015000000_no_serialization_failure.
+do $$
+declare
+  v_bad text;
+begin
+  select string_agg(p.proname, ', ') into v_bad
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prosrc ~ '''40001''|serialization_failure';
+  assert v_bad is null, 'functions raising 40001: ' || v_bad;
+end $$;
+
+
+-- ---------------------------------------------------------------- Abandoned live/practice matches end
+-- 20261015000100_end_abandoned_matches: the last player still connected wins a live match by forfeit
+-- after a 2-minute grace; live and practice matches nobody wrote to in 30 minutes expire; async waits.
+set role authenticated;
+select pg_temp.party('ab_live', array['alice_x', 'bob', 'carol']);
+select pg_temp.login('alice_x');
+select public.mark_started(pg_temp.mid('ab_live'));
+select pg_temp.expect('select public.end_abandoned_matches()', '42501');
+reset role;
+-- Bob is a minute behind (within the grace), Carol is gone: two still connected, nothing happens.
+update public.match_players
+   set last_seen_at = now() - case when user_id = pg_temp.uid('alice_x') then interval '0'
+                                   when user_id = pg_temp.uid('bob') then interval '1 minute'
+                                   else interval '5 minutes' end
+ where match_id = pg_temp.mid('ab_live');
+update public.matches set started_at = now() - interval '10 minutes' where id = pg_temp.mid('ab_live');
+select public.end_abandoned_matches();
+do $$
+declare m jsonb := public.get_match(pg_temp.mid('ab_live'));
+begin
+  assert m->>'status' = 'active', 'two still connected: the match goes on';
+  assert pg_temp.pl(m, 'carol')->>'state' = 'joined', 'carol is claim_forfeit''s to take';
+end $$;
+-- Bob goes quiet too: Alice is the last player standing.
+update public.match_players set last_seen_at = now() - interval '3 minutes'
+ where match_id = pg_temp.mid('ab_live') and user_id = pg_temp.uid('bob');
+do $$
+begin
+  assert public.end_abandoned_matches() >= 1, 'ended some';
+end $$;
+do $$
+declare p jsonb := pg_temp.placements(pg_temp.mid('ab_live'));
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_live')) = 'completed', 'settled';
+  assert (select winner_id from public.matches where id = pg_temp.mid('ab_live')) = pg_temp.uid('alice_x'), 'alice wins';
+  assert p->'alice_x'->>1 = 'win', p::text;
+  assert p->'bob'->>1 = 'loss' and p->'bob'->>3 = 'left', p::text;
+  assert p->'carol'->>1 = 'loss' and p->'carol'->>3 = 'left', p::text;
+end $$;
+
+-- Nobody wrote or sent a heartbeat for 30 minutes: live and practice expire, async keeps waiting,
+-- a fresh live match stays, and so does one whose players still send heartbeats (a live-server
+-- match writes nothing until its results).
+set role authenticated;
+select pg_temp.party('ab_stale', array['dave', 'erin']);
+select pg_temp.party('ab_heard', array['erin', 'dave']);
+select pg_temp.party('ab_fresh', array['bob', 'carol']);
+select pg_temp.login('carol');
+insert into ctx values ('ab_prac', public.start_practice('party-four')::text);
+insert into ctx values ('ab_async', public.create_challenge('ref-party', 'async', '@bob', p_max_players => 2)::text);
+select pg_temp.login('bob');
+select public.join_match(pg_temp.mid('ab_async'));
+reset role;
+update public.matches
+   set updated_at = now() - interval '31 minutes',
+       started_at = case when started_at is not null then now() - interval '31 minutes' end
+ where id in (pg_temp.mid('ab_stale'), pg_temp.mid('ab_prac'), pg_temp.mid('ab_async'), pg_temp.mid('ab_heard'));
+update public.match_players set last_seen_at = now() - interval '10 minutes'
+ where match_id = pg_temp.mid('ab_heard') and user_id = pg_temp.uid('erin');
+update public.matches set updated_at = now() - interval '29 minutes' where id = pg_temp.mid('ab_fresh');
+do $$
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_async')) = 'active', 'async running';
+  assert (select status from public.matches where id = pg_temp.mid('ab_prac')) = 'active', 'practice running';
+end $$;
+-- Listing my matches ends my own abandoned ones (no pg_cron needed).
+set role authenticated;
+select pg_temp.login('dave');
+do $$
+declare l jsonb := public.list_my_matches();
+begin
+  assert (select x->>'status' from jsonb_array_elements(l) x where x->>'id' = pg_temp.cv('ab_stale')) = 'expired', l::text;
+  assert (select x->>'status' from jsonb_array_elements(l) x where x->>'id' = pg_temp.cv('ab_heard')) = 'active', l::text;
+end $$;
+reset role;
+select public.end_abandoned_matches();
+do $$
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_prac')) = 'expired', 'stale practice';
+  assert (select status from public.matches where id = pg_temp.mid('ab_async')) = 'active', 'async waits';
+  assert (select status from public.matches where id = pg_temp.mid('ab_fresh')) = 'active', 'fresh live stays';
+  assert (select status from public.matches where id = pg_temp.mid('ab_heard')) = 'active', 'heartbeats keep it';
+  assert not exists (select 1 from public.matches m where status = 'active' and mode in ('live', 'practice')
+                       and updated_at < now() - interval '30 minutes'
+                       and not exists (select 1 from public.match_players mp
+                                        where mp.match_id = m.id and mp.role = 'player'
+                                          and coalesce(mp.last_seen_at, m.started_at) >= now() - interval '30 minutes')),
+         'none left';
 end $$;
 
 \echo 'All database lifecycle checks passed ✔'

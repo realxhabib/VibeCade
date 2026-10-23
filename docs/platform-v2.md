@@ -98,7 +98,7 @@ SQL columns: `matches.min_players`, `max_players`, `team_count`, `state jsonb`,
 | `spectate_match(p_match)` **new** | adds the viewer as a spectator (app must allow it) |
 | `quick_match(p_app)` | fills open quick lobbies up to max; first joiner can start early |
 | `start_practice(p_app, p_players int = null)` | practice with bots filling up to `p_players` (default app min) |
-| `update_match_state(p_match, p_state jsonb, p_expected_version int)` **new** | seated players of an `active` match; error `40001` "state_conflict" if the version moved; ≤ 64 KB; returns the new version |
+| `update_match_state(p_match, p_state jsonb, p_expected_version int)` **new** | seated players of an `active` match; error `PT409` "state_conflict" if the version moved; ≤ 64 KB; returns the new version |
 | `end_turn(p_match, p_next uuid = null)` **new** | only the turn holder (or anyone when no turn is set); `p_next` must be a seated active player; sets `turn_deadline` (async: +3 days) |
 | `set_round(p_match, p_round int)` **new** | seated players, monotonic |
 | `submit_entry` | settles when every seated, non-left player has submitted |
@@ -108,6 +108,25 @@ SQL columns: `matches.min_players`, `max_players`, `team_count`, `state jsonb`,
 
 Realtime: `is_room_member` includes spectators. State/turn/round changes reach
 clients through the existing `matches` postgres_changes watch.
+
+Live server rooms (`liveServer` apps, `platform/supabase/live-room.ts`, the
+Claude Arcade server's `server/rooms.mjs`) hold the match state in memory while
+a match is played, and nothing is written to the database until the results
+(heartbeats aside). The room orders `state.set` (compare-and-set on its
+version) and broadcasts each copy; every host keeps the latest one in its match
+cache. On each sign-in the host offers its copy (`state.offer`): an empty room
+(new, or the server restarted) takes the newest offer, and a writes-free one a
+newer offer. Writes sent while the room is still empty wait up to 5 s for its
+first copy. The room learns who is seated by reading `get_match` as the joining
+player; it isn't told when the match ends, so hosts refuse `state.set` once
+their match isn't `active`. When the room is unreachable, hosts write to the
+database as before; since its copy is still at the version from before the
+match, the host stores its own newer copy first with
+`rebase_match_state(p_match, p_state, p_version)` (seated players of an active
+match, forward only, at most +1,000,000; `state_conflict` when not ahead).
+Accepted loss: if the room's server dies and every player reloads, that
+match's state is gone (the abandoned-match job ends it). The SDK and the demo
+backend's rooms are unchanged (the demo backend implements `rebaseState`).
 
 ### SDK (`vibecade-sdk` 0.2.0, protocol v1, additive)
 

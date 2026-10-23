@@ -3,7 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BackendError } from "../backend";
 import { XP, placementXp } from "../scoring";
 import type { Match, Profile, RegisterAppInput } from "../types";
-import { DemoBackend, LOST_WRITE_CHECKS_MS, TURN_TIMEOUT_MS } from "./demo-backend";
+import {
+  ABANDONED_MATCH_TTL_MS,
+  DemoBackend,
+  LAST_STANDING_GRACE_MS,
+  LOST_WRITE_CHECKS_MS,
+  TURN_TIMEOUT_MS,
+} from "./demo-backend";
 import { PRACTICE_BOTS } from "./seed";
 import { DB_KEY, load } from "./store";
 
@@ -452,6 +458,17 @@ describe("demo backend: shared state, turns and rounds", () => {
     await expectCode(backend.updateState(match.id, { blob: "x".repeat(70_000) }, 2), "invalid");
   });
 
+  it("rebases the state forward only (after a live server room held it)", async () => {
+    const match = await fourPlayerLive();
+    await backend.updateState(match.id, { board: [1] }, 0);
+    await expectCode(backend.rebaseState(match.id, { board: [9] }, 1), "conflict");
+    await expectCode(backend.rebaseState(match.id, {}, 2_000_000), "invalid");
+    const rebased = await backend.rebaseState(match.id, { board: [1, 2, 3] }, 7);
+    expect(rebased.version).toBe(7);
+    expect(rebased.match).toMatchObject({ state: { board: [1, 2, 3] }, stateVersion: 7 });
+    expect((await backend.updateState(match.id, { board: [1, 2, 3, 4] }, 7)).version).toBe(8);
+  });
+
   it("rotates turns through seated players, skipping anyone who left", async () => {
     const match = await fourPlayerLive("turns", { turnBased: true });
     const ids = ["alice", "bob", "carol", "dave"].map((h) => people[h]!.id);
@@ -544,6 +561,67 @@ describe("demo backend: leaving N-player matches", () => {
     expect(m.winnerId).toBe(people.bob!.id);
     expect(seat(m, "carol")?.rank).toBe(3);
     expect(seat(m, "carol")?.xpDelta).toBe(XP.loss);
+  });
+
+  it("hands a live match to the last player still connected after the grace period", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const match = await backend.markStarted((await fourPlayerLive()).id);
+    vi.setSystemTime(Date.now() + LAST_STANDING_GRACE_MS / 2);
+    await backend.heartbeat(match.id);
+    backend.tick();
+    expect((await backend.getMatch(match.id))!.status).toBe("active"); // still within the grace period
+
+    vi.setSystemTime(Date.now() + LAST_STANDING_GRACE_MS);
+    await backend.heartbeat(match.id);
+    await as("bob");
+    await backend.heartbeat(match.id);
+    backend.tick();
+    let m = (await backend.getMatch(match.id))!;
+    expect(m.status).toBe("active"); // two still connected: claim_forfeit's job, not this one's
+    expect(seat(m, "carol")?.state).toBe("joined");
+
+    vi.setSystemTime(Date.now() + LAST_STANDING_GRACE_MS + 1_000);
+    await as("alice");
+    await backend.heartbeat(match.id);
+    backend.tick();
+    m = (await backend.getMatch(match.id))!;
+    expect(m.status).toBe("completed");
+    expect(m.winnerId).toBe(people.alice!.id);
+    for (const handle of ["bob", "carol", "dave"]) {
+      expect(seat(m, handle)?.state).toBe("left");
+      expect(seat(m, handle)?.xpDelta).toBe(XP.loss);
+    }
+  });
+
+  it("expires live matches nobody wrote to in 30 minutes, not async ones", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const live = await fourPlayerLive();
+    const slow = await backend.createChallenge({ appSlug: "royale", mode: "async", opponentHandle: "bob" });
+    await as("bob");
+    await backend.joinMatch(slow.id);
+    await as("alice");
+    expect((await backend.getMatch(slow.id))!.status).toBe("active");
+
+    vi.setSystemTime(Date.now() + ABANDONED_MATCH_TTL_MS - 60_000);
+    let listed = await backend.listMyMatches();
+    expect(listed.find((m) => m.id === live.id)?.status).toBe("active");
+    vi.setSystemTime(Date.now() + 2 * 60_000);
+    listed = await backend.listMyMatches();
+    expect(listed.find((m) => m.id === live.id)?.status).toBe("expired");
+    expect(listed.find((m) => m.id === slow.id)?.status).toBe("active");
+  });
+
+  it("keeps a live match with fresh heartbeats but no writes (live-server games write only results)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const match = await backend.markStarted((await fourPlayerLive()).id);
+    vi.setSystemTime(Date.now() + ABANDONED_MATCH_TTL_MS - 5 * 60_000);
+    await backend.heartbeat(match.id);
+    vi.setSystemTime(Date.now() + 10 * 60_000); // no write for 35 minutes, a heartbeat 10 minutes ago
+    let listed = await backend.listMyMatches();
+    expect(listed.find((m) => m.id === match.id)?.status).toBe("active");
+    vi.setSystemTime(Date.now() + ABANDONED_MATCH_TTL_MS);
+    listed = await backend.listMyMatches();
+    expect(listed.find((m) => m.id === match.id)?.status).toBe("expired");
   });
 
   it("settles a team match once a whole team is gone", async () => {

@@ -276,6 +276,51 @@ function expireTurn(db: DemoDb, row: MatchRow, now = Date.now()): boolean {
   return true;
 }
 
+/** A live match whose other players have been quiet this long is won by the one still connected. */
+export const LAST_STANDING_GRACE_MS = 2 * 60_000;
+/** A live or practice match nobody has written to in this long is abandoned. */
+export const ABANDONED_MATCH_TTL_MS = 30 * 60_000;
+
+/**
+ * Mirrors end_abandoned_matches: in a live match where a single human is still connected, the quiet
+ * ones are marked left and the match settles if too few remain (the last player standing wins by
+ * forfeit); live and practice matches nobody wrote to or sent a heartbeat to in 30 minutes expire. Async matches wait on
+ * their turn deadlines instead. Only `userId`'s matches, when given. Returns whether any changed.
+ */
+export function endAbandonedMatches(db: DemoDb, now = Date.now(), userId?: string): boolean {
+  let changed = false;
+  for (const row of Object.values(db.matches)) {
+    if (row.status !== "active" || row.mode === "async") continue;
+    if (userId && !row.players.some((p) => p.userId === userId)) continue;
+    if (row.mode === "live" && row.startedAt) {
+      const startedAt = Date.parse(row.startedAt);
+      const quiet = (p: PlayerRow) => (p.lastSeenAt ? Date.parse(p.lastSeenAt) : startedAt) <= now - LAST_STANDING_GRACE_MS;
+      const humans = inRows(row).filter((p) => !p.isBot);
+      const gone = humans.filter((p) => p.state === "joined" && quiet(p));
+      if (gone.length && humans.filter((p) => !quiet(p)).length === 1) {
+        for (const p of gone) p.state = "left";
+        if (gone.some((p) => p.userId === row.turnUserId)) setTurn(row, nextTurnAfter(row, row.turnUserId));
+        maybeSettle(db, row);
+        row.updatedAt = nowIso();
+        changed = true;
+        continue;
+      }
+    }
+    // A live-server match writes nothing until its results, so heartbeats count as activity too.
+    const startedAt = row.startedAt ? Date.parse(row.startedAt) : null;
+    const heard = seatRows(row).some((p) => {
+      const seen = p.lastSeenAt ? Date.parse(p.lastSeenAt) : startedAt;
+      return seen !== null && seen >= now - ABANDONED_MATCH_TTL_MS;
+    });
+    if (Date.parse(row.updatedAt) < now - ABANDONED_MATCH_TTL_MS && !heard) {
+      row.status = "expired";
+      row.updatedAt = nowIso();
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function hydrate(db: DemoDb, row: MatchRow, viewerId = getViewerId()): Match {
   const seated = row.players.filter((p) => p.role === "player").sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0));
   const spectators = row.players.filter((p) => p.role === "spectator");
@@ -1767,6 +1812,24 @@ export class DemoBackend implements Backend {
     return { version, match };
   }
 
+  /** Mirrors `rebase_match_state`. */
+  async rebaseState(matchId: string, state: Json, version: number): Promise<{ version: number; match: Match }> {
+    const viewer = this.requireViewer();
+    if (state === undefined) throw new BackendError("State must be JSON", "invalid");
+    const match = this.withMatch(matchId, (_db, row) => {
+      this.requirePlayer(row, viewer.id, "change the match state");
+      if (row.status !== "active") throw new BackendError("This match isn't running", "forbidden");
+      if (state !== null && byteLength(state) > LIMITS.matchStateBytes) {
+        throw new BackendError("Match state is too large (max 64 KB)", "invalid");
+      }
+      if (!Number.isInteger(version) || version > row.stateVersion + 1_000_000) throw new BackendError("Invalid state version", "invalid");
+      if (version <= row.stateVersion) throw new BackendError("state_conflict", "conflict");
+      row.state = structuredClone(state);
+      row.stateVersion = version;
+    });
+    return { version, match };
+  }
+
   async endTurn(matchId: string, next?: string | null): Promise<Match> {
     const viewer = this.requireViewer();
     return this.withMatch(matchId, (db, row) => {
@@ -2001,7 +2064,10 @@ export class DemoBackend implements Backend {
   async listMyMatches(): Promise<Match[]> {
     const id = getViewerId();
     if (!id) return [];
-    mutateIfChanged((draft) => expireIdleLobbies(draft, Date.now(), id));
+    mutateIfChanged((draft) => {
+      const lobbies = expireIdleLobbies(draft, Date.now(), id);
+      return endAbandonedMatches(draft, Date.now(), id) || lobbies;
+    });
     const db = load();
     return Object.values(db.matches)
       .filter((m) => isSeatedIn(m, id))
@@ -2407,6 +2473,9 @@ export class DemoBackend implements Backend {
           changed = true;
         }
       }
+
+      // Abandoned live and practice matches end (the end_abandoned_matches cron job).
+      if (endAbandonedMatches(draft, now)) changed = true;
 
       // Once per session, a persona challenges the newcomer so invites can be seen live.
       if (viewerId && now - SESSION_START > 25_000 && !sessionStorage.getItem(INVITED_KEY)) {

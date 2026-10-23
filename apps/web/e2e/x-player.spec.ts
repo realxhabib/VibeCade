@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 test("the share link describes a player card", async ({ page, request }) => {
   const response = await request.get("/x/four-in-a-row");
-  expect(response.headers()["content-security-policy"]).toBe("frame-ancestors 'self'");
+  expect(response.headers()["content-security-policy"]).toBe("frame-ancestors 'self' https://vibras.si https://www.vibras.si");
   await page.goto("/x/four-in-a-row");
   // People who open the link get the same player, full screen.
   await expect(page).toHaveURL(/\/x\/play\/four-in-a-row$/);
@@ -26,6 +26,7 @@ test("the share link describes a player card", async ({ page, request }) => {
 test("X may frame the player, which runs a guest practice match", async ({ page, request }) => {
   const player = await request.get("/x/play");
   expect(player.headers()["content-security-policy"]).toContain("https://x.com");
+  expect(player.headers()["content-security-policy"]).toContain("https://www.vibras.si");
   expect(player.headers()["cache-control"]).toContain("no-store");
   expect(player.headers()["x-frame-options"]).toBeUndefined();
 

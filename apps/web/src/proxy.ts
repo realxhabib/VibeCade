@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env, isSupabaseConfigured } from "@/lib/env";
+import { EMBEDDED_COOKIE, sessionCookieOptions } from "@/platform/supabase/embedded";
 
 /**
  * Keeps the Supabase auth session fresh on every page request. In demo mode
@@ -29,6 +30,8 @@ export async function proxy(request: NextRequest) {
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(env.supabaseUrl, env.supabaseKey, {
+    // Framed by another site: keep refreshed cookies partitioned (platform/supabase/embedded.ts).
+    cookieOptions: sessionCookieOptions(request.cookies.has(EMBEDDED_COOKIE)),
     cookies: {
       getAll() {
         return request.cookies.getAll();
