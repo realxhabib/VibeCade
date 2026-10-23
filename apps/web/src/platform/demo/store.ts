@@ -71,6 +71,8 @@ export interface MatchRow {
   versionId?: string | null;
   /** Stage 4: the app's live version when the match was created (analytics' per-version split). */
   publishedVersionId?: string | null;
+  /** The challenge the first Rematch press opened from this (finished) match. Absent on older rows. */
+  rematchId?: string | null;
 }
 
 export interface VoteRow {

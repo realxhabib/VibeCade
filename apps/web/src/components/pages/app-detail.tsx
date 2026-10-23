@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { AppWindow, Bot, Clock3, Eye, Gavel, LayoutDashboard, Repeat, Share2, Swords, Target, Users, Zap } from "lucide-react";
+import { AppWindow, Bot, Clock3, ExternalLink, Eye, Gavel, LayoutDashboard, Repeat, Share2, Swords, Target, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -22,13 +22,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { spring } from "@/lib/motion";
 import { openXIntent } from "@/lib/share";
 import { cn, formatCompact, formatNumber } from "@/lib/utils";
-import { useResolveViewer, useViewer } from "@/platform/client";
+import { useBackend, useResolveViewer, useViewer } from "@/platform/client";
 import { isMultiplayer, seatedPlayers, tableSizeLabel, tableSizeLabelForMatch } from "@/components/play/match-view";
 import { play } from "@/lib/sfx";
 import { MODE_LABEL } from "@/platform/match-utils";
-import { useActivity, useApp, useLeaderboard, usePractice, useQuickMatch } from "@/platform/queries";
+import { useActivity, useApp, useLeaderboard, usePractice, useProfile, useQuickMatch } from "@/platform/queries";
 import { getRetiredApp } from "@/platform/retired-apps";
-import { CATEGORIES } from "@/platform/types";
+import { CATEGORIES, type AppManifest } from "@/platform/types";
 import { goToHost } from "@/lib/host-nav";
 
 export function AppDetail({ slug }: { slug: string }) {
@@ -128,6 +128,7 @@ export function AppDetail({ slug }: { slug: string }) {
             >
               {app.tagline}
             </motion.p>
+            {!app.official && app.developer.id && <CreatorCredit developer={app.developer} />}
             <motion.div
               className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-300"
               initial={{ opacity: 0 }}
@@ -290,7 +291,15 @@ export function AppDetail({ slug }: { slug: string }) {
             <p className="mt-3 leading-relaxed text-ink-300">{app.description}</p>
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-ink-400">
               <span>
-                Built by <b className="text-ink-100">{app.official ? "VibeCade Studio" : `@${app.developer.handle}`}</b> with vibecade-sdk
+                Built by{" "}
+                {app.official || !app.developer.id ? (
+                  <b className="text-ink-100">{app.official ? "VibeCade Studio" : `@${app.developer.handle}`}</b>
+                ) : (
+                  <Link href={`/u/${app.developer.handle}`} className="font-bold text-ink-100 transition hover:text-nova-300">
+                    @{app.developer.handle}
+                  </Link>
+                )}{" "}
+                with vibecade-sdk
               </span>
               <button
                 onClick={() => openXIntent(`${app.icon} ${app.name} on VibeCade — ${app.tagline}`, `${window.location.origin}/apps/${app.slug}`)}
@@ -420,5 +429,38 @@ export function AppDetail({ slug }: { slug: string }) {
 
       {!standalone && <ChallengeSheet app={app} open={sheet} onClose={() => setSheet(false)} />}
     </div>
+  );
+}
+
+/** "Created by" credit for a submitted app: the developer's VibeCade profile and their X account. */
+function CreatorCredit({ developer }: { developer: AppManifest["developer"] }) {
+  const backend = useBackend();
+  const { data: profile } = useProfile(developer.handle);
+  return (
+    <motion.div
+      className="mt-4 flex flex-wrap items-center gap-2 text-sm"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.22, ...spring.soft }}
+    >
+      <Link
+        href={`/u/${developer.handle}`}
+        className="group flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] py-1 pl-1 pr-3 transition hover:border-white/20 hover:bg-white/[0.07]"
+      >
+        <Avatar person={profile ?? developer} size={28} className="rounded-full" />
+        <span className="text-ink-400">Created by</span>
+        <span className="font-semibold text-ink-100">{profile?.name ?? developer.name}</span>
+      </Link>
+      {backend.kind === "supabase" && (
+        <a
+          href={`https://x.com/${developer.handle}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-ink-300 transition hover:bg-white/[0.06] hover:text-ink-100"
+        >
+          @{developer.handle} on X <ExternalLink className="size-3.5" />
+        </a>
+      )}
+    </motion.div>
   );
 }

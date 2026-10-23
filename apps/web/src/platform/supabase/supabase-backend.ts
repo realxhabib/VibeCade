@@ -562,6 +562,10 @@ export class SupabaseBackend implements Backend {
     return this.rpcId("create_challenge", challengeArgs(input));
   }
 
+  rematch(matchId: string): Promise<Match> {
+    return this.rpcId("rematch", { p_match: matchId });
+  }
+
   quickMatch(appSlug: string, versionId?: string | null): Promise<Match> {
     return this.rpcId("quick_match", quickMatchArgs(appSlug, versionId));
   }

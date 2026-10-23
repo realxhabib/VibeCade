@@ -784,10 +784,11 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       } catch {
         // ignore
       }
-      if (!match.startedAt && !spectating) backend.markStarted(match.id).catch(() => undefined);
+      // Also when the match already started: entering it ends my other live games.
+      if (!spectating) backend.markStarted(match.id).catch(() => undefined);
       later(() => iframeRef.current?.focus(), 50);
     },
-    [backend, emit, later, match.id, match.startedAt, spectating],
+    [backend, emit, later, match.id, spectating],
   );
 
   const startIntro = useCallback(() => {
@@ -1000,19 +1001,11 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     setRematching(true);
     try {
       const rivals = others.filter((p) => !p.isBot);
+      // Against people: same table and setup, and if one of them pressed Rematch first, this joins theirs.
       const next =
         match.mode === "practice" || rivals.length === 0 || (others.some((p) => p.isBot) && backend.kind !== "demo")
           ? await backend.startPractice(app.slug, seated.length > 2 ? seated.length : undefined, match.versionId)
-          : await backend.createChallenge({
-              appSlug: app.slug,
-              versionId: match.versionId ?? null,
-              mode: match.mode === "async" ? "async" : "live",
-              opponentHandle: rivals.length === 1 ? rivals[0]!.profile.handle : null,
-              opponentHandles: rivals.length > 1 ? rivals.map((p) => p.profile.handle) : undefined,
-              maxPlayers: match.maxPlayers > 2 ? match.maxPlayers : undefined,
-              // Same setup (template, dropped image, topic) for the rematch.
-              settings: rematchSettings(match.settings),
-            });
+          : await backend.rematch(match.id);
       router.replace(routes.match(next.id));
     } catch (error) {
       toast(errorMessage(error), { tone: "danger" });
@@ -1228,10 +1221,4 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       </Dialog>
     </div>
   );
-}
-
-function rematchSettings(settings: Match["settings"]): Match["settings"] {
-  const rest = { ...settings };
-  delete rest.quick;
-  return rest;
 }
