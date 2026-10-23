@@ -713,6 +713,12 @@ export class SupabaseBackend implements Backend {
     return this.rpcThenGet("claim_forfeit", matchId);
   }
 
+  dropNoShows(matchId: string, userIds: string[]): Promise<Match> {
+    const local = this.localFor(matchId);
+    if (local) return local.dropNoShows(matchId, userIds);
+    return this.rpcThenGet("drop_no_shows", matchId, { p_users: userIds });
+  }
+
   forfeit(matchId: string): Promise<Match> {
     const local = this.localFor(matchId);
     if (local) return local.forfeit(matchId);

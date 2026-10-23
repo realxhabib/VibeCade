@@ -207,6 +207,11 @@ export interface Backend {
   heartbeat(matchId: string): Promise<void>;
   /** Opponent vanished mid-match — the server checks their last heartbeat. */
   claimForfeit(matchId: string): Promise<Match>;
+  /**
+   * A live match still waiting to start: take these players (whose game never got ready) out of contention,
+   * no forfeit, so it starts without them; too few left cancels it. Refused until 15 s after the last join.
+   */
+  dropNoShows(matchId: string, userIds: string[]): Promise<Match>;
   forfeit(matchId: string): Promise<Match>;
   submit(matchId: string, input: SubmitInput): Promise<Match>;
   vote(matchId: string, choiceUserId: string): Promise<Match>;

@@ -116,6 +116,8 @@ const SESSION_START = Date.now();
 export const TURN_TIMEOUT_MS = 3 * 86_400_000;
 /** A player who hasn't sent a heartbeat for this long can be claimed against. */
 const CLAIM_AFTER_MS = 45_000;
+/** A live match still waiting on players this long after the last one joined starts without them. */
+export const NO_SHOW_AFTER_MS = 15_000;
 
 /* ---------------------------------------------------------------------- */
 /* Row helpers                                                            */
@@ -1643,6 +1645,7 @@ export class DemoBackend implements Backend {
         if (mine.state === "invited") {
           if (!isLobby(asked) && asked.mode !== "async") throw new BackendError("This challenge is no longer open", "conflict");
           mine.state = "joined";
+          mine.joinedAt = nowIso();
           tryActivate(db, asked);
           asked.updatedAt = nowIso();
         }
@@ -1786,6 +1789,7 @@ export class DemoBackend implements Backend {
         if (me.state === "invited") {
           if (!isLobby(row) && !asyncRunning) throw new BackendError("This challenge is no longer open", "conflict");
           me.state = "joined";
+          me.joinedAt = nowIso();
         }
       } else if (row.versionId && !canTest(db, row.appSlug, viewer.id)) {
         throw new BackendError("Only the developer and testers can join a test build", "forbidden");
@@ -2010,6 +2014,27 @@ export class DemoBackend implements Backend {
       }
       quiet.state = "left";
       afterLeave(db, row, quiet.userId);
+    });
+  }
+
+  async dropNoShows(matchId: string, userIds: string[]): Promise<Match> {
+    const viewer = this.requireViewer();
+    return this.withMatch(matchId, (db, row) => {
+      if (row.status !== "active" || row.mode !== "live" || row.startedAt) throw new BackendError("Match isn't waiting to start", "conflict");
+      if (!seatRows(row).some((p) => p.userId === viewer.id && p.state === "joined")) throw new BackendError("Not your match", "forbidden");
+      const humans = seatRows(row).filter((p) => !p.isBot && p.state === "joined");
+      const fullSince = Math.max(...humans.map((p) => Date.parse(p.joinedAt ?? row.createdAt)));
+      if (fullSince > Date.now() - NO_SHOW_AFTER_MS) throw new BackendError("Give them a little longer", "conflict");
+      const gone = humans.filter((p) => p.userId !== viewer.id && userIds.includes(p.userId));
+      if (!gone.length) return;
+      // Out of contention, not forfeited: declined seats are never placed.
+      for (const p of gone) p.state = "declined";
+      if (row.turnUserId && gone.some((p) => p.userId === row.turnUserId)) setTurn(row, nextTurnAfter(row, row.turnUserId));
+      const alive = seatRows(row).filter((p) => p.state === "invited" || p.state === "joined" || p.state === "submitted");
+      let teamEmpty = false;
+      for (let team = 0; row.teams >= 2 && team < row.teams; team++) if (!alive.some((p) => p.team === team)) teamEmpty = true;
+      // Too few left to play: nobody played, so nobody wins.
+      if (alive.length < 2 || !alive.some((p) => !p.isBot) || teamEmpty) row.status = "cancelled";
     });
   }
 
