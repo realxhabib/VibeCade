@@ -6,6 +6,11 @@ import { APP_COLUMNS, toApp, type AppRow } from "./supabase/mapping";
 import type { AppManifest } from "./types";
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function anonClient() {
+  return createClient(env.supabaseUrl, env.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 
 /**
  * An app a playable post can carry (server side, for `/x/<slug>`): a first-party
@@ -17,11 +22,26 @@ export const getPostableApp = cache(async (slug: string): Promise<AppManifest | 
   if (official) return official;
   if (!isSupabaseConfigured || !SLUG.test(slug)) return null;
   try {
-    const sb = createClient(env.supabaseUrl, env.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data, error } = await sb.from("apps").select(APP_COLUMNS).eq("slug", slug).maybeSingle<AppRow>();
+    const { data, error } = await anonClient().from("apps").select(APP_COLUMNS).eq("slug", slug).maybeSingle<AppRow>();
     // An official row the catalog no longer has is a retired first-party app.
     if (error || !data || data.official || data.status !== "published") return null;
     return toApp(data);
+  } catch {
+    return null;
+  }
+});
+
+/**
+ * The app a challenge link (`/play/<matchId>`) is for, read as anyone: null for
+ * practice and test-build matches (not visible without a session), offline matches
+ * and when the database can't say.
+ */
+export const getMatchApp = cache(async (matchId: string): Promise<AppManifest | null> => {
+  if (!isSupabaseConfigured || !UUID.test(matchId)) return null;
+  try {
+    const { data, error } = await anonClient().from("matches").select("app_slug").eq("id", matchId).maybeSingle<{ app_slug: string }>();
+    if (error || !data) return null;
+    return await getPostableApp(data.app_slug);
   } catch {
     return null;
   }
