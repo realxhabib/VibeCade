@@ -19,9 +19,9 @@ const vibecade = await connect();      // shared client; opened directly it star
 ```
 
 `connect({ mock: { players: 4, teams: 2, turnBased: true, role: "spectator", purpose: "setup", settings, state, stats, achievements, startDelayMs } })`
-configures the mock (only used outside VibeCade). URL switches do the same: `?xapps-players=4`,
-`?xapps-teams=2`, `?xapps-turns=1`, `?xapps-role=spectator`, `?xapps-purpose=setup|app`,
-`?xapps-settings=<json>`, `?xapps-stats=<json>`, `?xapps-achievements=<json>`.
+configures the mock (only used outside VibeCade). URL switches do the same: `?vibecade-players=4`,
+`?vibecade-teams=2`, `?vibecade-turns=1`, `?vibecade-role=spectator`, `?vibecade-purpose=setup|app`,
+`?vibecade-settings=<json>`, `?vibecade-stats=<json>`, `?vibecade-achievements=<json>`.
 
 Other options: `hostOrigins` (pin trusted hosts), `captureErrors: false`, `gestures: false`, `timeoutMs`.
 

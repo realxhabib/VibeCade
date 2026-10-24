@@ -14,8 +14,8 @@ An [VibeCade](https://github.com/realxhabib/VibeCade) app in **one HTML file**, 
    ```
 
 3. Open the printed URL. Opened directly, the SDK starts a **mock host**: you race a practice bot
-   that the page plays itself. The browser console shows what the host sees (`[xapps mock]`) and
-   your logs (`[xapps log]`). Try `?xapps-players=4` for more bots.
+   that the page plays itself. The browser console shows what the host sees (`[vibecade mock]`) and
+   your logs (`[vibecade log]`). Try `?vibecade-players=4` for more bots.
 
 Prefer npm? `npm i vibecade-sdk` and `import { connect } from "vibecade-sdk"` with any bundler, or run
 `npx create-vibecade my-game` for the React template.

@@ -151,13 +151,36 @@ describe("mock host (v2 matches)", () => {
     expect(onStart).not.toHaveBeenCalled();
     await client.setup.submit({ rounds: 7 }, "Best of 7");
     expect(mock.setup).toEqual({ status: "submitted", settings: { rounds: 7 }, summary: "Best of 7" });
-    const banner = document.getElementById("xapps-mock-banner");
+    const banner = document.getElementById("vibecade-mock-banner");
     expect(banner?.textContent).toContain("Best of 7");
-    expect(banner?.querySelector("a")?.getAttribute("href")).toContain("xapps-settings=");
+    expect(banner?.querySelector("a")?.getAttribute("href")).toContain("vibecade-settings=");
     banner?.remove();
   });
 
-  it("reads ?xapps-purpose / ?xapps-settings / ?xapps-players from the URL", async () => {
+  it("reads ?vibecade-purpose / ?vibecade-settings / ?vibecade-players / ?vibecade-turns from the URL", async () => {
+    const settings = encodeURIComponent(JSON.stringify({ theme: "space" }));
+    window.history.replaceState(null, "", `/?vibecade-purpose=setup&vibecade-settings=${settings}&vibecade-players=4&vibecade-teams=2&vibecade-turns=1`);
+    try {
+      const mock = createMockHost({ quiet: true });
+      expect(mock.context.purpose).toBe("setup");
+      expect(mock.context.match.settings).toEqual({ theme: "space" });
+      expect(mock.context.match.players).toHaveLength(4);
+      expect(mock.context.match.teams).toBe(2);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("prefers ?vibecade-* over the older ?xapps-* spelling", () => {
+    window.history.replaceState(null, "", `/?xapps-players=3&vibecade-players=5`);
+    try {
+      expect(createMockHost({ quiet: true }).context.match.players).toHaveLength(5);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("still reads the older ?xapps-purpose / ?xapps-settings / ?xapps-players", async () => {
     const settings = encodeURIComponent(JSON.stringify({ theme: "space" }));
     window.history.replaceState(null, "", `/?xapps-purpose=setup&xapps-settings=${settings}&xapps-players=3`);
     try {
@@ -288,7 +311,7 @@ describe("mock host (media & data)", () => {
     expect(events).toEqual(["first_win:you:🏆"]);
     expect(mock.achievements.has("first_win")).toBe(true);
     expect(client.achievements.unlocked.has("first_win")).toBe(true);
-    const banner = document.getElementById("xapps-mock-achievement");
+    const banner = document.getElementById("vibecade-mock-achievement");
     expect(banner?.textContent).toContain("First win");
     expect(banner?.textContent).toContain("+10 XP");
     banner?.remove();
@@ -307,10 +330,10 @@ describe("mock host (media & data)", () => {
     await expect(watching.client.storage.set("k", 1)).rejects.toMatchObject({ code: "forbidden" });
   });
 
-  it("reads ?xapps-stats / ?xapps-achievements from the URL", async () => {
+  it("reads ?vibecade-stats / ?xapps-achievements from the URL", async () => {
     const s = encodeURIComponent(JSON.stringify([{ key: "best", aggregate: "max" }, { nope: true }]));
     const a = encodeURIComponent(JSON.stringify([{ id: "gg" }]));
-    window.history.replaceState(null, "", `/?xapps-stats=${s}&xapps-achievements=${a}`);
+    window.history.replaceState(null, "", `/?vibecade-stats=${s}&xapps-achievements=${a}`);
     try {
       const mock = createMockHost({ quiet: true });
       expect(mock.context.app.stats).toEqual([{ key: "best", label: "best", aggregate: "max" }]);

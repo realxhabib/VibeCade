@@ -22,5 +22,5 @@ Rules that keep a game working on VibeCade:
 - Fit a ~450 × 350 frame and touch screens; no hover, right-click or keyboard-only controls.
 
 Run `npm run dev` and open the page directly: the SDK's mock host seats you against a practice bot
-(`?xapps-players=4`, `?xapps-turns=1`, `?xapps-role=spectator`, `?xapps-purpose=setup`).
+(`?vibecade-players=4`, `?vibecade-turns=1`, `?vibecade-role=spectator`, `?vibecade-purpose=setup`).
 SDK reference: https://github.com/realxhabib/VibeCade/blob/HEAD/packages/sdk/README.md

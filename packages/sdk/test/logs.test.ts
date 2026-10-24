@@ -290,8 +290,8 @@ describe("mock host logs", () => {
         { level: "info", message: "hello mock", data: { a: 1 }, at: expect.any(Number) },
         { level: "error", message: "bad thing", at: expect.any(Number) },
       ]);
-      expect(info).toHaveBeenCalledWith(expect.stringContaining("[xapps log] info"), expect.any(String), "hello mock", { a: 1 });
-      expect(error).toHaveBeenCalledWith(expect.stringContaining("[xapps log] error"), expect.any(String), "bad thing");
+      expect(info).toHaveBeenCalledWith(expect.stringContaining("[vibecade log] info"), expect.any(String), "hello mock", { a: 1 });
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("[vibecade log] error"), expect.any(String), "bad thing");
     } finally {
       info.mockRestore();
       error.mockRestore();

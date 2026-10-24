@@ -252,8 +252,8 @@ describe("tools on a real project", () => {
 
     const url = await tool("vibecade_test_url", { players: 4, manifest: "tap-race" });
     const parsed = new URL(url.data.url as string);
-    expect(parsed.searchParams.get("xapps-players")).toBe("4");
-    expect(JSON.parse(parsed.searchParams.get("xapps-stats")!)).toEqual(manifest.stats);
+    expect(parsed.searchParams.get("vibecade-players")).toBe("4");
+    expect(JSON.parse(parsed.searchParams.get("vibecade-stats")!)).toEqual(manifest.stats);
   });
 
   it("refuses to scaffold into a folder that isn't empty", async () => {

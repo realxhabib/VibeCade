@@ -30,7 +30,7 @@ export function EmbedRoot({
   /**
    * How the mock host launches the app when `/embed/<slug>` is opened directly. Defaults to
    * `"app"` for standalone apps (catalog `kind: "app"`) and `"match"` otherwise. Inside XApps
-   * the host decides. `?xapps-purpose=` still overrides it.
+   * the host decides. `?vibecade-purpose=` still overrides it.
    */
   purpose?: LaunchPurpose;
   /** Extra mock host options (e.g. `leaderboard` values), on top of the manifest's. */

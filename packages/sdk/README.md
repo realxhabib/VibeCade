@@ -34,15 +34,15 @@ npx create-vibecade my-page --template vanilla      # one HTML file, no build
 cd my-game && npm install && npm run dev        # plays standalone against a bot (mock host)
 ```
 
-Each template ships an `xapps.manifest.json` and a README with the path to launch: `npm run dev` → register at `<xapps-host>/developers/new` → test in the Sandbox → add versions → submit for review.
+Each template ships a `vibecade.manifest.json` and a README with the path to launch: `npm run dev` → register at `vibecade.si/developers/new` → test in the Sandbox → add versions → submit for review.
 
 No build step? Import the browser bundle from your VibeCade host:
 
 ```html
 <script type="module">
-  import { connect } from "https://<xapps-host>/sdk/v1.js";
+  import { connect } from "https://vibecade.si/sdk/v1.js";
 </script>
-<!-- or classic: <script src="https://<xapps-host>/sdk/v1.global.js"></script> → window.VibeCade -->
+<!-- or classic: <script src="https://vibecade.si/sdk/v1.global.js"></script> → window.VibeCade -->
 ```
 
 ## Quick start
@@ -50,17 +50,17 @@ No build step? Import the browser bundle from your VibeCade host:
 ```ts
 import { connect } from "vibecade-sdk";
 
-const xapps = await connect();                 // players, seed, mode…
-const bot = xapps.opponents.find((p) => p.isBot); // practice: your app plays the bot
+const vibecade = await connect();                 // players, seed, mode…
+const bot = vibecade.opponents.find((p) => p.isBot); // practice: your app plays the bot
 
-xapps.room.on("move", (move, from) => applyMove(move, from));
-xapps.onStart(() => startGame());              // fires after the host's VS intro
-await xapps.ready();                           // call once your first screen is up
+vibecade.room.on("move", (move, from) => applyMove(move, from));
+vibecade.onStart(() => startGame());              // fires after the host's VS intro
+await vibecade.ready();                           // call once your first screen is up
 
 // when the game ends:
-await xapps.submit({ score: myScore, data: { moves } });
-if (bot) await xapps.submitFor(bot.id, { score: botScore });
-xapps.onEnd((result) => console.log(result.winnerId));
+await vibecade.submit({ score: myScore, data: { moves } });
+if (bot) await vibecade.submitFor(bot.id, { score: botScore });
+vibecade.onEnd((result) => console.log(result.winnerId));
 ```
 
 ### React
@@ -89,12 +89,12 @@ More hooks: `useUser()`, `useStandalone()`, `useMatch()`, `usePresence()`, `useR
 | API | Notes |
 | --- | --- |
 | `connect(options?)` | Shared client (safe to call repeatedly). `hostOrigins` pins trusted hosts. `mock` controls the standalone mock host. |
-| `xapps.purpose` · `xapps.isStandalone` | `"match"` (play), `"setup"` (render your challenge setup screen) or `"app"` (a [standalone app](#standalone-apps): no match). `isStandalone` is `purpose === "app"` |
-| `xapps.me` / `players` / `opponents` / `opponent` / `teammates` | `PlayerInfo`: `id, handle, name, avatarUrl, seat, isBot, submitted, score, team, role`. `players` = seated players by seat, `opponents` = every other seated player, `opponent` = the first one (1v1), `teammates` = same team |
-| `xapps.role` · `xapps.isSpectator` | `"player"` or `"spectator"` |
-| `xapps.match` | `id, mode (live·async·practice·sandbox), status, scoring, seed, settings, minPlayers, maxPlayers, teams, state, stateVersion, turn, turnDeadline, round` |
-| `xapps.random` | Seeded by the match, identical on every client: `next, int, float, pick, shuffle, normal, chance, fork(label)` |
-| `xapps.isHost` | `true` for seat 0, for when one client should referee |
+| `vibecade.purpose` · `vibecade.isStandalone` | `"match"` (play), `"setup"` (render your challenge setup screen) or `"app"` (a [standalone app](#standalone-apps): no match). `isStandalone` is `purpose === "app"` |
+| `vibecade.me` / `players` / `opponents` / `opponent` / `teammates` | `PlayerInfo`: `id, handle, name, avatarUrl, seat, isBot, submitted, score, team, role`. `players` = seated players by seat, `opponents` = every other seated player, `opponent` = the first one (1v1), `teammates` = same team |
+| `vibecade.role` · `vibecade.isSpectator` | `"player"` or `"spectator"` |
+| `vibecade.match` | `id, mode (live·async·practice·sandbox), status, scoring, seed, settings, minPlayers, maxPlayers, teams, state, stateVersion, turn, turnDeadline, round` |
+| `vibecade.random` | Seeded by the match, identical on every client: `next, int, float, pick, shuffle, normal, chance, fork(label)` |
+| `vibecade.isHost` | `true` for seat 0, for when one client should referee |
 | `ready()` · `onStart(fn)` · `onUpdate(fn)` · `onEnd(fn)` · `forfeit()` | Lifecycle |
 | `submit({ score?, data?, display? })` · `submitFor(botId, …)` | `display` is `{kind:"text",title?,body}`, `{kind:"svg",svg,alt}`, `{kind:"image",url,alt}`, `{kind:"video",url,alt,poster?}`, `{kind:"audio",url,alt,cover?}` or `{kind:"gallery",items:[{url,alt}]}` (2–6 items). See [Media uploads](#media-uploads) |
 | `room.send(type, payload)` · `room.on(type, fn)` · `room.onAny(fn)` · `room.onPresence(fn)` | ≤ 8 KB payloads, ≤ 30 messages/s |
@@ -122,24 +122,24 @@ Not everything is a game. A **standalone app** (manifest `kind: "app"`) is somet
 import { connect } from "vibecade-sdk";
 
 // Outside VibeCade the mock host opens it as a standalone app too.
-const xapps = await connect({ mock: { purpose: "app" } });
+const vibecade = await connect({ mock: { purpose: "app" } });
 
-greet(`Hi @${xapps.user.handle}`);                        // the signed-in viewer
-const notes = (await xapps.storage.get<string[]>("notes")) ?? [];
+greet(`Hi @${vibecade.user.handle}`);                        // the signed-in viewer
+const notes = (await vibecade.storage.get<string[]>("notes")) ?? [];
 
 async function pin(text: string) {
   notes.unshift(text);
-  await xapps.storage.set("notes", notes);                // private to this viewer
-  await xapps.stats.report({ notes: notes.length });      // stats from your manifest
-  if (notes.length === 1) await xapps.achievements.unlock("first_note"); // host shows its toast
+  await vibecade.storage.set("notes", notes);                // private to this viewer
+  await vibecade.stats.report({ notes: notes.length });      // stats from your manifest
+  if (notes.length === 1) await vibecade.achievements.unlock("first_note"); // host shows its toast
 }
 ```
 
 A solo game built as an app ranks people by a stat instead of settling matches:
 
 ```ts
-await xapps.stats.report({ best_circle: 93.4 });           // max: keeps your best
-const { me, total } = await xapps.stats.leaderboard("best_circle");
+await vibecade.stats.report({ best_circle: 93.4 });           // max: keeps your best
+const { me, total } = await vibecade.stats.leaderboard("best_circle");
 if (me) showBadge(`#${me.rank} of ${total.toLocaleString()} · top ${Math.max(1, Math.ceil((me.rank / total) * 100))}%`);
 ```
 
@@ -149,10 +149,10 @@ No `ready()`, no `onStart`, no `submit`: render as soon as `connect()` resolves.
 | --- | --- |
 | `user`, `storage.*` (both scopes), `stats.report`, `stats.leaderboard`, `achievements.unlock`, `onAchievement`, `media.upload`, `log.*`, `social.share`, `ui.toast`, `ui.celebrate`, `ui.haptic`, `ui.setStatus` (shown in the host's top bar), `ui.resize` (a no-op: the frame fills the screen), `ready()` (optional, starts nothing) | `room.*` sends, `submit`, `submitFor`, `forfeit`, `state.*`, `turn.end`, `round.set`, `ui.setScores`, `ui.setTurn`, `setup.*` |
 
-- `xapps.match` is a one-player stub: you alone in seat 0 (`me`), no opponents, `minPlayers`/`maxPlayers` 1, never a spectator. `onStart`, `onEnd` and `useMatchStarted()` never fire.
-- `xapps.random` is seeded per open, not shared with anyone.
+- `vibecade.match` is a one-player stub: you alone in seat 0 (`me`), no opponents, `minPlayers`/`maxPlayers` 1, never a spectator. `onStart`, `onEnd` and `useMatchStarted()` never fire.
+- `vibecade.random` is seeded per open, not shared with anyone.
 - Test builds (`?version=<id>` for you and your testers) run with the version's manifest; their stats and achievements are shown but never saved.
-- Mock host: `connect({ mock: { purpose: "app", stats, achievements } })` or `?xapps-purpose=app` gives you the same one-player stub with storage (localStorage), stats, achievements and media working. `stats.leaderboard` ranks what you reported among a handful of made-up players (`mock.leaderboard` to choose their values).
+- Mock host: `connect({ mock: { purpose: "app", stats, achievements } })` or `?vibecade-purpose=app` gives you the same one-player stub with storage (localStorage), stats, achievements and media working. `stats.leaderboard` ranks what you reported among a handful of made-up players (`mock.leaderboard` to choose their values).
 - React: `useUser()` and `useStandalone()`; the storage, stats, achievements, media and log hooks work unchanged.
 - Hosts: the host core refuses the match-only methods for `purpose: "app"` contexts (or `access: () => ({ purpose: "app" })`). `standaloneMatch(user, { id, seed })` from `vibecade-sdk/host` builds the stub match.
 
@@ -163,11 +163,11 @@ A complete one-file example lives in [`examples/notes`](../../examples/notes/ind
 On phones a drag can turn into a page scroll, a rubber-band bounce or pull-to-refresh. VibeCade switches that off on the host page for every app. Inside your own page:
 
 - `connect()` sets `overscroll-behavior: none` on your `html` and `body` when running inside VibeCade, so the page never bounces or pulls-to-refresh (long pages still scroll). Opt out with `connect({ gestures: false })`.
-- For anything people drag on (a canvas, a board, a slider), call `xapps.ui.lockGestures(element)`: touches on it never scroll or zoom the page, even on iOS Safari (which ignores `touch-action` alone mid-gesture), and long-press doesn't select text. Pointer events keep working. It returns a function that undoes it. In React: `useGestureLock(ref)`. Both also exist as plain exports (`lockGestures`, `calmPage`) if you haven't connected yet.
+- For anything people drag on (a canvas, a board, a slider), call `vibecade.ui.lockGestures(element)`: touches on it never scroll or zoom the page, even on iOS Safari (which ignores `touch-action` alone mid-gesture), and long-press doesn't select text. Pointer events keep working. It returns a function that undoes it. In React: `useGestureLock(ref)`. Both also exist as plain exports (`lockGestures`, `calmPage`) if you haven't connected yet.
 
 ```ts
 const board = document.querySelector("canvas")!;
-xapps.ui.lockGestures(board);
+vibecade.ui.lockGestures(board);
 board.addEventListener("pointermove", draw);           // no page drag while drawing
 ```
 
@@ -182,25 +182,25 @@ Everything in this section is additive: 1v1 apps written for v1 keep working unc
 The shared state is one JSON document per match with a version number. Writes are compare-and-set, so two players can never silently overwrite each other. `state.update(fn)` reads the latest state, applies `fn`, and if someone else wrote first it re-reads and runs `fn` again. Keep `fn` free of side effects. The state persists, so an async game can be picked up days later.
 
 ```ts
-const xapps = await connect();
+const vibecade = await connect();
 
 type Board = { cells: (string | null)[]; winner: string | null };
 
-xapps.state.onChange((board) => render(board as Board | null)); // every change, yours included
-xapps.onTurn(({ turn }) => xapps.ui.setStatus(turn === xapps.me.id ? "Your move" : "Waiting…"));
-render(xapps.state.current as Board | null);                    // latest known state at launch
-await xapps.ready();
+vibecade.state.onChange((board) => render(board as Board | null)); // every change, yours included
+vibecade.onTurn(({ turn }) => vibecade.ui.setStatus(turn === vibecade.me.id ? "Your move" : "Waiting…"));
+render(vibecade.state.current as Board | null);                    // latest known state at launch
+await vibecade.ready();
 
 async function play(cell: number) {
-  if (!xapps.turn.isMine) return;
-  await xapps.state.update<Board>((board) => {
+  if (!vibecade.turn.isMine) return;
+  await vibecade.state.update<Board>((board) => {
     const next = board ?? { cells: Array(9).fill(null), winner: null };
     if (next.cells[cell]) return undefined;                     // undefined = don't write
-    next.cells[cell] = xapps.me.id;                             // `board` is your own copy
+    next.cells[cell] = vibecade.me.id;                             // `board` is your own copy
     next.winner = findWinner(next.cells);
     return next;
   });
-  await xapps.turn.end();                                       // next seated player (or turn.end(playerId))
+  await vibecade.turn.end();                                       // next seated player (or turn.end(playerId))
 }
 ```
 
@@ -209,32 +209,32 @@ In async matches `turn.deadline` is when the turn times out (3 days). Missing it
 ### 4-player free for all
 
 ```ts
-const xapps = await connect();
-// xapps.players: 2–8 seated players; xapps.opponents: everyone but you.
-xapps.ui.setScores(Object.fromEntries(xapps.players.map((p) => [p.id, 0])));
-xapps.onRound((round) => xapps.ui.setStatus(`Round ${round}/5`));
-if (xapps.isHost) await xapps.round.set(1);   // one client drives the round counter
+const vibecade = await connect();
+// vibecade.players: 2–8 seated players; vibecade.opponents: everyone but you.
+vibecade.ui.setScores(Object.fromEntries(vibecade.players.map((p) => [p.id, 0])));
+vibecade.onRound((round) => vibecade.ui.setStatus(`Round ${round}/5`));
+if (vibecade.isHost) await vibecade.round.set(1);   // one client drives the round counter
 
 // Everyone still submits once. With N players, results come as placements.
-await xapps.submit({ score });
-xapps.onEnd(({ ranks, winnerId }) => {
+await vibecade.submit({ score });
+vibecade.onEnd(({ ranks, winnerId }) => {
   // ranks: { [playerId]: 1 | 2 | … }, ties share a rank. winnerId: unique first place, or null on a tie.
 });
 ```
 
-In practice mode bots fill the empty seats. Your app plays them: `xapps.players.filter((p) => p.isBot)`, `submitFor(bot.id, …)`.
+In practice mode bots fill the empty seats. Your app plays them: `vibecade.players.filter((p) => p.isBot)`, `submitFor(bot.id, …)`.
 
 ### Team play
 
 Apps can declare 2–4 teams. Seat `s` plays for team `s % teams`, so `player.team` is always set in team play.
 
 ```ts
-const xapps = await connect();
-const myTeam = xapps.me.team;                                   // 0, 1, …
-const allies = xapps.teammates;                                 // same team, without you
-const rivals = xapps.opponents.filter((p) => p.team !== myTeam);
+const vibecade = await connect();
+const myTeam = vibecade.me.team;                                   // 0, 1, …
+const allies = vibecade.teammates;                                 // same team, without you
+const rivals = vibecade.opponents.filter((p) => p.team !== myTeam);
 
-xapps.onEnd(({ winnerTeam, ranks }) => {
+vibecade.onEnd(({ winnerTeam, ranks }) => {
   // Team score = sum of its members' scores. Every member gets the team's placement.
   // winnerId is null in team play; winnerTeam is the winning team (null on a tie).
   showBanner(winnerTeam === myTeam ? "Your team wins!" : "Good game");
@@ -246,32 +246,32 @@ xapps.onEnd(({ winnerTeam, ranks }) => {
 Apps that declare `setup: true` render their own challenge setup. The host opens your app in the challenge sheet with `purpose: "setup"` (no match starts, `onStart` never fires). The settings you submit become `match.settings` for everyone in the match.
 
 ```ts
-const xapps = await connect();
+const vibecade = await connect();
 
-if (xapps.purpose === "setup") {
-  const defaults = xapps.match.settings;                        // prefill (e.g. when editing)
+if (vibecade.purpose === "setup") {
+  const defaults = vibecade.match.settings;                        // prefill (e.g. when editing)
   renderSetupForm(defaults, {
-    onDone: (settings) => xapps.setup.submit(settings, `${settings.rounds} rounds · ${settings.theme}`),
-    onCancel: () => xapps.setup.cancel(),
+    onDone: (settings) => vibecade.setup.submit(settings, `${settings.rounds} rounds · ${settings.theme}`),
+    onCancel: () => vibecade.setup.cancel(),
   });
 } else {
-  startGame(xapps.match.settings);
+  startGame(vibecade.match.settings);
 }
 ```
 
-Settings must be a JSON object of at most 4 KB, and the summary (shown on the invite) at most 140 characters. In setup purpose, match methods (`room.send`, `submit`, `state.*`, `turn.end`, `round.set`, `stats.report`, `achievements.unlock`) are refused with `forbidden`. `ready()`, `ui.*`, `storage.*`, `media.upload` and `log.*` still work, so a setup screen can upload a picture and put its URL in the settings. The sheet sizes itself to your content when you call `xapps.ui.autoResize()` (React: `useAutoResize()`).
+Settings must be a JSON object of at most 4 KB, and the summary (shown on the invite) at most 140 characters. In setup purpose, match methods (`room.send`, `submit`, `state.*`, `turn.end`, `round.set`, `stats.report`, `achievements.unlock`) are refused with `forbidden`. `ready()`, `ui.*`, `storage.*`, `media.upload` and `log.*` still work, so a setup screen can upload a picture and put its URL in the settings. The sheet sizes itself to your content when you call `vibecade.ui.autoResize()` (React: `useAutoResize()`).
 
 ### Spectators
 
 People can watch a match without a seat. A spectator gets `role: "spectator"`, `seat: -1`, and is never listed in `players`. They receive room messages, state changes, turns, rounds and reactions, and they can read `state`. They can't `submit`, `forfeit`, `room.send`, `state.set`/`update`, `turn.end`, `round.set`, `media.upload`, `stats.report`, `achievements.unlock` or `storage.set`/`delete`; the SDK and the host refuse those with `forbidden`. They can still read storage.
 
 ```ts
-const xapps = await connect();
-if (xapps.isSpectator) {
+const vibecade = await connect();
+if (vibecade.isSpectator) {
   hideControls();
-  xapps.ui.setStatus("Watching");
+  vibecade.ui.setStatus("Watching");
 }
-xapps.state.onChange((state) => render(state));                 // same stream as players
+vibecade.state.onChange((state) => render(state));                 // same stream as players
 ```
 
 ### React
@@ -295,16 +295,16 @@ Opened directly, `connect()` starts the mock host. Configure it through `connect
 
 | Option | URL switch | Effect |
 | --- | --- | --- |
-| `players: 4` | `?xapps-players=4` | You + 3 bots (`bot`, `bot2`, `bot3`) |
-| `teams: 2` | `?xapps-teams=2` | Team play |
-| `turnBased: true` | `?xapps-turns=1` | Seat 0 starts with the turn. The mock lets your app end bot turns. |
-| `role: "spectator"` | `?xapps-role=spectator` | Watch a table of bots |
-| `purpose: "setup"` | `?xapps-purpose=setup` | Setup mode. `setup.submit` logs the settings and shows a banner with a link that opens a mock match with them. |
-| `settings: {…}` | `?xapps-settings=<json>` | `match.settings` for the mock match |
+| `players: 4` | `?vibecade-players=4` | You + 3 bots (`bot`, `bot2`, `bot3`) |
+| `teams: 2` | `?vibecade-teams=2` | Team play |
+| `turnBased: true` | `?vibecade-turns=1` | Seat 0 starts with the turn. The mock lets your app end bot turns. |
+| `role: "spectator"` | `?vibecade-role=spectator` | Watch a table of bots |
+| `purpose: "setup"` | `?vibecade-purpose=setup` | Setup mode. `setup.submit` logs the settings and shows a banner with a link that opens a mock match with them. |
+| `settings: {…}` | `?vibecade-settings=<json>` | `match.settings` for the mock match |
 | `state: {…}` | | Initial shared state |
-| `stats: [...]` | `?xapps-stats=<json>` | Manifest stats. `stats.report` aggregates them in memory. |
+| `stats: [...]` | `?vibecade-stats=<json>` | Manifest stats. `stats.report` aggregates them in memory. |
 | `leaderboard: { best: [98, 91, 77] }` · `leaderboard: false` | | Made-up players' values for `stats.leaderboard` (default: a handful spread around your first reported value); `false` leaves you alone on every board |
-| `achievements: [...]` | `?xapps-achievements=<json>` | Manifest achievements. Each unlocks once, with a small banner and an `achievement.unlock` event. |
+| `achievements: [...]` | `?vibecade-achievements=<json>` | Manifest achievements. Each unlocks once, with a small banner and an `achievement.unlock` event. |
 | `appStorage: {…}` | | Seeds the read-only `app` storage scope |
 | `probeMedia: false` | | Skip reading width/height/duration of uploads |
 
@@ -340,14 +340,14 @@ The `file` of a `media.upload` comes from the app's window, so it is a `Blob` of
 
 ## Direct connections (WebRTC)
 
-The room is fine for moves, chat and the occasional update, but it is a shared, rate-limited broadcast: every message counts against the platform's realtime quota once per receiver. A shooter or racer sending its state 15 times a second from 8 players is ~840 deliveries a second, and past the quota messages get dropped. `xapps.room.direct()` connects the players' browsers directly with WebRTC data channels instead. The room only carries the connection setup (an offer, an answer and a few batches of ICE candidates per pair of players), then the traffic goes browser to browser: faster, and free.
+The room is fine for moves, chat and the occasional update, but it is a shared, rate-limited broadcast: every message counts against the platform's realtime quota once per receiver. A shooter or racer sending its state 15 times a second from 8 players is ~840 deliveries a second, and past the quota messages get dropped. `vibecade.room.direct()` connects the players' browsers directly with WebRTC data channels instead. The room only carries the connection setup (an offer, an answer and a few batches of ICE candidates per pair of players), then the traffic goes browser to browser: faster, and free.
 
 ```ts
-const xapps = await connect();
-const net = xapps.room.direct({ relayHz: 8 });   // one per page; match purpose only
+const vibecade = await connect();
+const net = vibecade.room.direct({ relayHz: 8 });   // one per page; match purpose only
 
 net.onMessage((data, from, via) => applyState(from, data)); // via: "direct" | "relay"
-xapps.onStart(() => {
+vibecade.onStart(() => {
   setInterval(() => net.send(myState()), 1000 / 15);        // fast: unordered, never retransmitted
 });
 net.send({ hit: target }, { reliable: true });              // ordered and retransmitted
@@ -385,7 +385,7 @@ Everything in this section is additive; apps that don't use it are unaffected.
 
 ### Media uploads
 
-`xapps.media.upload(blob, { alt? })` hands a `Blob` (or `File`) to the host, which stores it for the signed-in player and returns a `MediaRef`:
+`vibecade.media.upload(blob, { alt? })` hands a `Blob` (or `File`) to the host, which stores it for the signed-in player and returns a `MediaRef`:
 
 ```ts
 interface MediaRef { url: string; kind: "image" | "audio" | "video"; mime: string; bytes: number; width?: number; height?: number; duration?: number }
@@ -397,7 +397,7 @@ interface MediaRef { url: string; kind: "image" | "audio" | "video"; mime: strin
 | audio | mpeg, mp4, ogg, webm, wav | 10 MB |
 | video | mp4, webm, quicktime | 25 MB |
 
-Per player per app: 60 uploads and 200 MB per rolling 24 h (error code `rate_limited`). Codec parameters are ignored (`video/webm;codecs=vp9` is a webm video), and `xapps.media.kindOf(mime)` tells you the kind (or `null`) before you record anything. Uploads work in match and setup purpose; spectators get `forbidden`. The SDK checks type and size before sending, and the host checks again.
+Per player per app: 60 uploads and 200 MB per rolling 24 h (error code `rate_limited`). Codec parameters are ignored (`video/webm;codecs=vp9` is a webm video), and `vibecade.media.kindOf(mime)` tells you the kind (or `null`) before you record anything. Uploads work in match and setup purpose; spectators get `forbidden`. The SDK checks type and size before sending, and the host checks again.
 
 Entries can then show the media. Media URLs must be ones the host issued (`media.upload` results):
 
@@ -413,7 +413,7 @@ Entries can then show the media. Media URLs must be ones the host issued (`media
 Record a 5-second clip and submit it as a crowd-judged entry:
 
 ```ts
-const xapps = await connect();
+const vibecade = await connect();
 
 async function recordClip(seconds = 5): Promise<Blob> {
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -431,9 +431,9 @@ async function recordClip(seconds = 5): Promise<Blob> {
 }
 
 const clip = await recordClip();
-if (xapps.media.kindOf(clip.type) !== "video") throw new Error(`Can't upload ${clip.type}`);
-const video = await xapps.media.upload(clip, { alt: "My 5-second impression" });
-await xapps.submit({
+if (vibecade.media.kindOf(clip.type) !== "video") throw new Error(`Can't upload ${clip.type}`);
+const video = await vibecade.media.upload(clip, { alt: "My 5-second impression" });
+await vibecade.submit({
   data: { seconds: video.duration ?? 5 },
   display: { kind: "video", url: video.url, alt: "My 5-second impression" },
 });
@@ -469,13 +469,13 @@ function DropPicker({ onPicked }: { onPicked: (url: string) => void }) {
 | `app` | everyone | only your server (`storageSet`, `PUT /api/v1/storage/:key`) | daily puzzles, config, seasons |
 
 ```ts
-const progress = await xapps.storage.get<{ level: number }>("progress");      // user scope
-await xapps.storage.set("progress", { level: (progress?.level ?? 0) + 1 });
-await xapps.storage.delete("old-save");
-const saves = await xapps.storage.list({ prefix: "save:" });                 // keys only
+const progress = await vibecade.storage.get<{ level: number }>("progress");      // user scope
+await vibecade.storage.set("progress", { level: (progress?.level ?? 0) + 1 });
+await vibecade.storage.delete("old-save");
+const saves = await vibecade.storage.list({ prefix: "save:" });                 // keys only
 
-const puzzle = await xapps.storage.get("puzzle:2026-09-29", { scope: "app" }); // written by your server
-const days = await xapps.storage.list({ prefix: "puzzle:", scope: "app" });
+const puzzle = await vibecade.storage.get("puzzle:2026-09-29", { scope: "app" }); // written by your server
+const days = await vibecade.storage.list({ prefix: "puzzle:", scope: "app" });
 ```
 
 Values are JSON of at most 64 KB; keys are 1–64 characters; each player has at most 200 keys per app. `set`/`delete` are user scope only.
@@ -485,8 +485,8 @@ Values are JSON of at most 64 KB; keys are 1–64 characters; each player has at
 Declare up to 8 stats in your manifest: `{ key, label, aggregate: "max" | "min" | "sum" | "last", format?: "number" | "ms" | "percent" }` with keys like `best_time` (`^[a-z][a-z0-9_]{0,31}$`). The platform keeps one value per player per stat, folds every report into it with the aggregate, and shows a leaderboard tab per stat on your app page (a `min` stat ranks ascending) and the player's stats on their profile.
 
 ```ts
-xapps.stats.defs;                                         // [{ key: "best_time", label: "Best time", aggregate: "min", format: "ms" }, …]
-const now = await xapps.stats.report({ best_time: 8_420, wins: 1 });
+vibecade.stats.defs;                                         // [{ key: "best_time", label: "Best time", aggregate: "min", format: "ms" }, …]
+const now = await vibecade.stats.report({ best_time: 8_420, wins: 1 });
 // → { best_time: 7_900 (your best so far), wins: 12 (running sum) }
 ```
 
@@ -495,7 +495,7 @@ Values must be finite numbers, and keys must be declared (the SDK checks against
 Read a stat's global leaderboard and where the viewer stands on it with `stats.leaderboard(key, { limit? })`:
 
 ```ts
-const standing = await xapps.stats.leaderboard("best_time", { limit: 5 });
+const standing = await vibecade.stats.leaderboard("best_time", { limit: 5 });
 // {
 //   key: "best_time",
 //   top: [{ rank: 1, player: { id, handle, name, avatarUrl }, value: 6_120 }, …],  // best first, up to `limit` (default 10, max 50)
@@ -511,13 +511,13 @@ const standing = await xapps.stats.leaderboard("best_time", { limit: 5 });
 Declare up to 30 achievements: `{ id, name, description, icon (one emoji), xp (0–100), secret?: boolean }`, at most 500 XP in total. XP is awarded once, and secret achievements stay hidden on profiles until unlocked.
 
 ```ts
-if (won && !xapps.achievements.unlocked.has("first_win")) {
-  const { unlocked } = await xapps.achievements.unlock("first_win"); // false if the player already had it
+if (won && !vibecade.achievements.unlocked.has("first_win")) {
+  const { unlocked } = await vibecade.achievements.unlock("first_win"); // false if the player already had it
 }
 
-xapps.onAchievement(({ id, userId }, def) => {
+vibecade.onAchievement(({ id, userId }, def) => {
   // Anyone in the match, you included. The host already shows the toast, sound and confetti.
-  if (userId !== xapps.me.id) showTicker(`${xapps.player(userId)?.name} unlocked ${def?.icon} ${def?.name}`);
+  if (userId !== vibecade.me.id) showTicker(`${vibecade.player(userId)?.name} unlocked ${def?.icon} ${def?.name}`);
 });
 ```
 
@@ -539,16 +539,16 @@ useAchievementEvents(({ id, userId }, def) => console.log(userId, "unlocked", de
 Write to your app's log from any client. Entries show up in the **Logs** tab of your app's developer console (filter by level or match, or tail live), kept for 7 days.
 
 ```ts
-xapps.log.info("round over", { round, scores });
-xapps.log.warn("slow frame", { ms: 84 });
-xapps.log.error("desync", { expected, got });
+vibecade.log.info("round over", { round, scores });
+vibecade.log.warn("slow frame", { ms: 84 });
+vibecade.log.error("desync", { expected, got });
 ```
 
 - Levels: `debug`, `info`, `warn`, `error`. Allowed everywhere, spectators and setup screens included.
 - **Fire and forget**: calls return nothing, never throw and never wait on the host, so they are safe in hot paths and error handlers.
 - Limits, applied before sending: `message` is cut to 500 characters (ending in `…`); `data` must be JSON of at most 4 KB, otherwise it is replaced by `{ dropped: "<why>" }`; each client sends at most 60 entries a minute and silently drops the rest.
 - **Uncaught errors** (`window` `error`) and **unhandled promise rejections** are logged automatically as `error` entries with a trimmed stack (`data: { kind, stack, source?, line?, column? }`). Opt out with `connect({ captureErrors: false })`. The listeners are installed once per page, so reconnecting never duplicates reports.
-- Standalone, the mock host prints each entry to the browser console as `[xapps log] <level>` and keeps them in `mock.logs` (for tests: `createMockHost()` then `connect({ transport: mock.transport })`).
+- Standalone, the mock host prints each entry to the browser console as `[vibecade log] <level>` and keeps them in `mock.logs` (for tests: `createMockHost()` then `connect({ transport: mock.transport })`).
 - The host also logs requests it refuses (invalid params, forbidden, rate limited) with `source: host`, so protocol mistakes show up next to your own entries.
 
 React:
@@ -582,27 +582,27 @@ An app with its own server can be the referee. Players' browsers stay untrusted;
 - the **app secret** (`xas_…`) to call the server API, and
 - the **webhook signing secret** (`whsec_…`) to verify the events VibeCade sends to your webhook URL.
 
-Switch the app to `authority: "server"` and `xapps.submit()` only records entries (the score is a *claim*): the match settles when your server calls `reportResult`. If every player has submitted and your server hasn't reported within 24 h, the platform settles a draw and sends `match.ended` with `reason: "server_timeout"`.
+Switch the app to `authority: "server"` and `vibecade.submit()` only records entries (the score is a *claim*): the match settles when your server calls `reportResult`. If every player has submitted and your server hasn't reported within 24 h, the platform settles a draw and sends `match.ended` with `reason: "server_timeout"`.
 
 `vibecade-sdk/server` uses only `fetch` and Web Crypto, so it runs on Node 20+, Deno, Bun, Cloudflare Workers and edge runtimes. Never import it in browser code.
 
 ```ts
 import { createServerClient } from "vibecade-sdk/server";
 
-const xapps = createServerClient({ secret: process.env.XAPPS_SECRET!, baseUrl: "https://<xapps-host>" });
+const vibecade = createServerClient({ secret: process.env.VIBECADE_SECRET!, baseUrl: "https://vibecade.si" });
 
-await xapps.getMatch(id);                                  // every player's entry (data included)
-await xapps.setState(id, state, expectedVersion);           // → { version }; VibeCadeError "conflict" if it moved
-await xapps.updateState(id, (state, match) => next);        // read-modify-write, retries on conflict
-await xapps.endTurn(id, nextPlayerId);                      // or endTurn(id) for the next seat
-await xapps.setRound(id, 3);
-await xapps.reportResult(id, { scores: { [alice]: 12, [bob]: 9 } });          // ranked by your scoring
-await xapps.reportResult(id, { ranks: { [alice]: 1, [bob]: 2 } }, { leavers: [carol] });
+await vibecade.getMatch(id);                                  // every player's entry (data included)
+await vibecade.setState(id, state, expectedVersion);           // → { version }; VibeCadeError "conflict" if it moved
+await vibecade.updateState(id, (state, match) => next);        // read-modify-write, retries on conflict
+await vibecade.endTurn(id, nextPlayerId);                      // or endTurn(id) for the next seat
+await vibecade.setRound(id, 3);
+await vibecade.reportResult(id, { scores: { [alice]: 12, [bob]: 9 } });          // ranked by your scoring
+await vibecade.reportResult(id, { ranks: { [alice]: 1, [bob]: 2 } }, { leavers: [carol] });
 
-await xapps.storageSet("puzzle:2026-09-29", { grid, answer });  // app scope: every player can read it
-await xapps.storageDelete("puzzle:2026-09-28");
-await xapps.reportStats(alice, { best_time: 7_900 });        // → { best_time: <new aggregate> }
-await xapps.unlockAchievement(alice, "first_win");           // → { unlocked: boolean }
+await vibecade.storageSet("puzzle:2026-09-29", { grid, answer });  // app scope: every player can read it
+await vibecade.storageDelete("puzzle:2026-09-28");
+await vibecade.reportStats(alice, { best_time: 7_900 });        // → { best_time: <new aggregate> }
+await vibecade.unlockAchievement(alice, "first_win");           // → { unlocked: boolean }
 ```
 
 Server-authoritative apps should report stats and unlock achievements from their server (for example when a `match.submitted` entry checks out), since anything a client does can be faked.
@@ -610,16 +610,16 @@ Server-authoritative apps should report stats and unlock achievements from their
 ### Next.js route (Node or edge)
 
 ```ts
-// app/api/xapps/webhook/route.ts
+// app/api/vibecade/webhook/route.ts
 import { createServerClient, verifyWebhook, VibeCadeError } from "vibecade-sdk/server";
 
-const xapps = createServerClient({ secret: process.env.XAPPS_SECRET!, baseUrl: process.env.XAPPS_URL! });
+const vibecade = createServerClient({ secret: process.env.VIBECADE_SECRET!, baseUrl: process.env.VIBECADE_URL! });
 
 export async function POST(request: Request) {
   const raw = await request.text(); // the raw body: don't JSON.parse before verifying
   let event;
   try {
-    event = await verifyWebhook(raw, request.headers.get("x-xapps-signature"), process.env.XAPPS_WEBHOOK_SECRET!);
+    event = await verifyWebhook(raw, request.headers.get("x-xapps-signature"), process.env.VIBECADE_WEBHOOK_SECRET!);
   } catch (error) {
     if (error instanceof VibeCadeError) return new Response(error.code, { status: 400 });
     throw error;
@@ -631,7 +631,7 @@ export async function POST(request: Request) {
     if (players.every((p) => p.state === "submitted")) {
       // Re-score every entry on the server instead of trusting the claimed scores.
       const scores = Object.fromEntries(players.map((p) => [p.userId, scoreEntry(p.submission?.data)]));
-      await xapps.reportResult(match.id, { scores }).catch((error) => {
+      await vibecade.reportResult(match.id, { scores }).catch((error) => {
         // Another delivery already settled it.
         if (!(error instanceof VibeCadeError && error.code === "invalid_state")) throw error;
       });
@@ -641,7 +641,7 @@ export async function POST(request: Request) {
 }
 ```
 
-With Express, verify against the raw bytes: `app.post("/xapps/webhook", express.raw({ type: "application/json" }), …)` and pass `req.body.toString("utf8")` and `req.get("x-xapps-signature")`.
+With Express, verify against the raw bytes: `app.post("/vibecade/webhook", express.raw({ type: "application/json" }), …)` and pass `req.body.toString("utf8")` and `req.get("x-xapps-signature")`.
 
 ### Cloudflare Worker
 
@@ -649,9 +649,9 @@ With Express, verify against the raw bytes: `app.post("/xapps/webhook", express.
 import { createServerClient, verifyWebhook, VibeCadeError } from "vibecade-sdk/server";
 
 interface Env {
-  XAPPS_URL: string;
-  XAPPS_SECRET: string;
-  XAPPS_WEBHOOK_SECRET: string;
+  VIBECADE_URL: string;
+  VIBECADE_SECRET: string;
+  VIBECADE_WEBHOOK_SECRET: string;
 }
 
 export default {
@@ -659,10 +659,10 @@ export default {
     if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
     const raw = await request.text();
     try {
-      const event = await verifyWebhook(raw, request.headers.get("x-xapps-signature"), env.XAPPS_WEBHOOK_SECRET);
+      const event = await verifyWebhook(raw, request.headers.get("x-xapps-signature"), env.VIBECADE_WEBHOOK_SECRET);
       if (event.type === "match.state" && isGameOver(event.match.state)) {
-        const xapps = createServerClient({ secret: env.XAPPS_SECRET, baseUrl: env.XAPPS_URL });
-        await xapps.reportResult(event.match.id, { ranks: ranksFrom(event.match.state) });
+        const vibecade = createServerClient({ secret: env.VIBECADE_SECRET, baseUrl: env.VIBECADE_URL });
+        await vibecade.reportResult(event.match.id, { ranks: ranksFrom(event.match.state) });
       }
       return new Response("ok");
     } catch (error) {

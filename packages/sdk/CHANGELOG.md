@@ -17,6 +17,11 @@ newer hosts (and the other way round, minus the new features).
   and the webhook headers (`X-XApps-Signature`, `X-XApps-Event`,
   `X-XApps-Delivery`).
 - The app starter is now `create-vibecade` (`npm create vibecade`).
+- The mock host's URL switches are `?vibecade-players`, `?vibecade-teams`,
+  `?vibecade-turns`, `?vibecade-role`, `?vibecade-purpose`, `?vibecade-settings`,
+  `?vibecade-stats` and `?vibecade-achievements`; the `?xapps-*` spellings still
+  work (the new one wins when both are set). Its console lines read
+  `[vibecade mock]` / `[vibecade log]`, and its bots are `@vibecade_bot`.
 
 ## 0.8.1
 

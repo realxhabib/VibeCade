@@ -56,17 +56,17 @@ npm run dev
 
 Open the address it prints. Outside VibeCade, the SDK starts a **mock host**: you're signed in as
 a test player against a practice bot, and the game plays exactly as it would on VibeCade. The
-browser console shows what the host sees (`[xapps mock]` lines) and your logs.
+browser console shows what the host sees (`[vibecade mock]` lines) and your logs.
 
 Add these to the address to try other tables:
 
 | Add | To get |
 | --- | --- |
-| `?xapps-players=4` | You and 3 bots |
-| `?xapps-teams=2` | Team play |
-| `?xapps-turns=1` | Turn-based, seat 0 first |
-| `?xapps-role=spectator` | Watching a table of bots |
-| `?xapps-purpose=setup` | Your challenge setup screen, if you have one |
+| `?vibecade-players=4` | You and 3 bots |
+| `?vibecade-teams=2` | Team play |
+| `?vibecade-turns=1` | Turn-based, seat 0 first |
+| `?vibecade-role=spectator` | Watching a table of bots |
+| `?vibecade-purpose=setup` | Your challenge setup screen, if you have one |
 
 More in [Testing multiplayer locally](../packages/sdk/README.md#testing-multiplayer-locally).
 

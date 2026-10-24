@@ -145,7 +145,7 @@ export function checkManifest(input: unknown): ManifestReport {
     if (m.scoring === "votes" && m.votesToWin === undefined) warnings.push("scoring is votes but votesToWin is unset (VibeCade uses 5)");
     if (m.scoring !== "votes" && m.votesToWin !== undefined) warnings.push("votesToWin only applies with scoring \"votes\"");
     if (m.turnBased === true && !modes.includes("async")) warnings.push('turnBased games usually offer "async" too, so people can play a move a day');
-    if (m.setup === true) warnings.push('setup: true means your app must handle purpose "setup" and call setup.submit (test with ?xapps-purpose=setup)');
+    if (m.setup === true) warnings.push('setup: true means your app must handle purpose "setup" and call setup.submit (test with ?vibecade-purpose=setup)');
   }
   if (!Array.isArray(m.howTo) || !m.howTo.length) warnings.push("howTo is empty: up to 3 short lines shown before a match");
   if (typeof m.description !== "string" || !m.description.trim()) warnings.push("description is empty: it's the text on your app page");

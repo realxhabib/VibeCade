@@ -114,7 +114,7 @@ if (vibecade.isHost) await vibecade.round.set(1);  // seat 0 drives shared count
 vibecade.onEnd(({ ranks, winnerId }) => showPlacement(ranks?.[vibecade.me.id])); // ties share a rank
 ```
 
-Test with `?xapps-players=6`. Lay the table out for any count from `min` to `max`.
+Test with `?vibecade-players=6`. Lay the table out for any count from `min` to `max`.
 
 ## Teams
 
@@ -160,7 +160,7 @@ if (vibecade.purpose === "setup") {
 }
 ```
 
-Test with `?xapps-purpose=setup`: the mock's banner links to a match with the submitted settings.
+Test with `?vibecade-purpose=setup`: the mock's banner links to a match with the submitted settings.
 
 ## Spectators
 

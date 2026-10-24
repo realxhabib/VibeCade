@@ -120,7 +120,7 @@ extra mock options:
 </EmbedRoot>
 ```
 
-(`?xapps-purpose=match|app` on the URL still overrides it.) In app mode the
+(`?vibecade-purpose=match|app` on the URL still overrides it.) In app mode the
 mock seats "You" alone, never fires `match.start`, refuses match-only calls,
 and keeps storage, stats, achievements and `stats.leaderboard` working: the
 board is your reported values ranked among a handful of made-up players.

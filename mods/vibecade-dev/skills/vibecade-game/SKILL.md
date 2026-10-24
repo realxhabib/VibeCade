@@ -32,9 +32,9 @@ every step has a command or a doc link instead.
    report them from code. Undeclared stat keys and achievement ids are refused at runtime.
 6. **Check** [`vibecade_check_app` on the folder, `vibecade_validate_manifest`] and fix every error.
    Then run the project's own `npm run build` and typecheck.
-7. **Play it locally** with other tables [`vibecade_test_url`]: `?xapps-players=4`, `?xapps-teams=2`,
-   `?xapps-turns=1`, `?xapps-role=spectator`, `?xapps-purpose=setup`. Watch the console for
-   `[xapps mock]` lines and errors. A game isn't done until a full match ends with a result.
+7. **Play it locally** with other tables [`vibecade_test_url`]: `?vibecade-players=4`, `?vibecade-teams=2`,
+   `?vibecade-turns=1`, `?vibecade-role=spectator`, `?vibecade-purpose=setup`. Watch the console for
+   `[vibecade mock]` lines and errors. A game isn't done until a full match ends with a result.
 8. **Ship** (the developer does these; walk them through it): host the build on any HTTPS static
    host with framing allowed (below), try it at https://vibecade.si/developers/sandbox, register at
    https://vibecade.si/developers/new, wait for review, **Publish** it from the console's Versions

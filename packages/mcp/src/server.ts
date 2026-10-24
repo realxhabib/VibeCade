@@ -256,7 +256,7 @@ export function createServer(options: ServerOptions): ServerDefinition {
       annotations: { readOnlyHint: true, openWorldHint: false },
       run(args) {
         const url = new URL(optStr(args.url) ?? "http://localhost:5173/");
-        const set = (k: string, v: string) => url.searchParams.set(`xapps-${k}`, v);
+        const set = (k: string, v: string) => url.searchParams.set(`vibecade-${k}`, v);
         if (Number.isInteger(args.players)) set("players", String(args.players));
         if (Number.isInteger(args.teams)) set("teams", String(args.teams));
         if (args.turnBased === true) set("turns", "1");
@@ -268,12 +268,12 @@ export function createServer(options: ServerOptions): ServerDefinition {
           const m = readJson(manifestPathOf(from)) as Record<string, unknown>;
           if (Array.isArray(m.stats) && m.stats.length) set("stats", JSON.stringify(m.stats));
           if (Array.isArray(m.achievements) && m.achievements.length) set("achievements", JSON.stringify(m.achievements));
-          if (m.kind === "app" && !url.searchParams.has("xapps-purpose")) set("purpose", "app");
-          if (m.turnBased === true && !url.searchParams.has("xapps-turns")) set("turns", "1");
-          if (typeof m.teams === "number" && m.teams > 0 && !url.searchParams.has("xapps-teams")) set("teams", String(m.teams));
+          if (m.kind === "app" && !url.searchParams.has("vibecade-purpose")) set("purpose", "app");
+          if (m.turnBased === true && !url.searchParams.has("vibecade-turns")) set("turns", "1");
+          if (typeof m.teams === "number" && m.teams > 0 && !url.searchParams.has("vibecade-teams")) set("teams", String(m.teams));
         }
         return textResult(
-          `${url.toString()}\n\nOpen it directly (not in a frame). The console shows [xapps mock] lines; two seats side by side with a protocol log: https://vibecade.si/developers/sandbox`,
+          `${url.toString()}\n\nOpen it directly (not in a frame). The console shows [vibecade mock] lines; two seats side by side with a protocol log: https://vibecade.si/developers/sandbox`,
           { url: url.toString() },
         );
       },
