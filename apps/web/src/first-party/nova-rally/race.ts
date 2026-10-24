@@ -68,7 +68,7 @@ const INTRO_S = 4.2;
 const INTRO_REDUCED_S = 1.2;
 const COUNTDOWN_S = 3.4;
 const RESULTS_S = 9;
-const SEND_EVERY = 0.1;
+const SEND_EVERY = 0.05;
 const CPU_NAMES = ["Vega", "Orion", "Lyra", "Juno", "Rigel", "Nova", "Castor", "Io", "Titan", "Kepler"];
 
 export interface HeldItem {

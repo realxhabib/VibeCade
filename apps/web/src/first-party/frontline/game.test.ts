@@ -362,7 +362,7 @@ describe("two clients over the room", () => {
 });
 
 describe("direct connections and the relay fallback", () => {
-  it("a player whose packets come over the relay (8 Hz, slower) is drawn further back and stays visible", async () => {
+  it("a player whose packets come over the relay (15 Hz, slower) is drawn further back and stays visible", async () => {
     const { games, step, sent } = table([seat("alice", 0), seat("bob", 1)], { via: () => "relay" });
     const alice = games.get("alice")!;
     const bob = games.get("bob")!;
