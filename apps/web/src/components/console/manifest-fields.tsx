@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import { z } from "zod";
-import { AchievementsEditor, StatsEditor, stripAchievementRows, stripStatRows, type AchievementRow, type StatRow } from "@/components/pages/progress-editors";
+import { AchievementsEditor, ProgressJsonPanel, StatsEditor, stripAchievementRows, stripStatRows, type AchievementRow, type StatRow } from "@/components/pages/progress-editors";
 import { Segmented } from "@/components/ui/segmented";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -409,6 +409,12 @@ export function ManifestFields({
         </>
       )}
 
+      <ProgressJsonPanel
+        stats={value.stats}
+        achievements={value.achievements}
+        fileName={value.name ? `${value.name} progress` : undefined}
+        onApply={(next) => onChange(next)}
+      />
       <StatsEditor value={value.stats} error={errors.stats} onChange={(stats) => onChange({ stats })} />
       <AchievementsEditor value={value.achievements} error={errors.achievements} onChange={(achievements) => onChange({ achievements })} />
 
