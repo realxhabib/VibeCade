@@ -35,6 +35,8 @@ export interface PlayerRow {
   result: PlayerResult;
   xpDelta: number;
   lastSeenAt: string | null;
+  /** When the seat was taken or the invite accepted (older demo data has none: the match's createdAt). */
+  joinedAt?: string;
 }
 
 export interface MatchRow {
@@ -71,6 +73,8 @@ export interface MatchRow {
   versionId?: string | null;
   /** Stage 4: the app's live version when the match was created (analytics' per-version split). */
   publishedVersionId?: string | null;
+  /** The challenge the first Rematch press opened from this (finished) match. Absent on older rows. */
+  rematchId?: string | null;
 }
 
 export interface VoteRow {
@@ -409,6 +413,7 @@ export function newPlayerRow(userId: string, seat: number | null, extra: Partial
     result: null,
     xpDelta: 0,
     lastSeenAt: null,
+    joinedAt: new Date().toISOString(),
     ...extra,
   };
 }

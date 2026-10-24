@@ -57,6 +57,11 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong";
 }
 
+/** How long a live match waits for everyone's game before starting without them (drop_no_shows checks 15 s too). */
+const NO_SHOW_WAIT_MS = 15_000;
+/** How often the ready handshake is retried, and a refused drop tried again. */
+const HANDSHAKE_RETRY_MS = 5_000;
+
 function Backdrop({ app }: { app?: AppManifest }) {
   const [a, b] = app?.accent ?? ["#5b74ff", "#ff5ca8"];
   return (
@@ -784,10 +789,11 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       } catch {
         // ignore
       }
-      if (!match.startedAt && !spectating) backend.markStarted(match.id).catch(() => undefined);
+      // Also when the match already started: entering it ends my other live games.
+      if (!spectating) backend.markStarted(match.id).catch(() => undefined);
       later(() => iframeRef.current?.focus(), 50);
     },
-    [backend, emit, later, match.id, match.startedAt, spectating],
+    [backend, emit, later, match.id, spectating],
   );
 
   const startIntro = useCallback(() => {
@@ -875,6 +881,9 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   const readyIds = new Set(peers.filter((p) => p.ready).map((p) => p.userId));
   if (appReady && !spectating) readyIds.add(viewer.id);
   const everyoneReady = humans.length > 0 && humans.every((h) => readyIds.has(h.userId));
+  const notReady = humans.filter((h) => h.userId !== viewer.id && !readyIds.has(h.userId));
+  /** Taken out of contention for not getting here in time: the match goes on without us. */
+  const dropped = !spectating && me?.state === "declined" && live;
   const onlineIds = useMemo(() => {
     const ids = new Set(peers.map((p) => p.userId));
     ids.add(viewer.id);
@@ -894,7 +903,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   // Decide when to start.
   useEffect(() => {
     if (!appReady || startedAtRef.current !== null || introStateRef.current !== "idle") return;
-    if (me?.state === "submitted") return;
+    if (me?.state === "submitted" || dropped) return;
     if (spectating) {
       // Spectators never hold the match up: join mid-match, or ride along with the start signal.
       if (match.startedAt) beginPlaying(Date.parse(match.startedAt));
@@ -920,7 +929,49 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     // Safety net in case the referee's start signal got lost.
     const fallback = setTimeout(startIntro, 2500);
     return () => clearTimeout(fallback);
-  }, [appReady, beginPlaying, everyoneReady, live, match.id, match.startedAt, me?.state, refereeId, spectating, startIntro, turnBased, viewer.id]);
+  }, [appReady, beginPlaying, dropped, everyoneReady, live, match.id, match.startedAt, me?.state, refereeId, spectating, startIntro, turnBased, viewer.id]);
+
+  // Nobody waits forever: retry the ready handshake while the clock runs, then start without whoever still isn't in.
+  const waitingOnPlayers = live && appReady && !started && intro === "idle" && !spectating && !dropped && !match.startedAt && match.status === "active" && notReady.length > 0;
+  const notReadyIds = useRef<string[]>([]);
+  useLayoutEffect(() => {
+    notReadyIds.current = notReady.map((p) => p.userId);
+  });
+  const [waitUntil, setWaitUntil] = useState<number | null>(null);
+  useEffect(() => {
+    if (!waitingOnPlayers) return;
+    const until = Date.now() + NO_SHOW_WAIT_MS;
+    let lastTry = Date.now();
+    let dropping = false;
+    const tick = () => {
+      const at = Date.now();
+      setWaitUntil(until);
+      setNow(at);
+      if (at - lastTry < HANDSHAKE_RETRY_MS || dropping) return;
+      lastTry = at;
+      if (at < until) {
+        // A presence update or start signal that got lost would otherwise hold everyone up.
+        roomRef.current?.track({ ready: true });
+        return;
+      }
+      // Too early for the server (someone joined late) or a blip: the next round tries again.
+      dropping = true;
+      backend
+        .dropNoShows(match.id, notReadyIds.current)
+        .then((updated) => queryClient.setQueryData(["match", match.id], updated))
+        .catch(() => undefined)
+        .finally(() => {
+          dropping = false;
+        });
+    };
+    const first = setTimeout(tick, 0);
+    const interval = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(interval);
+      setWaitUntil(null);
+    };
+  }, [backend, match.id, queryClient, waitingOnPlayers]);
 
   // Liveness heartbeat so a vanished opponent can be claimed against.
   useEffect(() => {
@@ -1000,19 +1051,11 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     setRematching(true);
     try {
       const rivals = others.filter((p) => !p.isBot);
+      // Against people: same table and setup, and if one of them pressed Rematch first, this joins theirs.
       const next =
         match.mode === "practice" || rivals.length === 0 || (others.some((p) => p.isBot) && backend.kind !== "demo")
           ? await backend.startPractice(app.slug, seated.length > 2 ? seated.length : undefined, match.versionId)
-          : await backend.createChallenge({
-              appSlug: app.slug,
-              versionId: match.versionId ?? null,
-              mode: match.mode === "async" ? "async" : "live",
-              opponentHandle: rivals.length === 1 ? rivals[0]!.profile.handle : null,
-              opponentHandles: rivals.length > 1 ? rivals.map((p) => p.profile.handle) : undefined,
-              maxPlayers: match.maxPlayers > 2 ? match.maxPlayers : undefined,
-              // Same setup (template, dropped image, topic) for the rematch.
-              settings: rematchSettings(match.settings),
-            });
+          : await backend.rematch(match.id);
       router.replace(routes.match(next.id));
     } catch (error) {
       toast(errorMessage(error), { tone: "danger" });
@@ -1021,7 +1064,9 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   };
 
   const waitingForPeer = live && appReady && !started && intro === "idle" && (spectating ? !match.startedAt : !everyoneReady);
-  const notReady = humans.filter((h) => h.userId !== viewer.id && !readyIds.has(h.userId));
+  const waitLeft = waitUntil === null ? null : Math.max(0, Math.ceil((waitUntil - now) / 1000));
+  /** Whether enough would be left to play without the stragglers (else the match is cancelled). */
+  const enoughWithout = seated.filter((p) => p.state !== "invited" && !notReady.includes(p)).length >= 2;
   const goneFor = disconnected && goneSince ? Math.floor((now - goneSince) / 1000) : 0;
   const introPlayers = seated.filter((p) => p.state !== "invited");
 
@@ -1124,7 +1169,42 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
                   <p className="max-w-xs text-sm text-ink-300">
                     {spectating ? "You're in the stands. The match starts the moment everyone's here." : notReady.length > 1 || multiplayer ? "The match starts the moment everyone's here." : "The match starts the moment you're both here."}
                   </p>
+                  {waitLeft !== null && (
+                    <p className="text-sm text-ink-200">
+                      {waitLeft > 0 ? (
+                        <>
+                          {enoughWithout ? "Starting without them in " : "Calling it off in "}
+                          <span className="font-mono tabular">{waitLeft}s</span>
+                        </>
+                      ) : enoughWithout ? (
+                        "Starting without them…"
+                      ) : (
+                        "Calling it off…"
+                      )}
+                    </p>
+                  )}
                 </motion.div>
+              </motion.div>
+            )}
+            {dropped && (
+              <motion.div
+                key="dropped"
+                className="absolute inset-0 flex items-center justify-center bg-ink-950/80 backdrop-blur-md"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <EmptyState
+                  emoji="⏱️"
+                  title={match.status === "cancelled" ? "Challenge cancelled" : "They started without you"}
+                  action={
+                    <Button href={routes.app(app.slug)} variant="accent">
+                      Find another match
+                    </Button>
+                  }
+                >
+                  Your game didn&apos;t load in time, so you were left out of this one. No loss on your record.
+                </EmptyState>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1228,10 +1308,4 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       </Dialog>
     </div>
   );
-}
-
-function rematchSettings(settings: Match["settings"]): Match["settings"] {
-  const rest = { ...settings };
-  delete rest.quick;
-  return rest;
 }

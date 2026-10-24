@@ -173,6 +173,11 @@ export interface Backend {
 
   // Matches ------------------------------------------------------------
   createChallenge(input: CreateChallengeInput): Promise<Match>;
+  /**
+   * The same game again with everyone else from a finished match (same table and setup). The first
+   * press opens the challenge; anyone from the match pressing it later takes their seat in that one.
+   */
+  rematch(matchId: string): Promise<Match>;
   /** Join someone who's waiting, or open a new public lobby (with `versionId`: a test-build lobby for owner/testers). */
   quickMatch(appSlug: string, versionId?: string | null): Promise<Match>;
   /** Solo match against bots the app drives (`players` seats, default the app's minimum). */
@@ -202,6 +207,11 @@ export interface Backend {
   heartbeat(matchId: string): Promise<void>;
   /** Opponent vanished mid-match — the server checks their last heartbeat. */
   claimForfeit(matchId: string): Promise<Match>;
+  /**
+   * A live match still waiting to start: take these players (whose game never got ready) out of contention,
+   * no forfeit, so it starts without them; too few left cancels it. Refused until 15 s after the last join.
+   */
+  dropNoShows(matchId: string, userIds: string[]): Promise<Match>;
   forfeit(matchId: string): Promise<Match>;
   submit(matchId: string, input: SubmitInput): Promise<Match>;
   vote(matchId: string, choiceUserId: string): Promise<Match>;
