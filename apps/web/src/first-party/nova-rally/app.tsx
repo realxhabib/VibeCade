@@ -236,7 +236,7 @@ function Garage({
         </div>
 
         {/* Right: kit out the ship, start engines, then the extras. */}
-        <div className="pointer-events-auto flex flex-col gap-2.5 md:max-h-[calc(100dvh-40px)] md:overflow-y-auto md:pb-1 [@media(min-width:768px)_and_(max-height:560px)]:pb-20">
+        <div className="pointer-events-auto flex flex-col gap-2.5 md:max-h-[calc(100dvh-40px)] md:overflow-y-auto md:pb-8 md:[mask-image:linear-gradient(to_bottom,black_calc(100%-56px),transparent)] [@media(min-width:768px)_and_(max-height:560px)]:pb-20">
           <div className="flex flex-col gap-3 rounded-3xl bg-[rgba(10,6,30,0.74)] p-3 ring-1 ring-white/10 backdrop-blur-md">
             <Segmented<GarageTab>
               id="garage-tab"
