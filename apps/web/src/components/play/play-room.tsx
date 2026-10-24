@@ -120,8 +120,10 @@ function shareText(app: AppManifest, match: Match, viewerId: string | undefined)
 /**
  * /play/[matchId]: decides what the viewer should see for this match —
  * invite, lobby, the live stage, the crowd tally or the final results.
+ * `join` (a shared match link) takes the open seat, or accepts the viewer's
+ * invite, on arrival instead of asking first.
  */
-export function PlayRoom({ matchId }: { matchId: string }) {
+export function PlayRoom({ matchId, join = false }: { matchId: string; join?: boolean }) {
   const router = useRouter();
   const routes = useHostRoutes();
   const backend = useBackend();
@@ -170,6 +172,17 @@ export function PlayRoom({ matchId }: { matchId: string }) {
     [action, match],
   );
 
+  const lobbyOpen = !!match && (match.status === "open" || match.status === "pending");
+  const hasSeat = !!match && match.isOpen && lobbyOpen && seatedPlayers(match).length < Math.max(2, match.maxPlayers);
+  const joinOnArrival = join && !!viewer && !!app && !app.retired && (me ? me.state === "invited" && lobbyOpen : hasSeat);
+  const joinTried = useRef(false);
+  useEffect(() => {
+    if (!joinOnArrival || joinTried.current || !match) return;
+    joinTried.current = true;
+    // Drop the flag once seated, so coming back later never re-joins.
+    void run("join", () => router.replace(routes.match(match.id)));
+  }, [joinOnArrival, match, router, routes, run]);
+
   const lobbyCall = async (kind: "start" | "watch") => {
     if (!match) return;
     setBusy(kind);
@@ -217,9 +230,8 @@ export function PlayRoom({ matchId }: { matchId: string }) {
   const isCreator = viewer?.id === match.createdBy;
   const canWatch = app.spectators !== false && match.mode !== "practice";
   const onWatch = canWatch
-    ? () => (viewer ? void lobbyCall("watch") : router.push(`/login?next=${encodeURIComponent(`/play/${match.id}`)}`))
+    ? () => (viewer ? void lobbyCall("watch") : router.push(`/login?next=${encodeURIComponent(`/play/${match.id}${join ? "?join=1" : ""}`)}`))
     : undefined;
-  const lobbyOpen = match.status === "open" || match.status === "pending";
   const appHref = app.retired ? routes.apps : routes.app(app.slug);
   let body: React.ReactNode;
 
@@ -276,7 +288,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         app={app}
         match={match}
         viewer={null}
-        onAccept={() => router.push(`/login?next=${encodeURIComponent(`/play/${match.id}`)}`)}
+        onAccept={() => router.push(`/login?next=${encodeURIComponent(`/play/${match.id}${join ? "?join=1" : ""}`)}`)}
         onWatch={match.status === "active" ? onWatch : undefined}
       />
     );
@@ -284,7 +296,6 @@ export function PlayRoom({ matchId }: { matchId: string }) {
     body = <Lobby app={app} match={match} viewer={viewer} watching />;
   } else if (!me) {
     const seats = seatedPlayers(match);
-    const hasSeat = match.isOpen && lobbyOpen && seats.length < Math.max(2, match.maxPlayers);
     body = hasSeat ? (
       <InviteCard
         app={app}

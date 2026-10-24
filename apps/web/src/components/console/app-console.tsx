@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { BarChart3, ExternalLink, GitBranch, LayoutDashboard, ScrollText, ServerCog } from "lucide-react";
+import { BarChart3, ExternalLink, GitBranch, LayoutDashboard, ScrollText, ServerCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -22,15 +22,17 @@ import type { AppManifest } from "@/platform/types";
 import { AnalyticsTab } from "./analytics-tab";
 import { LogsTab } from "./logs-tab";
 import { OverviewTab } from "./overview-tab";
+import { PlayersTab } from "./players-tab";
 import { VersionsTab } from "./versions-tab";
 
-export const CONSOLE_TABS = ["overview", "versions", "analytics", "logs", "server"] as const;
+export const CONSOLE_TABS = ["overview", "versions", "analytics", "players", "logs", "server"] as const;
 export type ConsoleTab = (typeof CONSOLE_TABS)[number];
 
 const TAB_ITEMS = [
   { id: "overview" as const, label: "Overview", icon: <LayoutDashboard className="hidden size-3.5 sm:block" aria-hidden /> },
   { id: "versions" as const, label: "Versions", icon: <GitBranch className="hidden size-3.5 sm:block" aria-hidden /> },
   { id: "analytics" as const, label: "Analytics", icon: <BarChart3 className="hidden size-3.5 sm:block" aria-hidden /> },
+  { id: "players" as const, label: "Players", icon: <Users className="hidden size-3.5 sm:block" aria-hidden /> },
   { id: "logs" as const, label: "Logs", icon: <ScrollText className="hidden size-3.5 sm:block" aria-hidden /> },
   { id: "server" as const, label: "Server", icon: <ServerCog className="hidden size-3.5 sm:block" aria-hidden /> },
 ];
@@ -162,6 +164,7 @@ function ConsoleBody({ app }: { app: AppManifest }) {
           {tab === "overview" && <OverviewTab app={app} onTab={setTab} />}
           {tab === "versions" && <VersionsTab app={app} />}
           {tab === "analytics" && <AnalyticsTab app={app} />}
+          {tab === "players" && <PlayersTab app={app} />}
           {tab === "logs" && <LogsTab app={app} />}
           {tab === "server" && <ServerPanel app={app} />}
         </motion.div>

@@ -58,8 +58,8 @@ export function xMatchSharePath(matchId: string): string {
   return `/x/m/${encodeURIComponent(matchId)}`;
 }
 
-export function xMatchPlayerPath(matchId: string): string {
-  return `/x/play/match/${encodeURIComponent(matchId)}`;
+export function xMatchPlayerPath(matchId: string, join = false): string {
+  return `/x/play/match/${encodeURIComponent(matchId)}${join ? "?join=1" : ""}`;
 }
 
 export function xPreviewPath(slug?: string): string {

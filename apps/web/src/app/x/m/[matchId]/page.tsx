@@ -24,13 +24,13 @@ export default async function XMatchSharePage({ params }: PageProps<"/x/m/[match
           title: TITLE,
           description: DESCRIPTION,
           url: `${origin}${xMatchSharePath(matchId)}`,
-          player: `${origin}${xMatchPlayerPath(matchId)}`,
+          player: `${origin}${xMatchPlayerPath(matchId, true)}`,
           image: `${origin}${xPreviewPath()}`,
           imageAlt: "A challenge on VibeCade",
           site: xSiteHandle(),
         }}
       />
-      <ShareLanding to={xMatchPlayerPath(matchId)} />
+      <ShareLanding to={xMatchPlayerPath(matchId, true)} />
     </>
   );
 }
