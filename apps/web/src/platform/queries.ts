@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { getOfficialApp } from "./catalog";
 import { useBackend, useViewer } from "./client";
@@ -543,6 +543,20 @@ export function useAppVersions(slug: string, enabled = true) {
     queryFn: () => backend.listAppVersions(slug),
     enabled: enabled && !!slug && !!viewer,
     retry: false,
+  });
+}
+
+/** Versions of several apps at once (the console home), sharing `useAppVersions`' cache. */
+export function useAppsVersions(slugs: string[]) {
+  const backend = useBackend();
+  const { viewer } = useViewer();
+  return useQueries({
+    queries: slugs.map((slug) => ({
+      queryKey: [...versionsKey(slug), viewer?.id],
+      queryFn: () => backend.listAppVersions(slug),
+      enabled: !!viewer,
+      retry: false,
+    })),
   });
 }
 

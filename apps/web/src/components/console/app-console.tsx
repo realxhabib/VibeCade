@@ -60,7 +60,7 @@ export function AppConsole({ slug }: { slug: string }) {
         title="Nothing to manage here"
         action={
           <div className="flex flex-wrap justify-center gap-2">
-            <Button href="/developers" variant="primary">
+            <Button href="/developers/apps" variant="primary">
               Your apps
             </Button>
             {app && (
@@ -109,8 +109,8 @@ function ConsoleBody({ app }: { app: AppManifest }) {
 
   return (
     <div style={accentVars(app.accent)}>
-      <Link href="/developers" transitionTypes={["nav-back"]} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-400 transition hover:text-ink-100">
-        ← Developers
+      <Link href="/developers/apps" transitionTypes={["nav-back"]} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-400 transition hover:text-ink-100">
+        ← Your apps
       </Link>
 
       <motion.header

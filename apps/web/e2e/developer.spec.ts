@@ -28,14 +28,20 @@ test("a developer ships a new version through review", async ({ page }) => {
   await page.goto(`/apps/${slug}`);
   await expect(page.getByRole("img", { name: `Tap Race ${suffix}` }).first().locator("img")).toHaveAttribute("src", /^data:image\/(webp|jpeg);base64,/);
 
-  // Console → new minor version → submit for review.
-  await page.goto(`/developers/apps/${slug}?tab=versions`);
-  await page.getByRole("button", { name: "New version" }).click();
+  // Console home → the app's card → new minor version → submit for review.
+  await page.goto("/developers/apps");
+  const card = page.getByRole("listitem").filter({ hasText: `Tap Race ${suffix}` });
+  await expect(card.getByText("v1.0.0 live")).toBeVisible({ timeout: 15_000 });
+  await expect(card.getByText("Up to date: the live version is your newest.")).toBeVisible();
+  await card.getByRole("link", { name: "New version" }).click();
   await page.getByRole("button", { name: /minor/i }).click();
   await page.getByLabel("Tagline").fill("Ten seconds. Fastest thumbs win. Now with streaks.");
   await page.getByPlaceholder("New power-ups, fixed the timer on slow phones.").fill("Adds a streak stat.");
   await page.getByRole("button", { name: /Save & submit for review/ }).click();
   await expect(page.getByText(/in review/i).first()).toBeVisible({ timeout: 10_000 });
+  await page.goto("/developers/apps");
+  await expect(card.getByText("v1.1.0 is waiting for a reviewer.")).toBeVisible({ timeout: 15_000 });
+  await page.goto(`/developers/apps/${slug}?tab=versions`);
 
   // Editing the submission sends 1.1.1 in its place.
   await page.getByRole("button", { name: "Edit submission" }).click();

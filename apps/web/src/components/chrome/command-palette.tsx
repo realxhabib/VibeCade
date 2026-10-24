@@ -7,6 +7,7 @@ import {
   FlaskConical,
   Gavel,
   Home,
+  LayoutDashboard,
   LayoutGrid,
   LogIn,
   LogOut,
@@ -91,6 +92,7 @@ export function CommandPalette() {
       { id: "p-challenges", group: "Go to", label: "Challenges", keywords: "inbox invites", icon: <Swords className="size-4" />, run: go("/challenges") },
       { id: "p-ranks", group: "Go to", label: "Leaderboard", keywords: "ranks top", icon: <Trophy className="size-4" />, run: go("/leaderboard") },
       { id: "p-dev", group: "Go to", label: "Developer docs", keywords: "sdk build api", icon: <Code2 className="size-4" />, run: go("/developers") },
+      { id: "p-console", group: "Go to", label: "Developer console — your apps", keywords: "versions publish manage dashboard", icon: <LayoutDashboard className="size-4" />, run: go("/developers/apps") },
       { id: "p-sandbox", group: "Go to", label: "Sandbox — test your app", keywords: "playground debug", icon: <FlaskConical className="size-4" />, run: go("/developers/sandbox") },
     ];
     const appItems: Item[] = (apps ?? []).map((app) => ({

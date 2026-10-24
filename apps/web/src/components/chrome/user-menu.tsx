@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Code2, Gavel, LogOut, Repeat2, Swords, UserRound, Volume2, VolumeX } from "lucide-react";
+import { Code2, Gavel, LayoutDashboard, LogOut, Repeat2, Swords, UserRound, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -98,6 +98,9 @@ export function UserMenu({ viewer }: { viewer: Profile }) {
             </Link>
             <Link href="/developers" className={item} onClick={() => setOpen(false)}>
               <Code2 className="size-4 text-ink-300" /> Build an app
+            </Link>
+            <Link href="/developers/apps" className={item} onClick={() => setOpen(false)}>
+              <LayoutDashboard className="size-4 text-ink-300" /> Developer console
             </Link>
             {viewer.isAdmin && (
               <Link href="/admin/review" className={item} onClick={() => setOpen(false)}>

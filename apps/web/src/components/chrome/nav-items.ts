@@ -14,7 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/arena", label: "Arena", icon: Gavel },
   { href: "/challenges", label: "Challenges", icon: Swords, inbox: true },
   { href: "/leaderboard", label: "Ranks", icon: Trophy },
-  { href: "/developers", label: "Build", icon: Code2 },
+  { href: "/developers", label: "Developer", icon: Code2 },
 ];
 
 export function isActive(pathname: string, href: string): boolean {
