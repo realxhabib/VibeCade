@@ -44,7 +44,8 @@ export function AppProgress({ app, className }: { app: AppManifest; className?: 
   );
 }
 
-function StatLeaderboards({ app, stats }: { app: AppManifest; stats: StatDef[] }) {
+/** An app's stat boards (one tab per stat); also shown on the global leaderboard for standalone apps. */
+export function StatLeaderboards({ app, stats }: { app: AppManifest; stats: StatDef[] }) {
   const { viewer } = useViewer();
   const [picked, setPicked] = useState(stats[0]!.key);
   const stat = stats.find((s) => s.key === picked) ?? stats[0]!;
@@ -89,7 +90,7 @@ function StatLeaderboards({ app, stats }: { app: AppManifest; stats: StatDef[] }
             <p className="text-sm text-ink-400">Couldn&apos;t load this board.</p>
           ) : !rows?.length ? (
             <p className="rounded-2xl border border-dashed border-white/10 p-5 text-center text-sm text-ink-400">
-              No {stat.label.toLowerCase()} yet. Play a match to set the first one.
+              No {stat.label.toLowerCase()} yet. {app.kind === "app" ? "Play" : "Play a match"} to set the first one.
             </p>
           ) : (
             <ol className="space-y-1.5">

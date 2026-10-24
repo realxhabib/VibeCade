@@ -101,9 +101,9 @@ export function useSearchProfiles(query: string, enabled = true) {
   });
 }
 
-export function useLeaderboard(appSlug?: string) {
+export function useLeaderboard(appSlug?: string, enabled = true) {
   const backend = useBackend();
-  return useQuery({ queryKey: ["leaderboard", appSlug ?? "all"], queryFn: () => backend.leaderboard(appSlug) });
+  return useQuery({ queryKey: ["leaderboard", appSlug ?? "all"], queryFn: () => backend.leaderboard(appSlug), enabled });
 }
 
 /** One stat's leaderboard for an app (Stage 3). */
