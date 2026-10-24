@@ -24,7 +24,7 @@ skill that teaches the agent the VibeCade workflow and rules:
 
 ```
 /plugin marketplace add realxhabib/VibeCade
-/plugin install vibecade-dev@xapps
+/plugin install vibecade-dev@vibecade
 ```
 
 Then ask for a game: *"Make a VibeCade air hockey game for 2 players with a practice bot."*

@@ -13,7 +13,7 @@ Build VibeCade games with Claude Code. The plugin adds:
 
 ```
 /plugin marketplace add realxhabib/VibeCade
-/plugin install vibecade-dev@xapps
+/plugin install vibecade-dev@vibecade
 ```
 
 Then ask: *"Build a VibeCade trivia game for up to 6 players."* Claude loads the skill on its own

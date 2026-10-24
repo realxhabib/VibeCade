@@ -202,7 +202,7 @@ export function createServer(options: ServerOptions): ServerDefinition {
             `${args.dryRun === true ? "Would set" : `Updated ${path}:`} ${result.summary}`,
             ...result.warnings.map((w) => `- ${w}`),
             "",
-            "Report them in code with xapps.stats.report({ key: value }) and xapps.achievements.unlock(\"id\") (React: useStats / useAchievements). Undeclared keys and ids are refused.",
+            "Report them in code with vibecade.stats.report({ key: value }) and vibecade.achievements.unlock(\"id\") (React: useStats / useAchievements). Undeclared keys and ids are refused.",
             "Registered apps: paste this into your app's console → Versions → New version → Stats & achievements as JSON:",
             "```json",
             json,

@@ -1,5 +1,5 @@
 {
-  "name": "xapps",
+  "name": "vibecade",
   "description": "VibeCade for Claude Code: build VibeCade games with Claude, and play VibeCade games while Claude works",
   "owner": { "name": "VibeCade", "url": "https://github.com/realxhabib/VibeCade" },
   "plugins": [

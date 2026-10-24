@@ -19,7 +19,7 @@ The steps, in short:
 
 **Building with an AI agent?** Give it the VibeCade MCP server (`claude mcp add vibecade -- npx -y vibecade-mcp`,
 or `npx -y vibecade-mcp` in any MCP client) or, in Claude Code, the `vibecade-dev` plugin
-(`/plugin marketplace add realxhabib/VibeCade`, then `/plugin install vibecade-dev@xapps`). It can
+(`/plugin marketplace add realxhabib/VibeCade`, then `/plugin install vibecade-dev@vibecade`). It can
 scaffold the project, search these docs, write and validate your manifest, declare stats and
 achievements, and check the project for the mistakes in [When something's wrong](#when-somethings-wrong).
 Every starter also has an `AGENTS.md` with the rules.

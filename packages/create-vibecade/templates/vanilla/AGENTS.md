@@ -9,7 +9,7 @@ Tools that know VibeCade:
 - MCP server (docs search, manifest checks, stats and achievements, project review):
   `claude mcp add vibecade -- npx -y vibecade-mcp` (any MCP client: `npx -y vibecade-mcp`).
 - Claude Code plugin with the VibeCade skill and that server:
-  `/plugin marketplace add realxhabib/VibeCade` then `/plugin install vibecade-dev@xapps`.
+  `/plugin marketplace add realxhabib/VibeCade` then `/plugin install vibecade-dev@vibecade`.
 
 Rules that keep a game working on VibeCade:
 
