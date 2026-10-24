@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, BarChart3, ExternalLink, FlaskConical, GitBranch, Plus, Rocket } from "lucide-react";
+import { ArrowRight, BarChart3, ExternalLink, GitBranch, Plus, Rocket } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, type ReactNode } from "react";
 import { toast } from "@/components/chrome/toasts";
@@ -47,18 +47,12 @@ export function ConsoleHome() {
   }
   return (
     <div>
-      <Link href="/developers" transitionTypes={["nav-back"]} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-400 transition hover:text-ink-100">
-        ← Developers
-      </Link>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-ink-400">Console</p>
           <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Your apps</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button href="/developers/sandbox" variant="glass" size="sm" icon={<FlaskConical className="size-4" />}>
-            Sandbox
-          </Button>
           <Button href="/developers/new" variant="primary" size="sm" icon={<Plus className="size-4" />}>
             Register an app
           </Button>
@@ -250,7 +244,6 @@ function AppRow({ app, index, summary, failed }: { app: AppManifest; index: numb
 export function ConsoleHomeSkeleton() {
   return (
     <div>
-      <Skeleton className="mb-4 h-5 w-28" />
       <Skeleton className="h-12 w-56" />
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
