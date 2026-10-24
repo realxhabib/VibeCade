@@ -4,7 +4,7 @@ import { AppConsole, ConsoleSkeleton } from "@/components/console/app-console";
 
 export const metadata: Metadata = {
   title: "Console",
-  description: "Versions, testers, analytics, logs and server settings for your app.",
+  description: "Versions, testers, analytics, players, logs and server settings for your app.",
   robots: { index: false },
 };
 

@@ -43,6 +43,7 @@ import {
 } from "../shipping";
 import type {
   AppAnalytics,
+  AppPlayers,
   AppLaunch,
   AppLogEntry,
   AppVersion,
@@ -72,6 +73,7 @@ import type {
 } from "../types";
 import { UPVOTES_PER_MINUTE } from "../upvotes";
 import { computeAnalytics } from "./analytics";
+import { computePlayers, emailSharing, recordOpen, setEmailSharing } from "./audience";
 import { createDemoRoom } from "./room";
 import { applySettlement, buildSeed, ensureShowcase, isPracticeBot, newMatchId, PRACTICE_BOTS, upgradeDb } from "./seed";
 import {
@@ -794,6 +796,7 @@ export class DemoBackend implements Backend {
       const community = db.apps[appSlug];
       if (community) community.playCount = (community.playCount ?? 0) + 1;
       else db.playCounts[appSlug] = (db.playCounts[appSlug] ?? 0) + 1;
+      if (viewerId && db.profiles[viewerId]) recordOpen(db, appSlug, viewerId, nowIso());
       return { app: appFor(db, appSlug) ?? listed, versionId: null };
     });
   }
@@ -1397,6 +1400,25 @@ export class DemoBackend implements Backend {
       throw new BackendError(`Pick 1 to ${ANALYTICS_DAYS_MAX} days`, "invalid");
     }
     return computeAnalytics(db, appSlug, window);
+  }
+
+  async appPlayers(appSlug: string, filter: { query?: string; limit?: number } = {}): Promise<AppPlayers> {
+    const db = load();
+    this.requireInsight(db, appSlug);
+    return computePlayers(db, appSlug, filter);
+  }
+
+  async getEmailSharing(appSlug: string): Promise<boolean> {
+    return emailSharing(load(), appSlug, getViewerId());
+  }
+
+  async setEmailSharing(appSlug: string, on: boolean): Promise<boolean> {
+    const viewer = this.requireViewer();
+    return mutate((db) => {
+      const app = appFor(db, appSlug);
+      if (!app || (on && app.status !== "published" && !canTest(db, appSlug, viewer.id))) throw new BackendError("App not found", "not_found");
+      return setEmailSharing(db, appSlug, viewer.id, on, nowIso());
+    });
   }
 
   async logAppEvent(entry: {

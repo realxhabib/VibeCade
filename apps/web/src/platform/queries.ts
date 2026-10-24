@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { getOfficialApp } from "./catalog";
 import { useBackend, useViewer } from "./client";
@@ -524,6 +524,8 @@ const testersKey = (slug: string) => ["app-testers", slug] as const;
 const reviewQueueKey = ["review-queue"] as const;
 const analyticsKey = (slug: string) => ["app-analytics", slug] as const;
 const logsKey = (slug: string) => ["app-logs", slug] as const;
+const playersKey = (slug: string) => ["app-players", slug] as const;
+const emailSharingKey = (slug: string) => ["email-sharing", slug] as const;
 const noticesKey = ["developer-notices"] as const;
 
 /** True when the signed-in viewer can review app versions. */
@@ -714,6 +716,45 @@ export function useAppAnalytics(slug: string, days = 30, enabled = true) {
     enabled: enabled && !!slug && !!viewer,
     staleTime: 60_000,
     retry: false,
+  });
+}
+
+/** Owner/admin roster of the people who play the app (emails only where shared). */
+export function useAppPlayers(slug: string, query = "", enabled = true) {
+  const backend = useBackend();
+  const { viewer } = useViewer();
+  return useQuery({
+    queryKey: [...playersKey(slug), query, viewer?.id],
+    queryFn: () => backend.appPlayers(slug, { query: query || undefined, limit: 1000 }),
+    enabled: enabled && !!slug && !!viewer,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
+/** Whether the viewer shares their email with the app's developer. */
+export function useEmailSharing(slug: string, enabled = true) {
+  const backend = useBackend();
+  const { viewer } = useViewer();
+  return useQuery({
+    queryKey: [...emailSharingKey(slug), viewer?.id],
+    queryFn: () => backend.getEmailSharing(slug),
+    enabled: enabled && !!slug && !!viewer,
+    retry: false,
+  });
+}
+
+export function useSetEmailSharing(slug: string) {
+  const backend = useBackend();
+  const queryClient = useQueryClient();
+  const { viewer } = useViewer();
+  return useMutation({
+    mutationFn: (on: boolean) => backend.setEmailSharing(slug, on),
+    onSuccess: (on) => {
+      queryClient.setQueryData([...emailSharingKey(slug), viewer?.id], on);
+      void queryClient.invalidateQueries({ queryKey: playersKey(slug) });
+    },
   });
 }
 
