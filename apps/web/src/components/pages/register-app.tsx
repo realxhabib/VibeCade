@@ -21,6 +21,7 @@ import { useRegisterApp } from "@/platform/queries";
 import { CATEGORIES, type AppCategory, type AppManifest, type AppVersion, type PlayableMode, type Scoring } from "@/platform/types";
 import {
   AchievementsEditor,
+  ProgressJsonPanel,
   StatsEditor,
   stripAchievementRows,
   stripStatRows,
@@ -472,6 +473,15 @@ export function RegisterApp() {
             />
           )}
 
+          <ProgressJsonPanel
+            stats={form.stats}
+            achievements={form.achievements}
+            fileName={form.name ? `${form.name} progress` : undefined}
+            onApply={(next) => {
+              setForm((f) => ({ ...f, ...next }));
+              setErrors((e) => ({ ...e, stats: undefined, achievements: undefined }));
+            }}
+          />
           <StatsEditor value={form.stats} error={errors.stats} onChange={(rows) => set("stats", rows)} />
           <AchievementsEditor value={form.achievements} error={errors.achievements} onChange={(rows) => set("achievements", rows)} />
 
