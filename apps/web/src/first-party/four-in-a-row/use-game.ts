@@ -1,6 +1,6 @@
 "use client";
 
-import type { Json, MatchResult, PlayerInfo } from "@xapps/sdk";
+import type { Json, MatchResult, PlayerInfo } from "vibecade-sdk";
 import {
   useMatch,
   useMatchResult,
@@ -10,8 +10,8 @@ import {
   usePresence,
   useRoomEvent,
   useTurn,
-  useXApps,
-} from "@xapps/sdk/react";
+  useVibeCade,
+} from "vibecade-sdk/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { play } from "@/lib/sfx";
 import { useBot } from "../shared/hooks";
@@ -100,7 +100,7 @@ function outcomeOf(game: GameState, abandonedBy: Seat | null): Outcome | null {
  * echo), never as the source of truth. Bots are played by this client.
  */
 export function useFourInARow() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const matchStatus = useMatch().status;
   const result: MatchResult | null = useMatchResult();

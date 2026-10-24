@@ -1,18 +1,18 @@
 "use client";
 
-import { useXApps } from "@xapps/sdk/react";
-import type { PlayerInfo } from "@xapps/sdk";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useVibeCade } from "vibecade-sdk/react";
+import type { PlayerInfo } from "vibecade-sdk";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /** The bot this client must play for (practice / sandbox / demo personas), if any. */
 export function useBot(): PlayerInfo | undefined {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   return xapps.opponents.find((p) => p.isBot);
 }
 
 /** True when a human opponent is on the other end of the room. */
 export function useLiveOpponent(): PlayerInfo | undefined {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   return xapps.match.mode === "live" ? xapps.opponents.find((p) => !p.isBot) : undefined;
 }
 
@@ -69,4 +69,17 @@ export function useTimeouts() {
     timers.current.add(id);
     return id;
   }, []);
+}
+
+/** Whether a CSS media query matches (false on the server and before hydration). */
+export function useMediaQuery(query: string): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      return () => list.removeEventListener("change", onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
 }

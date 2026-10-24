@@ -6,8 +6,8 @@
  * name tags, and lays the HUD on top.
  */
 
-import { lockGestures } from "@xapps/sdk";
-import { useMatchResult, useRoomEvent, useXApps } from "@xapps/sdk/react";
+import { lockGestures } from "vibecade-sdk";
+import { useMatchResult, useRoomEvent, useVibeCade } from "vibecade-sdk/react";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { RaceHud } from "./hud";
@@ -33,7 +33,7 @@ interface Touch {
 }
 
 export function MatchView({ choice, trial, onExit, onRetry }: { choice: ShipChoice; trial?: string; onExit?: () => void; onRetry?: () => void }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const result = useMatchResult();
   const [rt] = useState(() => new RaceRuntime(xapps, reduced, choice, { trial }));

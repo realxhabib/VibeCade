@@ -50,7 +50,7 @@ export function AppDetail({ slug }: { slug: string }) {
       <Skeleton className="h-96 rounded-[2.5rem]" />
     ) : retired ? (
       <EmptyState emoji={retired.icon} title={`${retired.name} was retired`} action={<Button href="/apps">Browse apps</Button>}>
-        It&apos;s no longer on XApps. Your matches in it, and the XP they earned, stay on your profile.
+        It&apos;s no longer on VibeCade. Your matches in it, and the XP they earned, stay on your profile.
       </EmptyState>
     ) : (
       <EmptyState emoji="🧭" title="App not found" action={<Button href="/apps">Browse apps</Button>}>
@@ -135,9 +135,15 @@ export function AppDetail({ slug }: { slug: string }) {
               transition={{ delay: 0.25 }}
             >
               {standalone ? (
-                <span className="flex items-center gap-1.5">
-                  <AppWindow className="size-4" /> App · opens right here
-                </span>
+                app.category === "games" ? (
+                  <span className="flex items-center gap-1.5 font-semibold text-[#ffd25a]">
+                    <Zap className="size-4" /> Solo · play now, no waiting
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <AppWindow className="size-4" /> App · opens right here
+                  </span>
+                )
               ) : (
                 <>
                   <span className="flex items-center gap-1.5">
@@ -184,7 +190,7 @@ export function AppDetail({ slug }: { slug: string }) {
                     size="xl"
                     variant="glass"
                     icon={<Share2 className="size-5" />}
-                    onClick={() => openXIntent(`${app.icon} ${app.name} on XApps — ${app.tagline}`, `${window.location.origin}/apps/${app.slug}`)}
+                    onClick={() => openXIntent(`${app.icon} ${app.name} on VibeCade — ${app.tagline}`, `${window.location.origin}/apps/${app.slug}`)}
                   >
                     Share
                   </Button>
@@ -284,10 +290,10 @@ export function AppDetail({ slug }: { slug: string }) {
             <p className="mt-3 leading-relaxed text-ink-300">{app.description}</p>
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-ink-400">
               <span>
-                Built by <b className="text-ink-100">{app.official ? "XApps Studio" : `@${app.developer.handle}`}</b> with @xapps/sdk
+                Built by <b className="text-ink-100">{app.official ? "VibeCade Studio" : `@${app.developer.handle}`}</b> with vibecade-sdk
               </span>
               <button
-                onClick={() => openXIntent(`${app.icon} ${app.name} on XApps — ${app.tagline}`, `${window.location.origin}/apps/${app.slug}`)}
+                onClick={() => openXIntent(`${app.icon} ${app.name} on VibeCade — ${app.tagline}`, `${window.location.origin}/apps/${app.slug}`)}
                 className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition hover:bg-white/[0.06] hover:text-ink-100"
               >
                 <Share2 className="size-4" /> Share

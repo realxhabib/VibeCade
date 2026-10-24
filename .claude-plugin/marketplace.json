@@ -1,0 +1,6 @@
+{
+  "name": "xapps",
+  "description": "VibeCade games as Claude Code mods: play while Claude works",
+  "owner": { "name": "VibeCade", "url": "https://github.com/realxhabib/VibeCade" },
+  "plugins": [{ "name": "xapps-arcade", "source": "./mods/xapps-arcade" }]
+}

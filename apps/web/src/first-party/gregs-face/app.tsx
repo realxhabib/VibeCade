@@ -1,7 +1,7 @@
 "use client";
 
-import type { StatStanding, XAppsClient } from "@xapps/sdk";
-import { useXApps } from "@xapps/sdk/react";
+import type { StatStanding, VibeCadeClient } from "vibecade-sdk";
+import { useVibeCade } from "vibecade-sdk/react";
 import {
   AnimatePresence,
   animate,
@@ -67,7 +67,7 @@ interface Board {
 }
 
 /** Reads the global best-face board. Never rejects: a failure comes back as status "error". */
-function readBoard(xapps: XAppsClient): Promise<Board> {
+function readBoard(xapps: VibeCadeClient): Promise<Board> {
   const failed = (error: unknown): Board => {
     console.warn(`[${TAG}] stats.leaderboard failed`, error);
     return { status: "error", standing: null };
@@ -127,7 +127,7 @@ function useFaceKit(): { kit: FaceKit | null; error: string | null } {
  * screen; every "Again" mounts a fresh run with fresh slides.
  */
 export function GregsFaceApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const { kit, error } = useFaceKit();
   const [run, setRun] = useState(0);
   const [board, setBoard] = useState<Board>({ status: "loading", standing: null });
@@ -224,7 +224,7 @@ function Title({
   board: Board;
   onStart: () => void;
 }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const face = kit?.face ?? FACE;
   const mine = board.standing?.me ?? null;
@@ -373,7 +373,7 @@ function Run({
   onFinish: (drops: Drop[]) => Promise<RunResult>;
   onAgain: () => void;
 }) {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const reduced = useReducedMotion() ?? false;
   const { face } = kit;
   // Fresh slides every run: the app's random is seeded per open, forked per run.
@@ -386,7 +386,10 @@ function Run({
   const [revealStep, setRevealStep] = useState(0);
   const [result, setResult] = useState<RunResult | null>(null);
   const [retrying, setRetrying] = useState(false);
-  const [sharing, setSharing] = useState<"idle" | "busy" | "done">("idle");
+  const [sharing, setSharing] = useState<"idle" | "busy">("idle");
+  /** The share sheet: the picture (to save or copy), and whether it already went to the clipboard. */
+  const [sheet, setSheet] = useState<{ src: string; blob: Blob; score: number; copied: boolean } | null>(null);
+  const [posting, setPosting] = useState(false);
   const [saving, setSaving] = useState(false);
   // On the reveal: dashed outlines of where each feature belonged ("misses"), or the clean face.
   const [showMisses, setShowMisses] = useState(true);
@@ -519,27 +522,64 @@ function Run({
     });
   };
 
-  const share = async () => {
+  /**
+   * Share: the face card goes to the clipboard when the browser lets it (inside
+   * X it usually doesn't), and a sheet shows it to press and hold (save) or
+   * right-click, with Post on X underneath. X's post window can't open from
+   * inside a post, so the picture is what people take away.
+   */
+  const share = () => {
     if (sharing === "busy") return;
     setSharing("busy");
     play("pop");
     const all = live.current.drops;
     const final = faceScore(all);
+    const card = shareCardBlob(kit, all, final, { name: face.name, handle: xapps.me.handle });
+    // The copy has to start inside the tap (Safari); the picture follows as it's drawn.
+    let copied: Promise<boolean> = Promise.resolve(false);
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        copied = navigator.clipboard.write([new ClipboardItem({ "image/png": card })]).then(
+          () => true,
+          () => false,
+        );
+      }
+    } catch {
+      // No clipboard here.
+    }
+    void (async () => {
+      try {
+        const blob = await card;
+        const [src, ok] = await Promise.all([blobToDataUrl(blob), copied]);
+        setSheet({ src, blob, score: final, copied: ok });
+        if (ok) xapps.ui.toast(`${face.name}'s face copied`, "success").catch(ignore);
+        unlockAchievements(xapps, ["show_and_tell"], TAG);
+      } catch (e) {
+        console.warn(`[${TAG}] share card failed`, e);
+        xapps.ui.toast("Couldn't make the picture. Try again.", "danger").catch(ignore);
+      } finally {
+        setSharing("idle");
+      }
+    })();
+  };
+
+  /** Post on X: the text, with the card's image link where the upload works. */
+  const postOnX = async () => {
+    if (!sheet || posting) return;
+    setPosting(true);
     let url: string | undefined;
     try {
-      const blob = await shareCardBlob(kit, all, final, { name: face.name, handle: xapps.me.handle });
-      const media = await xapps.media.upload(blob, { alt: `${face.name}'s face, rebuilt ${formatPct(final)} right` });
+      const media = await xapps.media.upload(sheet.blob, { alt: `${face.name}'s face, rebuilt ${formatPct(sheet.score)} right` });
       if (/^https?:\/\//i.test(media.url)) url = media.url;
     } catch (e) {
       console.warn(`[${TAG}] share card upload failed`, e);
     }
     try {
-      await xapps.social.share(shareText(final, face.name), url);
-      unlockAchievements(xapps, ["show_and_tell"], TAG);
-      setSharing("done");
+      await xapps.social.share(shareText(sheet.score, face.name), url);
     } catch (e) {
       console.warn(`[${TAG}] share failed`, e);
-      setSharing("idle");
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -586,7 +626,7 @@ function Run({
   };
 
   const onKey = useEffectEvent((e: KeyboardEvent) => {
-    if (!isGo(e)) return;
+    if (!isGo(e) || sheet) return;
     const s = live.current;
     if (s.phase === "moving") {
       e.preventDefault();
@@ -745,7 +785,7 @@ function Run({
               transition={{ ...spring.soft, delay: 0.3 }}
             >
               <ActionButton tone="ghost" onClick={share} disabled={sharing === "busy"} className="px-6">
-                {sharing === "busy" ? "Sharing…" : sharing === "done" ? "Shared ✓" : "Share"}
+                {sharing === "busy" ? "Sharing…" : "Share"}
               </ActionButton>
               <ActionButton tone="ghost" onClick={saveFace} disabled={saving} className="px-6">
                 {saving ? "Saving…" : "Save"}
@@ -757,7 +797,79 @@ function Run({
           )}
         </AnimatePresence>
       </footer>
+
+      <AnimatePresence>
+        {sheet && <ShareSheet sheet={sheet} name={face.name} posting={posting} reduced={reduced} onPost={() => void postOnX()} onClose={() => setSheet(null)} />}
+      </AnimatePresence>
     </div>
+  );
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * The picture to take away: copied already (when the browser allowed it), and
+ * here to press and hold (phones: Save to Photos / Copy) or right-click. The
+ * game blocks long-press menus everywhere else; the picture allows them.
+ */
+function ShareSheet({
+  sheet,
+  name,
+  posting,
+  reduced,
+  onPost,
+  onClose,
+}: {
+  sheet: { src: string; copied: boolean };
+  name: string;
+  posting: boolean;
+  reduced: boolean;
+  onPost: () => void;
+  onClose: () => void;
+}) {
+  const [touch] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
+  return (
+    <motion.div
+      role="dialog"
+      aria-label={`Share ${name}'s face`}
+      className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[#0b0d12]/92 p-4 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.stopPropagation()}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <p className="text-center font-display text-lg font-extrabold text-white">
+        {sheet.copied ? "Face copied ✓ Paste it into your post" : touch ? "Press and hold to save" : "Right-click to save or copy"}
+      </p>
+      <motion.img
+        src={sheet.src}
+        alt={`${name}'s face, as you built it`}
+        draggable
+        initial={reduced ? false : { scale: 0.92, y: 8 }}
+        animate={{ scale: 1, y: 0 }}
+        transition={spring.soft}
+        className="max-h-[58%] w-auto max-w-full rounded-2xl shadow-2xl ring-1 ring-white/15"
+        style={{ WebkitTouchCallout: "default", userSelect: "auto", WebkitUserSelect: "auto" }}
+      />
+      {sheet.copied && <p className="text-center text-xs text-white/60">{touch ? "Or press and hold it to save" : "Or right-click it to save"}</p>}
+      <div className="flex gap-2">
+        <ActionButton tone="ghost" onClick={onClose} className="px-6">
+          Done
+        </ActionButton>
+        <ActionButton onClick={onPost} disabled={posting} className="px-6">
+          {posting ? "Opening X…" : "Post on X"}
+        </ActionButton>
+      </div>
+    </motion.div>
   );
 }
 

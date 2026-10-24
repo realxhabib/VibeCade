@@ -3,7 +3,7 @@
  * what gets submitted. No three.js, no SDK calls.
  */
 
-import type { Json } from "@xapps/sdk";
+import type { Json } from "vibecade-sdk";
 import { ARENAS, CUPS, TRACKS, type Cup } from "./tracks";
 
 export const FIELD_SIZE = 8;
@@ -38,12 +38,15 @@ export function classScale(cc: SpeedClass): { speed: number; accel: number; cpu:
   return { speed: 1, accel: 1, cpu: 1 };
 }
 
+/** A one-race event on a single track. */
+export function singleRace(track: string): Cup {
+  return { id: `single:${track}`, name: "Single Race", icon: "🏁", tracks: [track] };
+}
+
+/** Challenge settings. With no cup or track chosen it's a single race on the first track. */
 export function parseSettings(raw: { [key: string]: Json } | null | undefined): GpSettings {
-  const cupId = typeof raw?.cup === "string" ? raw.cup : "solar";
-  let cup = CUPS.find((c) => c.id === cupId) ?? CUPS[0]!;
-  if (typeof raw?.track === "string" && TRACKS.some((t) => t.id === raw.track)) {
-    cup = { id: `single:${raw.track}`, name: "Single Race", icon: "🏁", tracks: [raw.track] };
-  }
+  let cup = CUPS.find((c) => c.id === raw?.cup) ?? singleRace(TRACKS[0]!.id);
+  if (typeof raw?.track === "string" && TRACKS.some((t) => t.id === raw.track)) cup = singleRace(raw.track);
   if (raw?.mode === "battle") {
     // Battles run in arenas: the chosen arena, or all three as a battle cup.
     const arena = typeof raw?.track === "string" ? ARENAS.find((a) => a.id === raw.track) : undefined;

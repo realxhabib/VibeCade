@@ -1,11 +1,11 @@
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import type { AchievementDef, AppManifest, StatDef } from "./types";
 
-const OFFICIAL_DEV = { id: null, handle: "xapps", name: "XApps Studio" };
+const OFFICIAL_DEV = { id: null, handle: "xapps", name: "VibeCade Studio" };
 const LAUNCH = "2026-09-01T00:00:00.000Z";
 
 /**
- * First-party apps. They are built with the public @xapps/sdk exactly like
+ * First-party apps. They are built with the public vibecade-sdk exactly like
  * community apps — the only difference is that they are served from /embed.
  */
 /**
@@ -14,41 +14,9 @@ const LAUNCH = "2026-09-01T00:00:00.000Z";
  * next of FEATURED_FALLBACK takes its place.
  */
 export const FEATURED_APPS = ["starship-league", "wedge-wars"];
-export const FEATURED_FALLBACK = ["meme-duel", "four-in-a-row"];
+export const FEATURED_FALLBACK = ["four-in-a-row", "starship-flap"];
 
 export const OFFICIAL_APPS: AppManifest[] = [
-  {
-    slug: "meme-duel",
-    name: "Meme Duel",
-    tagline: "Same template. Two captions. The crowd decides.",
-    description:
-      "Both players get the same template and a stack of stickers. Write the funniest caption, drag stickers into place, and submit. Your entry goes to the Arena where the crowd votes — first to the vote target wins.",
-    category: "contests",
-    icon: "🖼️",
-    accent: ["#ff5ca8", "#8b5cff"],
-    url: "/embed/meme-duel",
-    modes: ["async", "live", "practice"],
-    players: { min: 2, max: 2 },
-    teams: 0,
-    spectators: true,
-    // The app renders its own challenge setup (template, trending, drop, topic) in setup purpose.
-    setup: true,
-    turnBased: false,
-    scoring: "votes",
-    votesToWin: 5,
-    durationLabel: "2 min + voting",
-    howTo: [
-      "You and your opponent get the same meme template.",
-      "Write captions and drag up to three stickers onto the canvas.",
-      "Submit — the Arena crowd votes until someone hits 5 votes.",
-    ],
-    official: true,
-    developer: OFFICIAL_DEV,
-    status: "published",
-    playCount: 0,
-    createdAt: LAUNCH,
-    tags: ["memes", "creative", "crowd-judged"],
-  },
   {
     slug: "quick-draw",
     name: "Reflexes",
@@ -105,6 +73,49 @@ export const OFFICIAL_APPS: AppManifest[] = [
         xp: 40,
       },
       { id: "twitchy", name: "Twitchy", description: "Jump the gun three times in one duel.", icon: "🫨", xp: 25, secret: true },
+    ],
+  },
+  {
+    slug: "starship-flap",
+    kind: "app",
+    name: "Starship Flap",
+    tagline: "Tap to thrust. Thread the towers. Don't explode.",
+    description:
+      "Flappy flying with a stainless-steel rocket. Every tap fires the engines; gravity does the rest. Thread the launch towers: the gaps get tighter and the ship faster the further you go, and a fresh course rolls out every flight. Touch anything and it's a rapid unscheduled disassembly. Fly as often as you like: your best run goes on the worldwide leaderboard, and you see where you stand after every crash.",
+    category: "games",
+    icon: "🚀",
+    accent: ["#ff7a2b", "#7a5cff"],
+    url: "/embed/starship-flap",
+    // A standalone app: no matches. These are the harmless defaults the manifest still carries.
+    modes: ["live"],
+    players: { min: 2, max: 2 },
+    teams: 0,
+    spectators: false,
+    setup: false,
+    turnBased: false,
+    scoring: "high",
+    durationLabel: "~1 min",
+    howTo: [
+      "Tap (or press Space) to fire the engines. Let go and you fall.",
+      "Fly through the gaps between the launch towers. Touch a tower, the sky or the sea and you explode.",
+      "Fly again as often as you like. Your best run is ranked on the worldwide leaderboard.",
+    ],
+    official: true,
+    developer: OFFICIAL_DEV,
+    status: "published",
+    playCount: 0,
+    createdAt: LAUNCH,
+    tags: ["arcade", "one-tap", "space"],
+    stats: [
+      { key: "best_gates", label: "Most towers", aggregate: "max", format: "number" },
+      { key: "flights", label: "Flights", aggregate: "sum", format: "number" },
+      { key: "total_gates", label: "Towers cleared", aggregate: "sum", format: "number" },
+    ],
+    achievements: [
+      { id: "liftoff", name: "Liftoff", description: "Clear your first tower.", icon: "🚀", xp: 10 },
+      { id: "orbit", name: "Orbit", description: "Clear 10 towers in one flight.", icon: "🛰️", xp: 30 },
+      { id: "booster_catch", name: "Chopsticks", description: "Clear 25 towers in one flight.", icon: "🥢", xp: 50 },
+      { id: "mars", name: "Next stop, Mars", description: "Clear 50 towers in one flight.", icon: "🔴", xp: 100, secret: true },
     ],
   },
   {
@@ -189,6 +200,8 @@ export const OFFICIAL_APPS: AppManifest[] = [
     spectators: true,
     setup: false,
     turnBased: false,
+    // Fast real-time: its room runs on the live server (AppManifest.liveServer).
+    liveServer: true,
     scoring: "high",
     durationLabel: "2:30",
     howTo: [
@@ -598,7 +611,7 @@ export const OFFICIAL_APPS: AppManifest[] = [
     name: "Nova Rally",
     tagline: "Kart racing with rocket ships across Mars, the asteroid belt and beyond.",
     description:
-      "A full 3D kart racer in space for up to 8 racers (CPU pilots fill the grid). Pick one of eight rocket ships and a paint job, then race a three-track Grand Prix: the red canyons of Mars, a floating ribbon through a tumbling asteroid belt, Saturn's rings with a full loop and a corkscrew, an upside-down space station in a nebula, and big low-gravity jumps on the Moon. Drift for blue, orange and purple mini-turbos, nail rocket starts, trick off ramps, slipstream rivals and grab stardust for top speed. Eleven items: seeker missiles, pulse bolts, plasma mines, ion shields, EMP storms, warp drives, cloaks and a singularity that hunts down the leader. Dodge asteroids, dust devils, meteor strikes and plasma arcs. Challengers pick the cup, speed class (100cc to 200cc) and laps. Play live, anytime, or practice against CPU pilots.",
+      "A full 3D kart racer in space for up to 8 racers (CPU pilots fill the grid). Pick one of eight rocket ships and a paint job, then race a single track or a three-track Grand Prix: the red canyons of Mars, a floating ribbon through a tumbling asteroid belt, Saturn's rings with a full loop and a corkscrew, an upside-down space station in a nebula, and big low-gravity jumps on the Moon. Drift for blue, orange and purple mini-turbos, nail rocket starts, trick off ramps, slipstream rivals and grab stardust for top speed. Eleven items: seeker missiles, pulse bolts, plasma mines, ion shields, EMP storms, warp drives, cloaks and a singularity that hunts down the leader. Dodge asteroids, dust devils, meteor strikes and plasma arcs. Challengers pick a single race or a cup, the speed class (100cc to 200cc) and laps. Play live, anytime, or practice against CPU pilots.",
     category: "games",
     icon: "🚀",
     accent: ["#ff8a4c", "#8f7bff"],
@@ -611,14 +624,16 @@ export const OFFICIAL_APPS: AppManifest[] = [
     spectators: true,
     setup: true,
     turnBased: false,
+    // Fast real-time: its room runs on the live server (AppManifest.liveServer).
+    liveServer: true,
     scoring: "high",
-    durationLabel: "~6 min",
+    durationLabel: "~3 min",
     howTo: [
       "Hold ↑/W to thrust and steer with ←/→ (on phones the ship accelerates by itself: steer with the left pad).",
       "Hold drift (Space / DRIFT) while turning to charge mini-turbos: blue, orange, then purple. Let go to boost.",
       "Fly through item capsules and fire with E / ITEM. Hold ↓ to fire bolts and mines behind you.",
       "Hold throttle as the last red light goes out for a rocket start, and press drift in the air for a trick boost.",
-      "Each race awards 15-12-10-8-6-4-2-1 points. Most points after the Grand Prix wins.",
+      "Each race awards 15-12-10-8-6-4-2-1 points. In a Grand Prix, most points after the last race wins.",
     ],
     official: true,
     developer: OFFICIAL_DEV,
@@ -667,6 +682,8 @@ export const OFFICIAL_APPS: AppManifest[] = [
     spectators: true,
     setup: false,
     turnBased: false,
+    // Fast real-time: its room runs on the live server (AppManifest.liveServer).
+    liveServer: true,
     scoring: "high",
     durationLabel: "~7 min",
     howTo: [

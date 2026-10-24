@@ -1,0 +1,9 @@
+{
+  "name": "xapps-arcade",
+  "version": "0.1.0",
+  "description": "Play VibeCade games (Four in a Row vs the VibeCade bot) while Claude works, and get handed back when it's done",
+  "author": {
+    "name": "VibeCade",
+    "url": "https://github.com/realxhabib/VibeCade"
+  }
+}

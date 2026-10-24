@@ -1,4 +1,4 @@
-import type { LaunchContext, MatchResult, PlayerInfo } from "@xapps/sdk";
+import type { LaunchContext, MatchResult, PlayerInfo } from "vibecade-sdk";
 import { getOfficialApp } from "./catalog";
 import { getRetiredApp } from "./retired-apps";
 import type { AppManifest, Match, MatchPlayer, PlayableMode, PlayerRole, Profile } from "./types";
@@ -269,7 +269,7 @@ export function toLaunchMatch(match: Match, viewerId: string): LaunchContext["ma
   };
 }
 
-const HOST = { name: "XApps", version: "0.2.0" };
+const HOST = { name: "VibeCade", version: "0.2.0" };
 
 function localeOf(): string {
   return typeof navigator !== "undefined" ? navigator.language : "en";

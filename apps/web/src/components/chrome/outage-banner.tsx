@@ -62,7 +62,7 @@ export function OutageBanner() {
               <CloudOff className="size-4" />
             </span>
             <span className="min-w-0 leading-snug">
-              <b className="text-ink-50">Can&apos;t reach the XApps database.</b> Browsing works; matches, scores and upvotes are paused until it&apos;s back.
+              <b className="text-ink-50">Can&apos;t reach the VibeCade database.</b> Browsing works; matches, scores and upvotes are paused until it&apos;s back.
             </span>
             <button
               type="button"

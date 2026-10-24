@@ -1,14 +1,14 @@
 "use client";
 
-import { XAppsError } from "@xapps/sdk";
-import { createHostBridge, type HostBridge, type HostHandlers } from "@xapps/sdk/host";
+import { VibeCadeError } from "vibecade-sdk";
+import { createHostBridge, type HostBridge, type HostHandlers } from "vibecade-sdk/host";
 import {
   REQUEST_METHODS,
   type HostEvent,
   type HostEventData,
   type LaunchContext,
   type StatStanding as SdkStatStanding,
-} from "@xapps/sdk/protocol";
+} from "vibecade-sdk/protocol";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { BackendError, type Backend } from "@/platform/backend";
 import type { Match, StatStanding } from "@/platform/types";
@@ -38,7 +38,7 @@ export function useAppBridge({
   context: () => LaunchContext;
   handlers: HostHandlers;
   /** Every request the host refused or that failed (the host core's `onRequestError`). */
-  onRequestError?: (method: string, error: XAppsError) => void;
+  onRequestError?: (method: string, error: VibeCadeError) => void;
 }) {
   const handlersRef = useRef(handlers);
   const contextRef = useRef(context);
@@ -117,8 +117,8 @@ export function resolveAppUrl(url: string, base: string): { href: string; origin
 }
 
 /** A backend failure as the SDK error code the app should see. */
-export function toSdkError(error: unknown): XAppsError {
-  if (error instanceof XAppsError) return error;
+export function toSdkError(error: unknown): VibeCadeError {
+  if (error instanceof VibeCadeError) return error;
   if (error instanceof BackendError) {
     const code =
       error.code === "conflict"
@@ -130,9 +130,9 @@ export function toSdkError(error: unknown): XAppsError {
             : error.code === "rate_limited"
               ? "rate_limited"
               : "internal";
-    return new XAppsError(code, error.message);
+    return new VibeCadeError(code, error.message);
   }
-  return new XAppsError("internal", error instanceof Error ? error.message : "Something went wrong");
+  return new VibeCadeError("internal", error instanceof Error ? error.message : "Something went wrong");
 }
 
 /** A platform stat standing as the SDK's `stats.leaderboard` result (profiles become SDK players). */
@@ -193,5 +193,31 @@ export function createLogThrottle(perMinute: number, now: () => number = Date.no
     if (stamps.length >= perMinute) return false;
     stamps.push(t);
     return true;
+  };
+}
+
+/** Saves per second one match may send to the backend (across every app instance on the page). */
+export const STATE_WRITES_PER_SECOND = 4;
+
+/**
+ * Screens `state.set` before it reaches the backend: versions only go up, so a save based on an
+ * older version than the host already holds is a conflict we answer locally (the SDK re-reads and
+ * gets the newer one), and a match gets at most `perSecond` saves a second. Returns the refusal,
+ * or null to let the save through.
+ */
+export function createStateWriteGate(
+  perSecond: number = STATE_WRITES_PER_SECOND,
+  now: () => number = Date.now,
+): (expectedVersion: number, knownVersion: number) => VibeCadeError | null {
+  let stamps: number[] = [];
+  return (expectedVersion, knownVersion) => {
+    if (expectedVersion < knownVersion) {
+      return new VibeCadeError("conflict", `state.set: version ${expectedVersion} is stale (current ${knownVersion}); re-read and retry`);
+    }
+    const t = now();
+    stamps = stamps.filter((s) => t - s < 1000);
+    if (stamps.length >= perSecond) return new VibeCadeError("rate_limited", "state.set: slow down");
+    stamps.push(t);
+    return null;
   };
 }

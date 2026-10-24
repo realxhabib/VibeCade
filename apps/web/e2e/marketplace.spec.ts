@@ -5,22 +5,16 @@ test("home shows the hero and featured apps", async ({ page }) => {
   await enableDemo(page);
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Challenge");
-  await expect(page.getByRole("link", { name: /Meme Duel/ }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Four in a Row/ }).first()).toBeVisible();
 });
 
 test("marketplace filters by category", async ({ page }) => {
   await enableDemo(page);
   await page.goto("/apps");
-  await page.getByRole("tab", { name: /Contests/ }).click();
-  await expect(page.getByRole("link", { name: /Meme Duel/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Four in a Row/ })).toHaveCount(0);
-});
-
-test("the arena records a vote", async ({ page }) => {
-  await signIn(page, "judge_e2e");
-  await page.goto("/arena");
-  await page.getByRole("button", { name: "Vote for entry A" }).click();
-  await expect(page.getByText("+2 XP").first()).toBeVisible();
+  // Only categories that have apps get a tab.
+  await expect(page.getByRole("tab", { name: /Contests/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: /Games/ }).click();
+  await expect(page.getByRole("link", { name: /Four in a Row/ }).first()).toBeVisible();
 });
 
 test("a persona accepts a challenge and the match starts", async ({ page }) => {

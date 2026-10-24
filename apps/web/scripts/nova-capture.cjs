@@ -1,7 +1,7 @@
 // Screenshots Nova Rally at chosen moments (headless Chromium, software GL). Needs `npm run dev` on :3000.
 // Usage (from apps/web): node scripts/nova-capture.cjs "$(cat plan.json)" [outDir]
 // plan: { quality?: "high"|"low", width?, height?, runs: [{ track?: id, cup?: id, cc?: 150, steps: [["ff", seconds] | ["shot", name] | ["key", code, ms] | ["eval", js] | ["wait", ms] | ["autopilot", bool]] }] }
-const { chromium } = require('@playwright/test');
+const { chromium } = require('@playwright/test'); // eslint-disable-line @typescript-eslint/no-require-imports -- a plain CommonJS script
 (async () => {
   const plan = JSON.parse(process.argv[2]);
   const out = process.argv[3] || 'nova-shots';

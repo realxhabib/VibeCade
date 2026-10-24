@@ -5,6 +5,7 @@
  * the post stack (bloom, chromatic aberration on boost, vignette, ACES).
  */
 
+import { SMALL_AREA, detectDeviceTier } from "../shared/device-tier";
 import {
   BloomEffect,
   ChromaticAberrationEffect,
@@ -108,11 +109,16 @@ export function saveQualityChoice(choice: QualityChoice): void {
   }
 }
 
-/** What "auto" picks: phones and tablets get Low, small/low-memory machines Medium, the rest High. */
+/**
+ * What "auto" picks: phones and tablets Medium on a recent GPU, else Low; on a
+ * computer with a real GPU, High in a small frame (the X post's card), else
+ * small/low-memory machines Medium and the rest High.
+ */
 export function autoQuality(): QualityLevel {
   if (typeof window === "undefined") return "medium";
   const coarse = window.matchMedia?.("(pointer: coarse)").matches;
-  if (coarse) return "low";
+  if (coarse) return detectDeviceTier("low") === "low" ? "low" : "medium";
+  if (window.innerWidth * window.innerHeight <= SMALL_AREA && detectDeviceTier() !== "low") return "high";
   const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
   const cores = navigator.hardwareConcurrency ?? 8;
   if ((mem !== undefined && mem <= 4) || cores <= 4) return "medium";

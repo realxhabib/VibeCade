@@ -43,10 +43,10 @@ async function appFor(slug: string): Promise<SharedApp> {
 export async function generateMetadata({ params }: PageProps<"/s/[...key]">): Promise<Metadata> {
   const key = keyOf((await params).key);
   const image = isShareableImageKey(key) ? appMediaPublicUrl(key) : null;
-  if (!image) return { title: "Shared on XApps" };
+  if (!image) return { title: "Shared on VibeCade" };
   const app = await appFor(key.split("/")[0]!);
-  const title = `${app.name} on XApps`;
-  const description = app.tagline || `Play ${app.name} on XApps.`;
+  const title = `${app.name} on VibeCade`;
+  const description = app.tagline || `Play ${app.name} on VibeCade.`;
   return {
     title,
     description,

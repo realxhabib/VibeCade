@@ -1,7 +1,7 @@
 "use client";
 
-import { LIMITS, SDK_VERSION, XAppsError, type Json, type LaunchContext, type PlayerInfo } from "@xapps/sdk";
-import type { HostHandlers } from "@xapps/sdk/host";
+import { LIMITS, SDK_VERSION, VibeCadeError, type Json, type LaunchContext, type PlayerInfo } from "vibecade-sdk";
+import type { HostHandlers } from "vibecade-sdk/host";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "@/components/chrome/toasts";
@@ -105,7 +105,7 @@ export function AppSetupFrame({
         turnDeadline: null,
         round: 0,
       },
-      host: { name: "XApps", version: SDK_VERSION, origin: window.location.origin },
+      host: { name: "VibeCade", version: SDK_VERSION, origin: window.location.origin },
       locale: navigator.language,
     };
   };
@@ -113,13 +113,13 @@ export function AppSetupFrame({
   const rethrow = (error: unknown): never => {
     if (error instanceof BackendError) {
       const code = error.code === "rate_limited" ? "rate_limited" : error.code === "invalid" ? "invalid_params" : error.code === "forbidden" || error.code === "unauthenticated" ? "forbidden" : "internal";
-      throw new XAppsError(code, error.message);
+      throw new VibeCadeError(code, error.message);
     }
     throw error;
   };
 
   const notHere = (method: string) => () => {
-    throw new XAppsError("forbidden", `${method} isn't available while setting up a challenge`);
+    throw new VibeCadeError("forbidden", `${method} isn't available while setting up a challenge`);
   };
 
   const [contentHeight, setContentHeight] = useState<number | null>(null);
@@ -132,7 +132,7 @@ export function AppSetupFrame({
     },
     "setup.submit": ({ settings, summary }) => {
       if (jsonBytes(settings) > LIMITS.setupSettingsBytes) {
-        throw new XAppsError("invalid_params", `setup.submit: settings must be ≤ ${LIMITS.setupSettingsBytes / 1024} KB`);
+        throw new VibeCadeError("invalid_params", `setup.submit: settings must be ≤ ${LIMITS.setupSettingsBytes / 1024} KB`);
       }
       const text = typeof summary === "string" ? summary.trim().slice(0, LIMITS.setupSummaryLength) : "";
       play("pop");
@@ -166,7 +166,7 @@ export function AppSetupFrame({
       return null;
     },
     "storage.list": ({ prefix, scope }) => backend.storageList(app.slug, prefix, scope ?? "user").catch(rethrow),
-    // Setup screens upload drops (e.g. Meme Duel's image) before the match exists.
+    // Setup screens upload drops (e.g. an image to play on) before the match exists.
     "media.upload": async ({ file }) => {
       try {
         return await backend.uploadMedia(app.slug, file);

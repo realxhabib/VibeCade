@@ -1,8 +1,8 @@
 "use client";
 
-import { createHostBridge, decideWinner, rankStatValues, type HostBridge, type HostHandlers } from "@xapps/sdk/host";
-import type { HostEvent, HostEventData, Json, LaunchContext, MatchResult, PlayerInfo, Scoring, SubmissionDisplay } from "@xapps/sdk/protocol";
-import { randomId, XAppsError } from "@xapps/sdk";
+import { createHostBridge, decideWinner, rankStatValues, type HostBridge, type HostHandlers } from "vibecade-sdk/host";
+import type { HostEvent, HostEventData, Json, LaunchContext, MatchResult, PlayerInfo, Scoring, SubmissionDisplay } from "vibecade-sdk/protocol";
+import { randomId, VibeCadeError } from "vibecade-sdk";
 import { AnimatePresence, motion } from "motion/react";
 import { Eraser, Play, RotateCcw, Trophy } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -322,14 +322,14 @@ export function Sandbox() {
         },
         "state.get": () => ({ state: shared.current.state, version: shared.current.version }),
         "state.set": ({ state, expectedVersion }) => {
-          if (expectedVersion !== shared.current.version) throw new XAppsError("conflict", "state.set: the state moved on");
+          if (expectedVersion !== shared.current.version) throw new VibeCadeError("conflict", "state.set: the state moved on");
           shared.current = { ...shared.current, state, version: shared.current.version + 1 };
           for (let i = 0; i < humanSeats; i++) emit(i, "state.change", { state, version: shared.current.version, by: me.id });
           return { version: shared.current.version };
         },
         "turn.end": ({ next }) => {
           const current = shared.current.turn;
-          if (current && current !== me.id && !players.find((p) => p.id === current)?.isBot) throw new XAppsError("forbidden", "turn.end: not your turn");
+          if (current && current !== me.id && !players.find((p) => p.id === current)?.isBot) throw new VibeCadeError("forbidden", "turn.end: not your turn");
           const holder = current ?? me.id;
           const index = players.findIndex((p) => p.id === holder);
           const turn = next ?? players[(index + 1) % players.length]!.id;
@@ -338,16 +338,16 @@ export function Sandbox() {
           return null;
         },
         "round.set": ({ round }) => {
-          if (round < shared.current.round) throw new XAppsError("invalid_params", "round.set: rounds never go backwards");
+          if (round < shared.current.round) throw new VibeCadeError("invalid_params", "round.set: rounds never go backwards");
           shared.current = { ...shared.current, round };
           for (let i = 0; i < humanSeats; i++) emit(i, "round.change", { round });
           return null;
         },
         "setup.submit": () => {
-          throw new XAppsError("forbidden", "setup.submit only works in setup purpose");
+          throw new VibeCadeError("forbidden", "setup.submit only works in setup purpose");
         },
         "setup.cancel": () => {
-          throw new XAppsError("forbidden", "setup.cancel only works in setup purpose");
+          throw new VibeCadeError("forbidden", "setup.cancel only works in setup purpose");
         },
       };
       const bridge = createHostBridge({
@@ -358,7 +358,7 @@ export function Sandbox() {
           app: { id: "sandbox", slug: "sandbox", name: "Sandbox" },
           user: { id: me.id, handle: me.handle, name: me.name, avatarUrl: null },
           match: launchMatch(seat),
-          host: { name: "XApps Sandbox", version: "0.1.0", origin: window.location.origin },
+          host: { name: "VibeCade Sandbox", version: "0.1.0", origin: window.location.origin },
           locale: navigator.language,
         }),
         handlers,

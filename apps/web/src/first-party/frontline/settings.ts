@@ -5,7 +5,7 @@
  * already uses them.
  */
 
-import type { XAppsClient } from "@xapps/sdk";
+import type { VibeCadeClient } from "vibecade-sdk";
 import type { QualityPref } from "./quality";
 import { DEFAULT_LOADOUT, parseLoadout, type Loadout } from "./weapons";
 
@@ -49,7 +49,7 @@ export function loadLocal(): Settings {
 }
 
 /** Reads the synced copy (it wins over the local one when it exists). */
-export async function loadRemote(xapps: XAppsClient): Promise<Settings | null> {
+export async function loadRemote(xapps: VibeCadeClient): Promise<Settings | null> {
   try {
     const raw = await xapps.storage.get(KEY);
     return raw ? parseSettings(raw) : null;
@@ -61,7 +61,7 @@ export async function loadRemote(xapps: XAppsClient): Promise<Settings | null> {
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 /** Saves locally now and to SDK storage shortly after (debounced; spectators can't write). */
-export function saveSettings(xapps: XAppsClient, s: Settings): void {
+export function saveSettings(xapps: VibeCadeClient, s: Settings): void {
   try {
     window.localStorage.setItem(LOCAL, JSON.stringify(s));
   } catch {

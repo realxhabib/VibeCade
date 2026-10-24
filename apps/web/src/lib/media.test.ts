@@ -1,6 +1,5 @@
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
-import { isAllowedMemeSource, memeImageUrl } from "./meme-image";
 import {
   bytesMatchMime,
   demoMediaId,
@@ -17,7 +16,7 @@ import {
 const SB = "https://proj.supabase.co";
 const USER = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const FILE = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
-const APP_MEDIA = `${SB}/storage/v1/object/public/app-media/meme-duel/${USER}/${FILE}.png`;
+const APP_MEDIA = `${SB}/storage/v1/object/public/app-media/cup-pong/${USER}/${FILE}.png`;
 const DEMO_ID = "0123456789abcdef0123456789abcdef";
 const ORIGIN = "http://localhost:3000";
 
@@ -33,14 +32,14 @@ describe("isAllowedMediaUrl", () => {
   it("rejects other buckets, hosts, folders and decorated URLs", () => {
     for (const url of [
       `${SB}/storage/v1/object/public/meme-drops/${USER}/${FILE}.png`,
-      `https://evil.test/storage/v1/object/public/app-media/meme-duel/${USER}/${FILE}.png`,
-      `${SB}/storage/v1/object/public/app-media/meme-duel/${FILE}.png`,
-      `${SB}/storage/v1/object/public/app-media/meme-duel/${USER}/sub/${FILE}.png`,
-      `${SB}/storage/v1/object/public/app-media/Meme_Duel/${USER}/${FILE}.png`,
+      `https://evil.test/storage/v1/object/public/app-media/cup-pong/${USER}/${FILE}.png`,
+      `${SB}/storage/v1/object/public/app-media/cup-pong/${FILE}.png`,
+      `${SB}/storage/v1/object/public/app-media/cup-pong/${USER}/sub/${FILE}.png`,
+      `${SB}/storage/v1/object/public/app-media/Cup_Pong/${USER}/${FILE}.png`,
       `${APP_MEDIA}?download=1`,
       `${APP_MEDIA}#x`,
-      `https://user:pw@proj.supabase.co/storage/v1/object/public/app-media/meme-duel/${USER}/${FILE}.png`,
-      `${SB}/storage/v1/object/public/app-media/meme-duel/${USER}/../../x.png`,
+      `https://user:pw@proj.supabase.co/storage/v1/object/public/app-media/cup-pong/${USER}/${FILE}.png`,
+      `${SB}/storage/v1/object/public/app-media/cup-pong/${USER}/../../x.png`,
       "https://i.imgflip.com/1bij.jpg",
       "blob:http://localhost:3000/abc",
       "data:image/png;base64,AAAA",
@@ -70,25 +69,15 @@ describe("isAllowedMediaUrl", () => {
 
 describe("shareLinkFor", () => {
   it("turns an uploaded image into our card page, so X shows the picture", () => {
-    expect(shareableImageKey(APP_MEDIA, SB)).toBe(`meme-duel/${USER}/${FILE}.png`);
-    expect(shareLinkFor(APP_MEDIA, ORIGIN, SB)).toBe(`${ORIGIN}/s/meme-duel/${USER}/${FILE}.png`);
+    expect(shareableImageKey(APP_MEDIA, SB)).toBe(`cup-pong/${USER}/${FILE}.png`);
+    expect(shareLinkFor(APP_MEDIA, ORIGIN, SB)).toBe(`${ORIGIN}/s/cup-pong/${USER}/${FILE}.png`);
   });
   it("leaves every other link alone", () => {
     expect(shareLinkFor(undefined, ORIGIN, SB)).toBeUndefined();
-    expect(shareLinkFor(`${ORIGIN}/apps/meme-duel`, ORIGIN, SB)).toBe(`${ORIGIN}/apps/meme-duel`);
+    expect(shareLinkFor(`${ORIGIN}/apps/cup-pong`, ORIGIN, SB)).toBe(`${ORIGIN}/apps/cup-pong`);
     expect(shareLinkFor(APP_MEDIA.replace(".png", ".mp4"), ORIGIN, SB)).toBe(APP_MEDIA.replace(".png", ".mp4"));
-    expect(shareLinkFor(`https://evil.example/storage/v1/object/public/app-media/meme-duel/${USER}/${FILE}.png`, ORIGIN, SB)).toContain("evil.example");
+    expect(shareLinkFor(`https://evil.example/storage/v1/object/public/app-media/cup-pong/${USER}/${FILE}.png`, ORIGIN, SB)).toContain("evil.example");
     expect(shareLinkFor(APP_MEDIA, ORIGIN, "")).toBe(APP_MEDIA);
-  });
-});
-
-describe("meme image allow list", () => {
-  it("takes app-media images (not audio/video) and passes demo uploads through", () => {
-    expect(isAllowedMemeSource(APP_MEDIA, SB)).toBe(true);
-    expect(isAllowedMemeSource(APP_MEDIA.replace(".png", ".mp4"), SB)).toBe(false);
-    expect(isAllowedMemeSource(`${SB}/storage/v1/object/public/meme-drops/${USER}/a.png`, SB)).toBe(true);
-    expect(memeImageUrl(`/api/demo-media/${DEMO_ID}`)).toBe(`/api/demo-media/${DEMO_ID}`);
-    expect(memeImageUrl(APP_MEDIA)).toBe(`/api/meme-image?src=${encodeURIComponent(APP_MEDIA)}`);
   });
 });
 

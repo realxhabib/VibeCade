@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { BALLS, HEAD_X, R, simulate, type Balls, type Vec } from "./physics";
 import { chooseBotShot, pathClear, potCandidates } from "./bot";
 import { checkCueSpot, judge, newGame, playShot, quantize, type Game, type Seat } from "./rules";

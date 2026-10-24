@@ -6,7 +6,7 @@
  * demo themselves on the turntable (spin-ups, flips, swings, flames).
  */
 
-import type { PlayerInfo } from "@xapps/sdk";
+import type { PlayerInfo } from "vibecade-sdk";
 import { Environment, Lightformer } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";

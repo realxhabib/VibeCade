@@ -1,6 +1,6 @@
 "use client";
 
-import { lockGestures } from "@xapps/sdk";
+import { lockGestures } from "vibecade-sdk";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { spring } from "@/lib/motion";

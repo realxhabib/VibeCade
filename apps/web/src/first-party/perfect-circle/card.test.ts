@@ -44,10 +44,10 @@ describe("Perfect Circle share cards", () => {
   });
 
   it("share text", () => {
-    expect(shareText(97.3)).toBe("I drew a 97.3% perfect circle on XApps 🎯 Can you beat it?");
+    expect(shareText(97.3)).toBe("I drew a 97.3% perfect circle on VibeCade 🎯 Can you beat it?");
     expect(shareText(88)).toContain("88.0%");
     expect(shareText(97.3, { rank: 14, total: 2380 })).toBe(
-      "I drew a 97.3% perfect circle on XApps 🎯 That's #14 of 2,380 worldwide. Can you beat it?",
+      "I drew a 97.3% perfect circle on VibeCade 🎯 That's #14 of 2,380 worldwide. Can you beat it?",
     );
     expect(shareText(97.3, { rank: 1, total: 1 })).toBe(shareText(97.3));
     expect(shareText(97.3, null)).toBe(shareText(97.3));

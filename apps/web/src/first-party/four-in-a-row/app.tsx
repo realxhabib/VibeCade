@@ -1,6 +1,6 @@
 "use client";
 
-import { useXApps } from "@xapps/sdk/react";
+import { useVibeCade } from "vibecade-sdk/react";
 import { Eye, Hourglass } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion, useAnimate, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,7 +23,7 @@ const TALL_CHROME = 12 + 8 + 16 + 6;
 const TALL_MAX_W = 620;
 
 export function FourInARowApp() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const game = useFourInARow();
 
   const readied = useRef(false);

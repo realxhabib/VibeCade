@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: PageProps<"/apps/[slug]">): P
   return {
     title: app.name,
     description: `${app.tagline} Challenge anyone on X.`,
-    openGraph: { title: `${app.name} on XApps`, description: app.tagline },
-    twitter: { title: `${app.name} on XApps`, description: app.tagline },
+    openGraph: { title: `${app.name} on VibeCade`, description: app.tagline },
+    twitter: { title: `${app.name} on VibeCade`, description: app.tagline },
   };
 }
 

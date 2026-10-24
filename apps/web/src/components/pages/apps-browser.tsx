@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { AppWindow, ArrowBigUp, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowBigUp, Plus, Search, Sparkles, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import { AppCard } from "@/components/marketplace/app-card";
@@ -14,7 +14,7 @@ import { useApps } from "@/platform/queries";
 import { CATEGORIES, type AppCategory, type AppManifest } from "@/platform/types";
 import { sortApps, type AppSort } from "@/platform/upvotes";
 
-/** A category, or "apps": everything people open rather than play against each other. */
+/** A category, or "apps": everything people open rather than play against each other (solo games: no waiting). */
 type Filter = "all" | "apps" | AppCategory;
 
 export function AppsBrowser() {
@@ -99,7 +99,7 @@ export function AppsBrowser() {
           onChange={setFilter}
           items={[
             { id: "all" as Filter, label: "All" },
-            ...(hasApps ? [{ id: "apps" as Filter, label: "Apps", icon: <AppWindow className="size-3.5" /> }] : []),
+            ...(hasApps ? [{ id: "apps" as Filter, label: "Play now", icon: <Zap className="size-3.5" /> }] : []),
             ...categories.map((c) => ({ id: c.id as Filter, label: c.label, icon: <span>{c.emoji}</span> })),
           ]}
         />
@@ -153,7 +153,7 @@ export function AppsBrowser() {
                       </motion.span>
                       <div>
                         <p className="font-display text-xl font-extrabold">Submit your app</p>
-                        <p className="mt-1 text-sm text-ink-300">Ship it with @xapps/sdk and list it here.</p>
+                        <p className="mt-1 text-sm text-ink-300">Ship it with vibecade-sdk and list it here.</p>
                       </div>
                     </div>
                   </TiltCard>

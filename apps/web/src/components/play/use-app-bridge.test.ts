@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BackendError, type Backend } from "@/platform/backend";
 import type { Profile, StatStanding } from "@/platform/types";
-import { LOGGED_REFUSALS, createLogThrottle, readStatStanding, toSdkStanding } from "./use-app-bridge";
+import { LOGGED_REFUSALS, createLogThrottle, createStateWriteGate, readStatStanding, toSdkStanding } from "./use-app-bridge";
 
 describe("host refusal logging", () => {
   it("logs invalid params, forbidden and rate limits only", () => {
@@ -17,6 +17,34 @@ describe("host refusal logging", () => {
     expect(take()).toBe(false);
     now = 60_000;
     expect(take()).toBe(true);
+  });
+});
+
+describe("state.set gate", () => {
+  it("refuses a stale expectedVersion locally as a conflict", () => {
+    const gate = createStateWriteGate(4, () => 0);
+    expect(gate(5, 6)?.code).toBe("conflict");
+    expect(gate(0, 6)?.code).toBe("conflict");
+    expect(gate(6, 6)).toBeNull();
+    // Ahead of what the host knows (realtime lag): the database decides.
+    expect(gate(7, 6)).toBeNull();
+  });
+
+  it("does not spend the budget on stale saves", () => {
+    const gate = createStateWriteGate(2, () => 0);
+    for (let i = 0; i < 10; i++) expect(gate(0, 6)?.code).toBe("conflict");
+    expect([gate(6, 6), gate(6, 6)]).toEqual([null, null]);
+  });
+
+  it("throttles saves per second", () => {
+    let now = 0;
+    const gate = createStateWriteGate(4, () => now);
+    const results = Array.from({ length: 6 }, (_, i) => gate(i, i)?.code ?? "ok");
+    expect(results).toEqual(["ok", "ok", "ok", "ok", "rate_limited", "rate_limited"]);
+    now = 999;
+    expect(gate(9, 9)?.code).toBe("rate_limited");
+    now = 1000;
+    expect(gate(9, 9)).toBeNull();
   });
 });
 

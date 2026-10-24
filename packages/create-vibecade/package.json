@@ -1,0 +1,54 @@
+{
+  "name": "create-vibecade",
+  "version": "0.9.0",
+  "description": "Scaffold a VibeCade app in seconds: Vite + React + TypeScript with vibecade-sdk, a turn-based starter, or one HTML file.",
+  "license": "MIT",
+  "author": "VibeCade contributors",
+  "homepage": "https://github.com/realxhabib/VibeCade/tree/HEAD/packages/create-vibecade#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realxhabib/VibeCade.git",
+    "directory": "packages/create-vibecade"
+  },
+  "bugs": {
+    "url": "https://github.com/realxhabib/VibeCade/issues"
+  },
+  "keywords": [
+    "vibecade",
+    "create",
+    "scaffold",
+    "template",
+    "multiplayer",
+    "game",
+    "vite",
+    "react"
+  ],
+  "type": "module",
+  "bin": {
+    "create-vibecade": "bin/create-vibecade.js"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "vitest": "^5.0.2"
+  }
+}

@@ -84,10 +84,14 @@ begin
   assert (select play_count from public.apps where slug = 'quick-draw') = 1, 'play count';
 end $$;
 
--- ---------------------------------------------------------------- Meme Duel, async, crowd judged
+-- ---------------------------------------------------------------- A crowd-judged async duel with its own setup
+-- Meme Duel was the first-party one; it's retired (official_apps.sql), so its row is copied as a test app.
+insert into public.apps
+select (jsonb_populate_record(null::public.apps, to_jsonb(a) || '{"slug":"crowd-duel","name":"Crowd Duel","status":"published","play_count":0}')).*
+  from public.apps a where slug = 'meme-duel';
 set role authenticated;
 select set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', false);
-insert into ctx values ('meme', (select public.create_challenge('meme-duel', 'async', 'bob')::text));
+insert into ctx values ('meme', (select public.create_challenge('crowd-duel', 'async', 'bob')::text));
 -- Async: challenger can play before the invite is accepted
 select public.submit_entry((select v from ctx where k = 'meme')::uuid, null, null,
   '{"templateId":"pov"}', '{"kind":"text","body":"alice caption"}');
@@ -152,7 +156,7 @@ end $$;
 
 -- ---------------------------------------------------------------- Practice vs bot
 select set_config('request.jwt.claim.sub', '33333333-3333-4333-8333-333333333333', false);
-insert into ctx values ('practice', (select public.start_practice('meme-duel')::text));
+insert into ctx values ('practice', (select public.start_practice('crowd-duel')::text));
 select public.submit_entry((select v from ctx where k = 'practice')::uuid, null, null, '{}', '{"kind":"text","body":"mine"}');
 select public.submit_entry((select v from ctx where k = 'practice')::uuid, '00000000-0000-4000-8000-00000000b075', null, '{}', '{"kind":"text","body":"bot"}');
 do $$
@@ -279,10 +283,10 @@ end $$;
 -- Meme Duel renders its own setup screen (app-defined setup).
 do $$
 begin
-  assert (select has_setup from public.apps where slug = 'meme-duel'), 'meme-duel has_setup';
+  assert (select has_setup from public.apps where slug = 'crowd-duel'), 'crowd-duel has_setup';
 end $$;
 select set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', false);
-insert into ctx values ('drop', (select public.create_challenge('meme-duel', 'async', null,
+insert into ctx values ('drop', (select public.create_challenge('crowd-duel', 'async', null,
   '{"topic":"Monday mornings","drop":{"src":"https://x.supabase.co/storage/v1/object/public/meme-drops/a.jpg","width":800,"height":600},"quick":true}')::text));
 do $$
 declare m jsonb := public.get_match((select v from ctx where k = 'drop')::uuid);
@@ -293,14 +297,14 @@ begin
 end $$;
 do $$
 begin
-  perform public.create_challenge('meme-duel', 'async', null, '"nope"');
+  perform public.create_challenge('crowd-duel', 'async', null, '"nope"');
   raise exception 'expected failure';
 exception when invalid_parameter_value then
   null;
 end $$;
 do $$
 begin
-  perform public.create_challenge('meme-duel', 'async', null, jsonb_build_object('topic', repeat('x', 5000)));
+  perform public.create_challenge('crowd-duel', 'async', null, jsonb_build_object('topic', repeat('x', 5000)));
   raise exception 'expected failure';
 exception when invalid_parameter_value then
   null;
@@ -554,8 +558,8 @@ do $$
 begin
   perform public.update_match_state(pg_temp.mid('p4'), '{"board":[2]}', 0);
   raise exception 'expected failure';
-exception when serialization_failure then
-  assert sqlstate = '40001' and sqlerrm = 'state_conflict', sqlerrm;
+exception when sqlstate 'PT409' then
+  assert sqlerrm = 'state_conflict', sqlerrm;
 end $$;
 do $$
 begin
@@ -573,6 +577,50 @@ declare m jsonb := public.get_match(pg_temp.mid('p4'));
 begin
   assert m->'state' = '{"board":[1,2]}'::jsonb and (m->>'stateVersion')::int = 2, 'state persisted';
 end $$;
+-- Back from a live room: a host's newer copy is stored at its own version, then compare-and-set as usual
+do $$
+declare m jsonb;
+begin
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{"board":[9]}', 2);
+    raise exception 'expected failure';
+  exception when sqlstate 'PT409' then
+    assert sqlerrm = 'state_conflict', sqlerrm;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 2000003);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', null);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), jsonb_build_object('blob', repeat('x', 70000)), 9);
+    raise exception 'expected failure';
+  exception when invalid_parameter_value then
+    assert sqlerrm like '%too large%', sqlerrm;
+  end;
+  assert public.rebase_match_state(pg_temp.mid('p4'), '{"board":[1,2,3]}', 9) = 9, 'jumps to the room''s version';
+  assert public.update_match_state(pg_temp.mid('p4'), '{"board":[1,2,3,4]}', 9) = 10, 'then compare-and-set goes on from there';
+  m := public.get_match(pg_temp.mid('p4'));
+  assert m->'state' = '{"board":[1,2,3,4]}'::jsonb and (m->>'stateVersion')::int = 10, 'rebased state persisted';
+  begin
+    perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 10);
+    raise exception 'expected failure';
+  exception when sqlstate 'PT409' then null;
+  end;
+end $$;
+select pg_temp.login('erin');
+do $$
+begin
+  perform public.rebase_match_state(pg_temp.mid('p4'), '{}', 50);
+  raise exception 'expected failure';
+exception when insufficient_privilege then null;
+end $$;
+select pg_temp.login('bob');
 
 -- ---------------------------------------------------------------- Turns + rounds (seats: alice 0, bob 1, dave 3)
 -- Turn-based app: the lowest seat moves first once the match starts.
@@ -1370,7 +1418,7 @@ select pg_temp.expect(format('select public.app_api_report_result(%L, %L, %L)', 
 -- Shared state: compare-and-set (two writes -> one debounced match.state webhook)
 select public.app_api_set_state(pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[1]}', 0);
 select pg_temp.expect(format('select public.app_api_set_state(%L, %L, %L, 0)', pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[2]}'),
-  '40001', 'state_conflict');
+  'PT409', 'state_conflict');
 do $$
 begin
   assert public.app_api_set_state(pg_temp.cv('sec_duel'), pg_temp.mid('sa'), '{"board":[1,2]}', 1) = 2, 'second write';
@@ -1917,17 +1965,17 @@ begin
             'audio/webm', 'audio/wav', 'video/mp4', 'video/webm', 'video/quicktime']
             from storage.buckets where id = 'app-media'), 'app-media bucket';
   assert (select bool_and(stats = '[]'::jsonb and achievements = '[]'::jsonb) from public.apps
-           where slug not in ('quick-draw', 'four-in-a-row', 'trivia-royale', 'emoji-decode', 'hot-takes', 'wedge-wars', 'gregs-face', 'perfect-circle', 'cup-pong', 'darts', 'eight-ball', 'mini-golf', 'frontline', 'nova-rally')),
+           where slug not in ('quick-draw', 'four-in-a-row', 'trivia-royale', 'emoji-decode', 'hot-takes', 'wedge-wars', 'gregs-face', 'perfect-circle', 'cup-pong', 'darts', 'eight-ball', 'mini-golf', 'frontline', 'nova-rally', 'starship-flap')),
     'other existing apps declare nothing';
   -- First-party progress (20261002000200): valid lists, matching the web catalog (its test compares them).
   assert (select jsonb_object_agg(slug, jsonb_build_array(jsonb_array_length(stats), jsonb_array_length(achievements)))
             from public.apps where official and status = 'published' and stats <> '[]'::jsonb)
-       = '{"quick-draw":[4,8],"four-in-a-row":[3,9],"wedge-wars":[4,9],"gregs-face":[3,10],"perfect-circle":[3,9],"cup-pong":[4,10],"darts":[4,10],"eight-ball":[4,9],"mini-golf":[4,10],"frontline":[4,9],"nova-rally":[6,13]}'::jsonb,
+       = '{"quick-draw":[4,8],"four-in-a-row":[3,9],"wedge-wars":[4,9],"gregs-face":[3,10],"perfect-circle":[3,9],"cup-pong":[4,10],"darts":[4,10],"eight-ball":[4,9],"mini-golf":[4,10],"frontline":[4,9],"nova-rally":[6,13],"starship-flap":[3,4]}'::jsonb,
     'first-party stats + achievements';
   -- Retired first-party apps (official_apps.sql: sync-apps retires what the catalog dropped) keep theirs.
   assert (select jsonb_object_agg(slug, jsonb_build_array(jsonb_array_length(stats), jsonb_array_length(achievements)))
             from public.apps where official and status = 'rejected')
-       = '{"trivia-royale":[4,9],"emoji-decode":[4,8],"hot-takes":[3,8]}'::jsonb,
+       = '{"trivia-royale":[4,9],"emoji-decode":[4,8],"hot-takes":[3,8],"meme-duel":[0,0]}'::jsonb,
     'retired first-party apps keep their progress definitions';
   assert (select bool_and(public.app_stats_error(stats) is null and public.app_achievements_error(achievements) is null
                           and (select sum((e->>'xp')::int) from jsonb_array_elements(achievements) e) <= 500
@@ -3659,6 +3707,112 @@ reset role;
 do $$
 begin
   assert exists (select 1 from loop_match), 'had an active match to finish';
+end $$;
+
+
+-- ---------------------------------------------------------------- No RPC raises 40001
+-- PostgREST re-runs a transaction that fails with serialization_failure, without limit: a
+-- conflict raised as 40001 loops inside PostgREST until the match moves on. Use PT409.
+-- 20261015000000_no_serialization_failure.
+do $$
+declare
+  v_bad text;
+begin
+  select string_agg(p.proname, ', ') into v_bad
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prosrc ~ '''40001''|serialization_failure';
+  assert v_bad is null, 'functions raising 40001: ' || v_bad;
+end $$;
+
+
+-- ---------------------------------------------------------------- Abandoned live/practice matches end
+-- 20261015000100_end_abandoned_matches: the last player still connected wins a live match by forfeit
+-- after a 2-minute grace; live and practice matches nobody wrote to in 30 minutes expire; async waits.
+set role authenticated;
+select pg_temp.party('ab_live', array['alice_x', 'bob', 'carol']);
+select pg_temp.login('alice_x');
+select public.mark_started(pg_temp.mid('ab_live'));
+select pg_temp.expect('select public.end_abandoned_matches()', '42501');
+reset role;
+-- Bob is a minute behind (within the grace), Carol is gone: two still connected, nothing happens.
+update public.match_players
+   set last_seen_at = now() - case when user_id = pg_temp.uid('alice_x') then interval '0'
+                                   when user_id = pg_temp.uid('bob') then interval '1 minute'
+                                   else interval '5 minutes' end
+ where match_id = pg_temp.mid('ab_live');
+update public.matches set started_at = now() - interval '10 minutes' where id = pg_temp.mid('ab_live');
+select public.end_abandoned_matches();
+do $$
+declare m jsonb := public.get_match(pg_temp.mid('ab_live'));
+begin
+  assert m->>'status' = 'active', 'two still connected: the match goes on';
+  assert pg_temp.pl(m, 'carol')->>'state' = 'joined', 'carol is claim_forfeit''s to take';
+end $$;
+-- Bob goes quiet too: Alice is the last player standing.
+update public.match_players set last_seen_at = now() - interval '3 minutes'
+ where match_id = pg_temp.mid('ab_live') and user_id = pg_temp.uid('bob');
+do $$
+begin
+  assert public.end_abandoned_matches() >= 1, 'ended some';
+end $$;
+do $$
+declare p jsonb := pg_temp.placements(pg_temp.mid('ab_live'));
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_live')) = 'completed', 'settled';
+  assert (select winner_id from public.matches where id = pg_temp.mid('ab_live')) = pg_temp.uid('alice_x'), 'alice wins';
+  assert p->'alice_x'->>1 = 'win', p::text;
+  assert p->'bob'->>1 = 'loss' and p->'bob'->>3 = 'left', p::text;
+  assert p->'carol'->>1 = 'loss' and p->'carol'->>3 = 'left', p::text;
+end $$;
+
+-- Nobody wrote or sent a heartbeat for 30 minutes: live and practice expire, async keeps waiting,
+-- a fresh live match stays, and so does one whose players still send heartbeats (a live-server
+-- match writes nothing until its results).
+set role authenticated;
+select pg_temp.party('ab_stale', array['dave', 'erin']);
+select pg_temp.party('ab_heard', array['erin', 'dave']);
+select pg_temp.party('ab_fresh', array['bob', 'carol']);
+select pg_temp.login('carol');
+insert into ctx values ('ab_prac', public.start_practice('party-four')::text);
+insert into ctx values ('ab_async', public.create_challenge('ref-party', 'async', '@bob', p_max_players => 2)::text);
+select pg_temp.login('bob');
+select public.join_match(pg_temp.mid('ab_async'));
+reset role;
+update public.matches
+   set updated_at = now() - interval '31 minutes',
+       started_at = case when started_at is not null then now() - interval '31 minutes' end
+ where id in (pg_temp.mid('ab_stale'), pg_temp.mid('ab_prac'), pg_temp.mid('ab_async'), pg_temp.mid('ab_heard'));
+update public.match_players set last_seen_at = now() - interval '10 minutes'
+ where match_id = pg_temp.mid('ab_heard') and user_id = pg_temp.uid('erin');
+update public.matches set updated_at = now() - interval '29 minutes' where id = pg_temp.mid('ab_fresh');
+do $$
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_async')) = 'active', 'async running';
+  assert (select status from public.matches where id = pg_temp.mid('ab_prac')) = 'active', 'practice running';
+end $$;
+-- Listing my matches ends my own abandoned ones (no pg_cron needed).
+set role authenticated;
+select pg_temp.login('dave');
+do $$
+declare l jsonb := public.list_my_matches();
+begin
+  assert (select x->>'status' from jsonb_array_elements(l) x where x->>'id' = pg_temp.cv('ab_stale')) = 'expired', l::text;
+  assert (select x->>'status' from jsonb_array_elements(l) x where x->>'id' = pg_temp.cv('ab_heard')) = 'active', l::text;
+end $$;
+reset role;
+select public.end_abandoned_matches();
+do $$
+begin
+  assert (select status from public.matches where id = pg_temp.mid('ab_prac')) = 'expired', 'stale practice';
+  assert (select status from public.matches where id = pg_temp.mid('ab_async')) = 'active', 'async waits';
+  assert (select status from public.matches where id = pg_temp.mid('ab_fresh')) = 'active', 'fresh live stays';
+  assert (select status from public.matches where id = pg_temp.mid('ab_heard')) = 'active', 'heartbeats keep it';
+  assert not exists (select 1 from public.matches m where status = 'active' and mode in ('live', 'practice')
+                       and updated_at < now() - interval '30 minutes'
+                       and not exists (select 1 from public.match_players mp
+                                        where mp.match_id = m.id and mp.role = 'player'
+                                          and coalesce(mp.last_seen_at, m.started_at) >= now() - interval '30 minutes')),
+         'none left';
 end $$;
 
 \echo 'All database lifecycle checks passed ✔'

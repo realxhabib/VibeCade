@@ -56,6 +56,42 @@ export interface RoomTransport {
   /** Everyone currently connected, including us. */
   onPresence(handler: (peers: RoomPeer[]) => void): () => void;
   close(): void;
+  /** Live server rooms only: the room can hold the match state (see `RoomState`). */
+  state?: RoomState;
+}
+
+/** A versioned copy of the match state. */
+export interface RoomStateCopy {
+  state: Json | null;
+  version: number;
+}
+
+/**
+ * The match state held by a live server room (liveServer apps), in memory only: nothing reaches
+ * the database while the room holds it. The room orders writes (compare-and-set on its version)
+ * and broadcasts each one; every host keeps the latest copy, and a room that restarted is
+ * seeded again from the newest copy the hosts offer when they reconnect (`RoomOptions.latestState`).
+ */
+export interface RoomState {
+  /** The room holds the state (its copy may still be on its way): write here, not to the database. */
+  holds(): boolean;
+  /** The room's latest copy, when it holds one. */
+  copy(): RoomStateCopy | null;
+  /**
+   * Compare-and-set on the room's version (waiting a moment for the room's first copy): resolves
+   * with the new version. Rejects with a BackendError: `conflict` (the version moved; the room's
+   * copy has already reached `onChange`), `forbidden` (not seated), `invalid`, or `internal`
+   * (dropped or not seeded in time: the app retries, and the host writes to the database once
+   * the room no longer holds the state).
+   */
+  set(state: Json | null, expectedVersion: number): Promise<number>;
+  /** Every new copy (`by`: the writer's user id, null for the copy the room already had). */
+  onChange(handler: (copy: RoomStateCopy, by: string | null) => void): () => void;
+}
+
+export interface RoomOptions {
+  /** Our latest copy of the state, offered to a live server room that has none or an older one. */
+  latestState?: () => RoomStateCopy | null;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -149,6 +185,11 @@ export interface Backend {
   inviteToMatch(matchId: string, handles: string[]): Promise<Match>;
   /** Compare-and-set the shared match state. Throws BackendError "conflict" if the version moved. */
   updateState(matchId: string, state: Json, expectedVersion: number): Promise<{ version: number; match: Match }>;
+  /**
+   * Store a newer copy at its own version (forward only), for picking the state back up after a
+   * live server room held it. Throws BackendError "conflict" unless `version` is ahead of the stored one.
+   */
+  rebaseState(matchId: string, state: Json, version: number): Promise<{ version: number; match: Match }>;
   /** Pass the turn (default: next seated player still in the match). */
   endTurn(matchId: string, next?: string | null): Promise<Match>;
   setRound(matchId: string, round: number): Promise<Match>;
@@ -175,7 +216,8 @@ export interface Backend {
   watchMatch(matchId: string, handler: (match: Match) => void): () => void;
   /** Fires whenever anything relevant to the viewer's matches changes. */
   watchInbox(handler: () => void): () => void;
-  openRoom(matchId: string, viewerId: string): RoomTransport;
+  /** `appSlug` picks the transport (the live server for `liveServer` apps, see AppManifest). */
+  openRoom(matchId: string, viewerId: string, appSlug?: string, options?: RoomOptions): RoomTransport;
 
   // Per-app storage ----------------------------------------------------
   storageGet(appSlug: string, key: string, scope?: StorageScope): Promise<Json | null>;

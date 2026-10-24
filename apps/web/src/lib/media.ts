@@ -4,7 +4,7 @@
  * where uploads live, and which URLs the platform accepts as media anywhere
  * (entries, meme drops, state). `isAllowedMediaUrl()` is the single check.
  */
-import { LIMITS, type MediaRef, type SubmissionDisplay } from "@xapps/sdk";
+import { LIMITS, type MediaRef, type SubmissionDisplay } from "vibecade-sdk";
 import { env, isSupabaseConfigured } from "./env";
 
 export type MediaKind = MediaRef["kind"];

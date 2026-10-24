@@ -1,4 +1,4 @@
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import { describe, expect, it } from "vitest";
 import { RADIUS, hitTest, target } from "./board";
 import { BOT, botDart, botProfile, botSchedule, gaussian, hurrySchedule, planBot, spreadFor, type BotProfile } from "./bots";

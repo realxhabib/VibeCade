@@ -3,6 +3,8 @@
 import { motion } from "motion/react";
 import {
   ArrowRight,
+  ArrowUpRight,
+  BookOpen,
   Boxes,
   KeyRound,
   ServerCog,
@@ -37,7 +39,7 @@ import { cn } from "@/lib/utils";
 import { useViewer } from "@/platform/client";
 import { useAppServerConfig, useMyApps } from "@/platform/queries";
 import type { AppManifest } from "@/platform/types";
-import { LIMITS } from "@xapps/sdk";
+import { LIMITS } from "vibecade-sdk";
 
 const FEATURES = [
   { icon: Fingerprint, title: "X identity", body: "Every player arrives signed in with their X handle and avatar. No auth code on your side." },
@@ -53,18 +55,18 @@ const FEATURES = [
   { icon: Medal, title: "Stats & achievements", body: "Declare stats and get leaderboards on your listing. Unlock achievements with a host-rendered moment and XP on profiles." },
 ];
 
-const REACT_SNIPPET = `import { XAppsProvider, useXApps, useRoomEvent, useMatchStarted } from "@xapps/sdk/react";
+const REACT_SNIPPET = `import { VibeCadeProvider, useVibeCade, useRoomEvent, useMatchStarted } from "vibecade-sdk/react";
 
 export default function App() {
   return (
-    <XAppsProvider fallback={<p>Loading…</p>}>
+    <VibeCadeProvider fallback={<p>Loading…</p>}>
       <Game />
-    </XAppsProvider>
+    </VibeCadeProvider>
   );
 }
 
 function Game() {
-  const xapps = useXApps();
+  const xapps = useVibeCade();
   const started = useMatchStarted();
   const [taps, setTaps] = useState(0);
 
@@ -127,7 +129,7 @@ xapps.onAchievement(({ id, userId }) => cheer(userId, id)); // anyone in the mat
 await xapps.storage.set("settings", { sfx: false });
 const puzzle = await xapps.storage.get("daily", { scope: "app" });`;
 
-const TURNS_SNIPPET = `import { connect } from "@xapps/sdk";
+const TURNS_SNIPPET = `import { connect } from "vibecade-sdk";
 
 const xapps = await connect();                     // manifest: turnBased: true, modes: ["live", "async"]
 
@@ -145,7 +147,7 @@ async function play(move) {
 const standaloneSnippet = (origin: string) => `// manifest: kind "app" — people open it at /apps/<slug>/open, no matches.
 import { connect } from "${origin}/sdk/v1.js";
 
-const xapps = await connect({ mock: { purpose: "app" } }); // mock: outside XApps too
+const xapps = await connect({ mock: { purpose: "app" } }); // mock: outside VibeCade too
 // xapps.purpose === "app": no ready(), no onStart, no submit. Just render.
 
 hello.textContent = \`Hey @\${xapps.user.handle}\`;         // always signed in with X
@@ -176,7 +178,7 @@ async function share(canvas, score) {
   const blob = await new Promise((done) => canvas.toBlob(done, "image/png"));
   const image = await xapps.media.upload(blob, { alt: \`My \${score}% run\` });
   // X shows the uploaded image as a big card: the host posts it via a page with card tags.
-  await xapps.social.share(\`I scored \${score}% on XApps\`, image.url);
+  await xapps.social.share(\`I scored \${score}% on VibeCade\`, image.url);
 }`;
 
 type SnippetTab = "react" | "vanilla" | "contest" | "turns" | "media" | "app" | "solo";
@@ -249,7 +251,7 @@ const API: { group: string; rows: [string, string][] }[] = [
     rows: [
       ["xapps.ui.setStatus(text) · setScores(map) · setTurn(id)", "Drive the host HUD above your app."],
       ["xapps.ui.toast(msg) · celebrate() · haptic(style)", "Host-rendered toasts, confetti and vibration."],
-      ["xapps.ui.lockGestures(element)", "Makes a canvas/board/slider a drag surface: no page scroll, bounce or pull-to-refresh while touching it, iOS included. Returns an undo function. React: useGestureLock(ref). connect() already stops your page from bouncing inside XApps."],
+      ["xapps.ui.lockGestures(element)", "Makes a canvas/board/slider a drag surface: no page scroll, bounce or pull-to-refresh while touching it, iOS included. Returns an undo function. React: useGestureLock(ref). connect() already stops your page from bouncing inside VibeCade."],
       ["xapps.social.share(text, url?)", "Opens the X composer, pre-filled. The user always confirms. Pass a media.upload image URL and X shows the picture as a large card."],
     ],
   },
@@ -281,13 +283,13 @@ const API: { group: string; rows: [string, string][] }[] = [
       ["xapps.achievements.unlock(id)", "→ { unlocked } (false if the player already had it). XP is added to their profile once; the host shows the unlock moment."],
       ["xapps.onAchievement(fn)", "achievement.unlock { id, userId } — the player, or someone else in a live match."],
       ["Server authority", "Server-authoritative apps report stats and unlock achievements only from their server: POST /api/v1/stats · /api/v1/achievements."],
-      ["useStats() · useAchievements() · useMediaUpload()", "React hooks (@xapps/sdk/react)."],
+      ["useStats() · useAchievements() · useMediaUpload()", "React hooks (vibecade-sdk/react)."],
     ],
   },
   {
-    group: "Server SDK (@xapps/sdk/server)",
+    group: "Server SDK (vibecade-sdk/server)",
     rows: [
-      ["verifyWebhook(rawBody, signatureHeader, secret, { toleranceSeconds? })", "Checks X-XApps-Signature and returns the parsed event. Throws XAppsError invalid_signature or stale_signature (older than 5 min by default). Accepts several v1 signatures during a rotation. Web Crypto only: Node 18+, Deno, Workers, edge."],
+      ["verifyWebhook(rawBody, signatureHeader, secret, { toleranceSeconds? })", "Checks X-XApps-Signature and returns the parsed event. Throws VibeCadeError invalid_signature or stale_signature (older than 5 min by default). Accepts several v1 signatures during a rotation. Web Crypto only: Node 18+, Deno, Workers, edge."],
       ["createServerClient({ secret, baseUrl })", "A client for the server API, authenticated with your xas_ secret. Never ship it to the browser."],
       ["server.getMatch(id)", "The match with every player's submission, data included."],
       ["server.setState(id, state, version) · updateState(id, fn)", "Compare-and-set the shared state; updateState re-reads and retries on 409."],
@@ -296,10 +298,10 @@ const API: { group: string; rows: [string, string][] }[] = [
     ],
   },
   {
-    group: "React (@xapps/sdk/react)",
+    group: "React (vibecade-sdk/react)",
     rows: [
-      ["<XAppsProvider fallback errorFallback>", "Connects once and provides the client."],
-      ["useXApps() · useMatch() · usePresence()", "Client, live match object, connected players."],
+      ["<VibeCadeProvider fallback errorFallback>", "Connects once and provides the client."],
+      ["useVibeCade() · useMatch() · usePresence()", "Client, live match object, connected players."],
       ["useRoomEvent(type, handler) · useReactions(handler)", "Subscriptions that clean themselves up."],
       ["useMatchStarted() · useMatchResult()", "Booleans/results that re-render when they change."],
       ["useMatchState() · useTurn() · useRound()", "{ state, version, set, update } · { turn, isMine, deadline, end } · { round, set }."],
@@ -313,7 +315,7 @@ const MANIFEST: [string, string][] = [
   ["name · tagline · description", "How your app is listed"],
   ["category", "games · contests · debates · trivia · creative · social"],
   ["icon · accent", "One emoji + a two-color gradient"],
-  ["url", "https URL of your app (must allow framing by XApps)"],
+  ["url", "https URL of your app (must allow framing by VibeCade)"],
   ["modes", "live (same time) · async (play anytime) · practice (vs bots)"],
   ["players", "{ min, max } seats per match, 2–8"],
   ["teams", "0 for free-for-all, or 2–4 teams (seat s plays for team s % teams)"],
@@ -531,6 +533,21 @@ function TrustSection() {
   );
 }
 
+const GUIDE_URL = "https://github.com/realxhabib/VibeCade/blob/HEAD/docs/build-a-game.md";
+
+/** "Build your first game": the short version of docs/build-a-game.md. */
+const SHIP_STEPS: { title: string; body: string; code?: (origin: string) => string }[] = [
+  { title: "Create it", body: "A starter game with the SDK wired in; npm run dev plays it against a practice bot.", code: () => "npm create vibecade@latest my-game" },
+  {
+    title: "Host it",
+    body: "Any static host with https. Allow this site and X to frame it (posts on X frame the player card, which frames your game), or send no frame-ancestors at all:",
+    code: (origin) => `Content-Security-Policy: frame-ancestors ${origin || "https://vibecade.si"} https://x.com https://*.x.com https://twitter.com https://*.twitter.com`,
+  },
+  { title: "Test it", body: "Play both seats in the Sandbox until its log is clean." },
+  { title: "Register it", body: "Sign in with X and fill in your listing from vibecade.manifest.json. It's reviewed, then you publish it." },
+  { title: "Share it", body: "Post its link on X: people play it right inside the post, and challenge each other from there.", code: (origin) => `${origin || "https://vibecade.si"}/x/<your-game>` },
+];
+
 export function Developers() {
   const [tab, setTab] = useState<SnippetTab>("react");
   const origin = useOrigin();
@@ -547,12 +564,12 @@ export function Developers() {
     <div>
       <section className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={spring.soft}>
-          <Badge tone="nova">@xapps/sdk · v0.1</Badge>
+          <Badge tone="nova">vibecade-sdk · v0.1</Badge>
           <h1 className="mt-5 font-display text-[clamp(2.6rem,6vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.04em]">
             Build the next thing <span className="text-gradient">everyone challenges</span> their friends to.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-ink-300">
-            XApps handles identity, matchmaking, realtime rooms, results, XP and the crowd. You write the fun part — in
+            VibeCade handles identity, matchmaking, realtime rooms, results, XP and the crowd. You write the fun part — in
             any framework, hosted anywhere. It hosts both games people challenge each other to and standalone apps people
             simply open, like a news reader, a dashboard or a meme maker.
           </p>
@@ -566,7 +583,10 @@ export function Developers() {
           </div>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 30, rotate: 2 }} animate={{ opacity: 1, y: 0, rotate: 0 }} transition={{ delay: 0.1, ...spring.soft }}>
-          <CodeBlock filename="terminal" code={`npm install @xapps/sdk\n\n// or, no build step at all:\nimport { connect } from "${origin}/sdk/v1.js";`} />
+          <CodeBlock
+            filename="terminal"
+            code={`# a new game, ready to run\nnpm create vibecade@latest my-game\n\n# or add the SDK to your own app\nnpm install vibecade-sdk\n\n// or, no build step at all:\nimport { connect } from "${origin}/sdk/v1.js";`}
+          />
         </motion.div>
       </section>
 
@@ -750,15 +770,25 @@ export function Developers() {
         })}
       </section>
 
-      <section className={cn("mt-20 rounded-[2.5rem] border border-white/[0.08] bg-ink-850/80 p-8 sm:p-10")}>
-        <h2 className="font-display text-3xl font-extrabold tracking-tight">Ship it</h2>
-        <ol className="mt-4 space-y-2 text-ink-300">
-          <li>1. Host your app on https and allow XApps to frame it: <code className="font-mono text-sm text-ink-100">Content-Security-Policy: frame-ancestors &lt;xapps-origin&gt;</code></li>
-          <li>2. Test both seats in the Sandbox until the log is clean.</li>
-          <li>3. Register it — it&apos;s reviewed, then listed in the marketplace for everyone on X.</li>
+      <section id="first-game" className={cn("mt-20 rounded-[2.5rem] border border-white/[0.08] bg-ink-850/80 p-8 sm:p-10")}>
+        <h2 className="font-display text-3xl font-extrabold tracking-tight">Build your first game</h2>
+        <p className="mt-2 max-w-2xl text-ink-300">From an empty folder to a game people play inside a post on X.</p>
+        <ol className="mt-5 space-y-3 text-ink-300">
+          {SHIP_STEPS.map((step, i) => (
+            <li key={step.title} className="flex gap-3">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-ink-50">{i + 1}</span>
+              <span>
+                <span className="font-semibold text-ink-50">{step.title}.</span> {step.body}
+                {step.code && <code className="mt-1 block overflow-x-auto font-mono text-[13px] text-ink-100">{step.code(origin)}</code>}
+              </span>
+            </li>
+          ))}
         </ol>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button href="/developers/new" size="lg" variant="primary" icon={<Plus className="size-4" />}>
+          <Button href={GUIDE_URL} target="_blank" rel="noopener" size="lg" variant="primary" icon={<BookOpen className="size-4" />} iconRight={<ArrowUpRight className="size-4" />}>
+            Read the full guide
+          </Button>
+          <Button href="/developers/new" size="lg" variant="glass" icon={<Plus className="size-4" />}>
             Register an app
           </Button>
           <Button href="/developers/sandbox" size="lg" variant="glass" icon={<FlaskConical className="size-4" />}>

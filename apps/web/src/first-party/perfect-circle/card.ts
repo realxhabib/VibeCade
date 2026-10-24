@@ -85,7 +85,7 @@ export function shareText(accuracy: number, standing?: { rank: number; total: nu
   const { emoji } = verdictFor(accuracy);
   const rank =
     standing && standing.total > 1 ? ` That's #${standing.rank} of ${new Intl.NumberFormat("en").format(standing.total)} worldwide.` : "";
-  return `I drew a ${formatAccuracy(accuracy)} perfect circle on XApps ${emoji}${rank} Can you beat it?`;
+  return `I drew a ${formatAccuracy(accuracy)} perfect circle on VibeCade ${emoji}${rank} Can you beat it?`;
 }
 
 /* ------------------------------------------------------------------ */

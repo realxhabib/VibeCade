@@ -38,6 +38,9 @@ import type {
 import { BackendError } from "../backend";
 import { OutageError, isOutage } from "../health";
 
+/** The `apps` columns every catalog read selects (with the developer's handle and name). */
+export const APP_COLUMNS = "*, developer:profiles!apps_developer_id_fkey(handle, name)";
+
 export interface AppRow {
   slug: string;
   name: string;
@@ -247,7 +250,7 @@ function stringOrNull(value: unknown): string | null {
 
 /** Maps a Postgres/PostgREST error code (and message) to a BackendError code. */
 export function errorKind(code: string | undefined, message = ""): BackendError["code"] {
-  if (code === "40001" || /state_conflict/i.test(message)) return "conflict";
+  if (code === "PT409" || code === "40001" || /state_conflict/i.test(message)) return "conflict";
   // A finished, expired or cancelled match: final, so never "conflict" (which tells apps to re-read and retry;
   // a tab left open on a finished match once retried that write forever).
   if (/isn.t running/i.test(message)) return "forbidden";
@@ -281,7 +284,7 @@ export function toBackendError(error: { code?: string; message?: string } | null
   const code = error?.code;
   if (isSchemaMissing(code)) {
     return new BackendError(
-      "Supabase is connected, but the XApps database schema isn't installed yet. Run the SQL in supabase/migrations.",
+      "Supabase is connected, but the VibeCade database schema isn't installed yet. Run the SQL in supabase/migrations.",
       "setup_required",
     );
   }

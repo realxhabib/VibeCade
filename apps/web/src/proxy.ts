@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env, isSupabaseConfigured } from "@/lib/env";
+import { EMBEDDED_COOKIE, sessionCookieOptions } from "@/platform/supabase/embedded";
 
 /**
  * Keeps the Supabase auth session fresh on every page request. In demo mode
@@ -29,6 +30,8 @@ export async function proxy(request: NextRequest) {
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(env.supabaseUrl, env.supabaseKey, {
+    // Framed by another site: keep refreshed cookies partitioned (platform/supabase/embedded.ts).
+    cookieOptions: sessionCookieOptions(request.cookies.has(EMBEDDED_COOKIE)),
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -49,8 +52,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Skip static assets, the SDK bundle, examples, first-party app frames and the
-    // server API (/api/v1: app servers authenticate with a secret, not a session) and
-    // demo-mode uploads (/api/demo-media).
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sdk/|examples/|embed/|api/meme-image|api/x-media|api/trending-memes|api/demo-media|api/v1/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|map)$).*)",
+    // server API (/api/v1: app servers authenticate with a secret, not a session),
+    // demo-mode uploads (/api/demo-media) and the X player (/x/: guests, no session).
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sdk/|examples/|embed/|x/|api/demo-media|api/v1/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|map)$).*)",
   ],
 };

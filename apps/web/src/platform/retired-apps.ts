@@ -22,6 +22,7 @@ export interface RetiredApp {
 }
 
 export const RETIRED_APPS: readonly RetiredApp[] = [
+  { slug: "meme-duel", name: "Meme Duel", icon: "🖼️", accent: ["#ff5ca8", "#8b5cff"], category: "contests", scoring: "votes", maxPlayers: 2 },
   { slug: "hot-takes", name: "Hot Takes", icon: "🔥", accent: ["#ff9a3d", "#ff3d6e"], category: "debates", scoring: "votes", maxPlayers: 2 },
   { slug: "emoji-decode", name: "Emoji Decode", icon: "🧩", accent: ["#b6ff3d", "#1fd1b2"], category: "trivia", scoring: "high", maxPlayers: 2 },
   { slug: "trivia-royale", name: "Trivia Royale", icon: "👑", accent: ["#ffd84d", "#ff5c7a"], category: "trivia", scoring: "high", maxPlayers: 8 },
@@ -45,7 +46,7 @@ export function retiredAppManifest(slug: string): AppManifest {
   return {
     slug,
     name: known?.name ?? "Retired app",
-    tagline: "No longer on XApps.",
+    tagline: "No longer on VibeCade.",
     description: "",
     category: known?.category ?? "games",
     icon: known?.icon ?? "🗃️",
@@ -65,7 +66,7 @@ export function retiredAppManifest(slug: string): AppManifest {
     durationLabel: "",
     howTo: [],
     official: !!known,
-    developer: { id: null, handle: "xapps", name: "XApps Studio" },
+    developer: { id: null, handle: "xapps", name: "VibeCade Studio" },
     status: "rejected",
     retired: true,
     playCount: 0,

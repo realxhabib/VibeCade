@@ -14,7 +14,7 @@
  * and has the final word on race results.
  */
 
-import type { Json, MatchResult, PlayerInfo, XAppsClient } from "@xapps/sdk";
+import type { Json, MatchResult, PlayerInfo, VibeCadeClient } from "vibecade-sdk";
 import { Vector3 } from "three";
 import { reportStats, unlockAchievements } from "@/first-party/shared/progress";
 import { AiPilot, rubberBand, type AiView } from "./ai";
@@ -315,7 +315,7 @@ function conductorId(players: readonly PlayerInfo[]): string | null {
 }
 
 export class RaceRuntime {
-  readonly xapps: XAppsClient;
+  readonly xapps: VibeCadeClient;
   readonly audio = new RaceAudio();
   readonly reduced: boolean;
   readonly spectator: boolean;
@@ -384,7 +384,7 @@ export class RaceRuntime {
   private koSeq = 0;
   private trialResult: { time: number; best: number | null; record: boolean } | null = null;
 
-  constructor(xapps: XAppsClient, reduced: boolean, choice: ShipChoice, opts: { trial?: string } = {}) {
+  constructor(xapps: VibeCadeClient, reduced: boolean, choice: ShipChoice, opts: { trial?: string } = {}) {
     this.xapps = xapps;
     this.reduced = reduced;
     this.trial = opts.trial ?? null;
@@ -494,6 +494,7 @@ export class RaceRuntime {
     this.racers.forEach((r, slot) => {
       const g = this.track.grid(slot);
       r.ship = new Ship(this.track, tuningFor(r.stats), g.s, g.d);
+      r.ship.edgeAssist = r.isMe;
       r.prevPos.copy(r.ship.pos);
     });
     this.snapshot = this.buildSnapshot();
@@ -592,6 +593,7 @@ export class RaceRuntime {
       tune.top *= this.scale.speed;
       tune.accel *= this.scale.accel;
       r.ship = new Ship(track, tune, g.s, g.d);
+      r.ship.edgeAssist = r.isMe;
       r.prevPos.copy(r.ship.pos);
       r.lap = -1;
       r.halfway = false;
@@ -633,7 +635,8 @@ export class RaceRuntime {
     this.audio.music(track.def.theme);
     this.audio.setIntensity(false);
     if (!this.trial) {
-      this.xapps.ui.setStatus(`${this.settings.cup.name} · Race ${index + 1}/${this.raceCount} · ${track.def.name}`).catch(ignore);
+      const event = this.raceCount > 1 ? `${this.settings.cup.name} · Race ${index + 1}/${this.raceCount}` : this.settings.cup.name;
+      this.xapps.ui.setStatus(`${event} · ${track.def.name}`).catch(ignore);
     }
     this.pushScores();
     this.emit(true);

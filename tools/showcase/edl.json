@@ -61,23 +61,6 @@
    }
   },
   {
-   "name": "5 Arena: Meme Duel voting",
-   "src": "arena",
-   "start": 85,
-   "end": 146,
-   "xfade": 6,
-   "caption": {
-    "dir": "cap-arena",
-    "at": 10
-   }
-  },
-  {
-   "name": "5b Arena: next contest",
-   "src": "arena",
-   "start": 160,
-   "end": 219
-  },
-  {
    "name": "6a Challenge sheet",
    "src": "chal",
    "start": 16,

@@ -1,10 +1,10 @@
 import { APP_IMAGES_BUCKET, APP_IMAGE_MAX_BYTES, APP_IMAGE_UPLOADS_PER_DAY, type AppImageKind } from "@/lib/app-images";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import { LIMITS } from "@xapps/sdk";
-import { isBlobLike } from "@xapps/sdk/host";
+import { LIMITS } from "vibecade-sdk";
+import { isBlobLike } from "vibecade-sdk/host";
 import { env } from "@/lib/env";
 import { APP_MEDIA_BUCKET, baseMime, displayProblem, mediaExtension, mediaKindOf, mediaProblem, probeMedia } from "@/lib/media";
-import { BackendError, type Backend, type RoomTransport } from "../backend";
+import { BackendError, type Backend, type RoomOptions, type RoomTransport } from "../backend";
 import { OFFICIAL_APPS, getOfficialApp, manifestShapeError, withManifestDefaults } from "../catalog";
 import { OUTAGE_MESSAGE, OutageError, isOfflineMatch, isOutage, noteHealthy, noteOutage } from "../health";
 import { DemoBackend } from "../demo/demo-backend";
@@ -37,7 +37,10 @@ import type {
   WebhookDelivery,
 } from "../types";
 import { getBrowserSupabase } from "./client";
+import { isFramed, signInThroughPopup } from "../x-session";
+import { createLiveRoom } from "./live-room";
 import {
+  APP_COLUMNS,
   appInsert,
   challengeArgs,
   isSchemaMissing,
@@ -90,8 +93,6 @@ interface ProfileRow {
   is_admin?: boolean | null;
 }
 
-const APP_COLUMNS = "*, developer:profiles!apps_developer_id_fkey(handle, name)";
-
 function toProfile(row: ProfileRow): Profile {
   return {
     id: row.id,
@@ -122,7 +123,7 @@ function fail(error: PostgrestError | Error | null | undefined, fallback = "Some
  * picks one explicitly. Otherwise use `twitter` when the auth settings say it's on
  * (those settings don't report `x` at all), and `x` in every other case.
  */
-async function resolveXProvider(): Promise<"x" | "twitter"> {
+export async function resolveXProvider(): Promise<"x" | "twitter"> {
   if (env.xProvider) return env.xProvider;
   try {
     const res = await fetch(`${env.supabaseUrl}/auth/v1/settings`, { headers: { apikey: env.supabaseKey } });
@@ -196,6 +197,12 @@ export class SupabaseBackend implements Backend {
   }
 
   async signInWithX(next = "/"): Promise<void> {
+    // Framed by another site: sign in through a popup, then reload so the server sees the session.
+    if (isFramed()) {
+      await signInThroughPopup(this.sb);
+      window.location.assign(next);
+      return;
+    }
     const provider = await resolveXProvider();
     // Always come back to the address sign-in started on: the PKCE verifier cookie lives there.
     const { error } = await this.sb.auth.signInWithOAuth({
@@ -633,6 +640,17 @@ export class SupabaseBackend implements Backend {
     return { version: Number.isFinite(version) ? version : match.stateVersion, match };
   }
 
+  async rebaseState(matchId: string, state: Json, version: number): Promise<{ version: number; match: Match }> {
+    const local = this.localFor(matchId);
+    if (local) return local.rebaseState(matchId, state, version);
+    const { data, error } = await this.sb.rpc("rebase_match_state", { p_match: matchId, p_state: state, p_version: version });
+    if (error) fail(error);
+    const stored = typeof data === "number" ? data : Number(data);
+    const match = await this.getMatch(matchId);
+    if (!match) throw new BackendError("Match not found", "not_found");
+    return { version: Number.isFinite(stored) ? stored : match.stateVersion, match };
+  }
+
   endTurn(matchId: string, next?: string | null): Promise<Match> {
     const local = this.localFor(matchId);
     if (local) return local.endTurn(matchId, next);
@@ -793,9 +811,11 @@ export class SupabaseBackend implements Backend {
     };
   }
 
-  openRoom(matchId: string, viewerId: string): RoomTransport {
+  openRoom(matchId: string, viewerId: string, appSlug?: string, options: RoomOptions = {}): RoomTransport {
     const local = this.localFor(matchId);
     if (local) return local.openRoom(matchId, viewerId);
+    // Fast first-party games use the live server when there is one (AppManifest.liveServer).
+    if (env.liveServerUrl && appSlug && getOfficialApp(appSlug)?.liveServer) return createLiveRoom(this.sb, env.liveServerUrl, matchId, options);
     return createSupabaseRoom(this.sb, matchId, viewerId);
   }
 

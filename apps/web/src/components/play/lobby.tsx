@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { XLogo } from "@/components/ui/x-logo";
 import { haptic } from "@/lib/haptics";
+import { copyText, openXIntent } from "@/lib/share";
 import { play } from "@/lib/sfx";
 import { BLUR_TWEEN, spring } from "@/lib/motion";
 import { useMounted } from "@/lib/use-mounted";
@@ -19,6 +20,7 @@ import { MODE_LABEL } from "@/platform/match-utils";
 import { useBackend } from "@/platform/client";
 import { useSearchProfiles } from "@/platform/queries";
 import type { AppManifest, Match, MatchPlayer, Profile } from "@/platform/types";
+import { useHostRoutes } from "./host-routes";
 import { maxSeats, SEAT_COLORS, seatedPlayers, tableSizeLabelForMatch, teamStyle } from "./match-view";
 import { TestBuildBadge } from "./test-build-badge";
 
@@ -34,7 +36,8 @@ function useElapsed(since: string): string {
 
 function Radar({ viewer, target, accent }: { viewer: Profile; target?: MatchPlayer; accent: [string, string] }) {
   return (
-    <div className="relative mx-auto flex size-64 items-center justify-center sm:size-72">
+    // Short screens (the 480×480 card in an X post, phones in landscape) skip it, so the share box stays in view.
+    <div className="relative mx-auto flex size-64 items-center justify-center sm:size-72 [@media(max-height:560px)]:hidden">
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
@@ -78,14 +81,13 @@ function ShareBox({ link, text, buttonLabel = "Post the challenge on X" }: { lin
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(link);
-              setCopied(true);
-              play("pop");
-              setTimeout(() => setCopied(false), 1800);
-            } catch {
-              // ignore
+            if (!(await copyText(link))) {
+              toast("Couldn't copy. Press and hold the link to copy it.", { tone: "warning" });
+              return;
             }
+            setCopied(true);
+            play("pop");
+            setTimeout(() => setCopied(false), 1800);
           }}
           className="flex h-9 items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-xs font-semibold transition hover:bg-white/15"
         >
@@ -108,12 +110,7 @@ function ShareBox({ link, text, buttonLabel = "Post the challenge on X" }: { lin
         variant="primary"
         size="lg"
         icon={<XLogo className="size-4" />}
-        onClick={() => {
-          const intent = new URL("https://x.com/intent/post");
-          intent.searchParams.set("text", text);
-          intent.searchParams.set("url", link);
-          window.open(intent.toString(), "_blank", "noopener,noreferrer,width=600,height=520");
-        }}
+        onClick={() => openXIntent(text, link)}
       >
         {buttonLabel}
       </Button>
@@ -183,7 +180,8 @@ function DuelLobby({
   const quick = match.settings.quick === true;
   const [showBot, setShowBot] = useState(false);
   const mounted = useMounted();
-  const link = mounted ? `${window.location.origin}/play/${match.id}` : "";
+  const routes = useHostRoutes();
+  const link = mounted ? `${window.location.origin}${routes.matchLink(match.id)}` : "";
 
   useEffect(() => {
     const t = setTimeout(() => setShowBot(true), 8000);
@@ -198,7 +196,7 @@ function DuelLobby({
 
   return (
     <motion.div
-      className="mx-auto flex w-full max-w-xl flex-col items-center px-4 pt-6 text-center"
+      className="mx-auto flex w-full max-w-xl flex-col items-center px-4 pt-6 text-center [@media(max-height:560px)]:pt-0"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.soft}
@@ -210,7 +208,7 @@ function DuelLobby({
         <TestBuildBadge match={match} />
       </div>
       <Radar viewer={viewer} target={invited} accent={app.accent} />
-      <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{headline}</h1>
+      <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl [@media(max-height:560px)]:mt-4 [@media(max-height:560px)]:text-2xl">{headline}</h1>
       <p className="mt-2 font-mono text-sm text-ink-400 tabular">{elapsed}</p>
       {invited ? (
         <p className="mt-3 max-w-sm text-sm text-ink-300">
@@ -227,12 +225,8 @@ function DuelLobby({
           link={link}
           text={
             invited
-              ? `@${invited.profile.handle} I challenged you to ${app.name} on XApps ⚡ Accept if you dare:`
-              : typeof match.settings.topic === "string"
-                ? `Caption battle on XApps ${app.icon} Topic: "${match.settings.topic}". Think you're funnier than me?`
-                : match.settings.drop
-                  ? `I dropped a meme on XApps ${app.icon} Caption it better than me:`
-                  : `I challenge anyone to ${app.name} on XApps ${app.icon} Think you can beat me?`
+              ? `@${invited.profile.handle} I challenged you to ${app.name} on VibeCade ⚡ Accept if you dare:`
+              : `I challenge anyone to ${app.name} on VibeCade ${app.icon} Think you can beat me?`
           }
         />
       )}
@@ -297,7 +291,8 @@ function TableLobby({
   const reduced = useReducedMotion();
   const elapsed = useElapsed(match.createdAt);
   const mounted = useMounted();
-  const link = mounted ? `${window.location.origin}/play/${match.id}` : "";
+  const routes = useHostRoutes();
+  const link = mounted ? `${window.location.origin}${routes.matchLink(match.id)}` : "";
   const slots = buildSlots(match);
   const total = slots.length;
   const filled = slots.filter((s) => s.player && s.player.state !== "invited").length;
@@ -355,7 +350,7 @@ function TableLobby({
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.h1
           key={headline}
-          className="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-4xl"
+          className="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-4xl [@media(max-height:560px)]:mt-2 [@media(max-height:560px)]:text-2xl"
           initial={{ opacity: 0, y: 12, filter: "blur(6px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
@@ -387,7 +382,7 @@ function TableLobby({
 
       {/* Seat grid */}
       <LayoutGroup>
-        <div className={cn("mt-6 w-full", teams === 2 ? "grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-4" : teams ? "grid gap-4 sm:grid-cols-2" : "")}>
+        <div className={cn("mt-6 w-full [@media(max-height:560px)]:mt-3", teams === 2 ? "grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-4" : teams ? "grid gap-4 sm:grid-cols-2" : "")}>
           {columns.map((column, ci) => {
             const style = teams ? teamStyle(ci) : null;
             return (
@@ -410,7 +405,13 @@ function TableLobby({
                   <div
                     className={cn(
                       "grid gap-2 sm:gap-3",
-                      teams ? "grid-cols-1 sm:grid-cols-2" : total <= 4 ? "grid-cols-2 sm:grid-cols-4" : total <= 6 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4",
+                      teams
+                        ? "grid-cols-1 sm:grid-cols-2"
+                        : total <= 4
+                          ? "grid-cols-2 sm:grid-cols-4 [@media(max-height:560px)]:grid-cols-4"
+                          : total <= 6
+                            ? "grid-cols-3"
+                            : "grid-cols-2 sm:grid-cols-4 [@media(max-height:560px)]:grid-cols-4",
                       teams === 2 && column.length <= 2 && "sm:grid-cols-1",
                     )}
                   >
@@ -481,8 +482,8 @@ function TableLobby({
           buttonLabel={watching ? "Share on X" : "Post the table on X"}
           text={
             watching
-              ? `A ${app.name} match is about to start on XApps ${app.icon} Come watch:`
-              : `${total - filled} seat${total - filled === 1 ? "" : "s"} left at my ${app.name} table on XApps ${app.icon} Pull up a chair:`
+              ? `A ${app.name} match is about to start on VibeCade ${app.icon} Come watch:`
+              : `${total - filled} seat${total - filled === 1 ? "" : "s"} left at my ${app.name} table on VibeCade ${app.icon} Pull up a chair:`
           }
         />
       )}
@@ -521,7 +522,8 @@ function SeatCard({
       layout
       transition={spring.layout}
       className={cn(
-        "relative flex min-h-36 flex-col items-center justify-center overflow-hidden rounded-3xl px-2 py-4",
+        // Short screens (the card in an X post): compact seats, so the share link and Start stay in view.
+        "relative flex min-h-36 flex-col items-center justify-center overflow-hidden rounded-3xl px-2 py-4 [@media(max-height:560px)]:min-h-0 [@media(max-height:560px)]:rounded-2xl [@media(max-height:560px)]:py-2",
         state === "filled" && "glass",
         state === "invited" && "border border-dashed border-white/20 bg-white/[0.03]",
         state === "open" && "border border-dashed border-white/12 bg-white/[0.015]",
@@ -543,7 +545,7 @@ function SeatCard({
             aria-label={`Seat ${slot.seat + 1} is open`}
           >
             <motion.span
-              className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-white/20"
+              className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-white/20 [@media(max-height:560px)]:size-9"
               animate={reduced ? undefined : { scale: [1, 1.05, 1], borderColor: ["rgb(255 255 255 / 0.18)", "rgb(255 255 255 / 0.32)", "rgb(255 255 255 / 0.18)"] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: slot.seat * 0.2 }}
             >

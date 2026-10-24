@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Game, idleIntent, type GameTransport, type Intent, type SeatInfo } from "./game";
+import { AMMO_DROP_MS, Game, idleIntent, takeAmmo, type GameTransport, type Intent, type SeatInfo } from "./game";
 import { MAPS } from "./map";
 import { RELAY_HZ, RELAY_INTERP_MS, type Packet } from "./net";
 import { parseDoc, type MatchDoc } from "./rules";
@@ -200,6 +200,51 @@ describe("two clients over the room", () => {
     expect(bob.me!.alive).toBe(true);
     await step(400);
     expect(alice.bySeat.get(1)!.alive).toBe(true);
+  });
+
+  it("a kill drops the victim's ammo for the killer only, who takes it by walking over it", async () => {
+    const { games, step, intents } = table([seat("alice", 0), seat("bob", 1)]);
+    const alice = games.get("alice")!;
+    const bob = games.get("bob")!;
+    await step(200);
+    faceOff(alice, bob);
+    await step(600);
+    intents.set("alice", AIM_FIRE);
+    await step(1200);
+    intents.set("alice", idleIntent());
+    await step(300);
+    expect(bob.me!.alive).toBe(false);
+    // Where Bob fell, for Alice; Bob (and anyone else) never sees it.
+    expect(alice.drops).toHaveLength(1);
+    const drop = alice.drops[0]!;
+    expect(drop.owner).toBe(0);
+    expect(Math.hypot(drop.x - 20, drop.z + 15)).toBeLessThan(0.5);
+    expect(bob.drops).toHaveLength(0);
+    // Alice walks over it: ammo back.
+    const me = alice.me!;
+    me.reserve[0] = 10;
+    me.nades = 0;
+    Object.assign(me.body, { x: drop.x, z: drop.z });
+    await step(100);
+    expect(alice.drops).toHaveLength(0);
+    expect(me.reserve[0]).toBeGreaterThan(10);
+    expect(me.nades).toBe(1);
+  });
+
+  it("an uncollected drop fades out", async () => {
+    const { games, step, intents } = table([seat("alice", 0), seat("bob", 1)]);
+    const alice = games.get("alice")!;
+    const bob = games.get("bob")!;
+    await step(200);
+    faceOff(alice, bob);
+    await step(600);
+    intents.set("alice", AIM_FIRE);
+    await step(1200);
+    intents.set("alice", idleIntent());
+    await step(300);
+    expect(alice.drops).toHaveLength(1);
+    await step(AMMO_DROP_MS + 500);
+    expect(alice.drops).toHaveLength(0);
   });
 
   it("survives a lossy room: the kill still lands exactly once", async () => {
@@ -442,5 +487,16 @@ describe("direct connections and the relay fallback", () => {
     expect(bob.me!.life).toBe(1);
     expect(bob.me!.alive).toBe(true);
     expect(alice.bySeat.get(1)!.alive).toBe(true);
+  });
+});
+
+describe("takeAmmo", () => {
+  it("tops up each gun by half its starting reserve, never past it, and gives a grenade back", () => {
+    const s = { weapons: ["ar", "pistol"] as ["ar", "pistol"], reserve: [0, 40] as [number, number], nades: 0 };
+    expect(takeAmmo(s)).toEqual({ rounds: 60 + 8, nades: 1 });
+    expect(s.reserve).toEqual([60, 48]);
+    expect(s.nades).toBe(1);
+    expect(takeAmmo(s)).toEqual({ rounds: 60, nades: 0 });
+    expect(s.reserve).toEqual([120, 48]);
   });
 });

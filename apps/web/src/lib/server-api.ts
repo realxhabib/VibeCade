@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { LIMITS, type Json } from "@xapps/sdk";
+import { LIMITS, type Json } from "vibecade-sdk";
 import { env, isSupabaseConfigured } from "@/lib/env";
 
 /**
@@ -275,7 +275,7 @@ export const PG_ERROR_RULES: readonly PgErrorRule[] = [
   { sqlstates: ["42501"], status: 403, code: "forbidden", message: "This match belongs to another app" },
   { sqlstates: ["P0002"], status: 404, code: "not_found", message: "Match not found" },
   {
-    sqlstates: ["40001"],
+    sqlstates: ["PT409", "40001"],
     messages: ["state_conflict"],
     status: 409,
     code: "conflict",
@@ -392,7 +392,7 @@ async function execute<B>(
       throw new ServerApiError(
         501,
         "not_configured",
-        "The server API needs Supabase; this XApps host runs in demo mode (no NEXT_PUBLIC_SUPABASE_URL / key).",
+        "The server API needs Supabase; this VibeCade host runs in demo mode (no NEXT_PUBLIC_SUPABASE_URL / key).",
       );
     }
     const secret = parseBearer(request.headers.get("authorization"));

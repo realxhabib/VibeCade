@@ -1,8 +1,8 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { XAppsError } from "@xapps/sdk";
-import type { HostHandlers } from "@xapps/sdk/host";
+import { VibeCadeError } from "vibecade-sdk";
+import type { HostHandlers } from "vibecade-sdk/host";
 import { AnimatePresence, motion } from "motion/react";
 import { Eye, Home, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -21,7 +21,7 @@ import { spring } from "@/lib/motion";
 import { copyText, openXIntent } from "@/lib/share";
 import { shareLinkFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
-import type { RoomPeer, RoomTransport } from "@/platform/backend";
+import type { RoomPeer, RoomStateCopy, RoomTransport } from "@/platform/backend";
 import { BackendError } from "@/platform/backend";
 import { useBackend, useViewer } from "@/platform/client";
 import { buildLaunchContext, opponentOf, playerOf, toLaunchMatch, toMatchResult } from "@/platform/match-utils";
@@ -35,6 +35,7 @@ import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./h
 import { ImmersiveChrome, useImmersive } from "./immersive";
 import { InviteCard, Lobby } from "./lobby";
 import { isMultiplayer, ordinal, seatedPlayers, viewerIsSpectator, viewerOutcome } from "./match-view";
+import { SITE_ROUTES, useHostRoutes } from "./host-routes";
 import { ResultsOverlay } from "./results-overlay";
 import { TurnBanner } from "./turn-banner";
 import {
@@ -42,6 +43,7 @@ import {
   APP_SANDBOX,
   LOGGED_REFUSALS,
   createLogThrottle,
+  createStateWriteGate,
   emitMatchChanges,
   readStatStanding,
   toSdkError,
@@ -90,24 +92,24 @@ function shareText(app: AppManifest, match: Match, viewerId: string | undefined)
   if (isMultiplayer(match)) {
     const outcome = viewerOutcome(match, viewerId);
     const table = seatedPlayers(match).length;
-    if (outcome.kind === "spectator") return `Just watched a ${table}-player ${app.name} match on XApps ${app.icon}`;
+    if (outcome.kind === "spectator") return `Just watched a ${table}-player ${app.name} match on VibeCade ${app.icon}`;
     if (match.teams >= 2) {
       return outcome.kind === "win"
-        ? `Team win in ${app.name} on XApps ${app.icon} 🏆 Who wants the rematch?`
-        : `Tough team loss in ${app.name} on XApps ${app.icon} Rematch incoming.`;
+        ? `Team win in ${app.name} on VibeCade ${app.icon} 🏆 Who wants the rematch?`
+        : `Tough team loss in ${app.name} on VibeCade ${app.icon} Rematch incoming.`;
     }
-    if (outcome.rank === 1) return `Took 1st of ${table} in ${app.name} on XApps ${app.icon} 🏆 Who's next?`;
-    return `Placed ${ordinal(outcome.rank ?? table)} of ${table} in ${app.name} on XApps ${app.icon} Next time it's mine.`;
+    if (outcome.rank === 1) return `Took 1st of ${table} in ${app.name} on VibeCade ${app.icon} 🏆 Who's next?`;
+    return `Placed ${ordinal(outcome.rank ?? table)} of ${table} in ${app.name} on VibeCade ${app.icon} Next time it's mine.`;
   }
   const opponent = opponentOf(match, viewerId);
   const them = opponent && !opponent.isBot ? `@${opponent.profile.handle}` : "the bot";
-  if (!match.winnerId) return `Dead even with ${them} in ${app.name} on XApps ${app.icon} Who breaks the tie?`;
+  if (!match.winnerId) return `Dead even with ${them} in ${app.name} on VibeCade ${app.icon} Who breaks the tie?`;
   if (match.winnerId === viewerId) {
     return match.scoring === "votes"
-      ? `The crowd picked my entry over ${them} in ${app.name} on XApps ${app.icon} 🏆`
-      : `Just beat ${them} in ${app.name} on XApps ${app.icon} Who's next?`;
+      ? `The crowd picked my entry over ${them} in ${app.name} on VibeCade ${app.icon} 🏆`
+      : `Just beat ${them} in ${app.name} on VibeCade ${app.icon} Who's next?`;
   }
-  return `${them} got me in ${app.name} on XApps ${app.icon} Rematch incoming.`;
+  return `${them} got me in ${app.name} on VibeCade ${app.icon} Rematch incoming.`;
 }
 
 /**
@@ -116,6 +118,7 @@ function shareText(app: AppManifest, match: Match, viewerId: string | undefined)
  */
 export function PlayRoom({ matchId }: { matchId: string }) {
   const router = useRouter();
+  const routes = useHostRoutes();
   const backend = useBackend();
   const queryClient = useQueryClient();
   const { viewer, loading: viewerLoading } = useViewer();
@@ -189,7 +192,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
           emoji={setup ? "🛠️" : "🕳️"}
           title={setup ? "Finish setting up Supabase" : "Match not found"}
           action={
-            <Button href="/" icon={<Home className="size-4" />}>
+            <Button href={routes.home} icon={<Home className="size-4" />}>
               Back home
             </Button>
           }
@@ -212,7 +215,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
     ? () => (viewer ? void lobbyCall("watch") : router.push(`/login?next=${encodeURIComponent(`/play/${match.id}`)}`))
     : undefined;
   const lobbyOpen = match.status === "open" || match.status === "pending";
-  const appHref = app.retired ? "/apps" : `/apps/${app.slug}`;
+  const appHref = app.retired ? routes.apps : routes.app(app.slug);
   let body: React.ReactNode;
 
   if (match.status === "completed") {
@@ -221,7 +224,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         app={app}
         match={match}
         viewer={viewer}
-        onShare={() => openXIntent(shareText(app, match, viewer?.id), `${window.location.origin}${appHref}`)}
+        onShare={() => openXIntent(shareText(app, match, viewer?.id), `${window.location.origin}${app.retired ? appHref : routes.share(app.slug)}`)}
         onHome={() => router.push(appHref)}
       />
     );
@@ -246,8 +249,8 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         app={app}
         match={match}
         viewerId={viewer?.id}
-        onShare={() => openXIntent(`Help me win ${app.name} on XApps — vote for the best entry ${app.icon}`, `${window.location.origin}/arena`)}
-        onLeave={() => router.push("/arena")}
+        onShare={() => openXIntent(`Help me win ${app.name} on VibeCade — vote for the best entry ${app.icon}`, `${window.location.origin}/arena`)}
+        onLeave={() => router.push(routes.arena)}
       />
     );
   } else if (app.retired) {
@@ -258,7 +261,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         action={<Button href="/apps">Browse apps</Button>}
         className="mx-auto mt-24 max-w-md"
       >
-        This app is no longer on XApps, so this match can&apos;t go on. Earlier results and the XP they earned stay on
+        This app is no longer on VibeCade, so this match can&apos;t go on. Earlier results and the XP they earned stay on
         your profile.
       </EmptyState>
     );
@@ -299,7 +302,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
                 Watch live
               </Button>
             )}
-            <Button href={`/apps/${app.slug}`} variant={onWatch ? "glass" : "primary"}>
+            <Button href={routes.app(app.slug)} variant={onWatch ? "glass" : "primary"}>
               Play {app.name}
             </Button>
           </div>
@@ -317,7 +320,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         viewer={viewer}
         accepting={action.isPending}
         onAccept={() => run("join")}
-        onDecline={() => run("decline", () => router.push("/challenges"))}
+        onDecline={() => run("decline", () => router.push(routes.challenges))}
       />
     );
   } else if (lobbyOpen && me.state === "joined") {
@@ -327,7 +330,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         match={match}
         viewer={viewer}
         cancelling={action.isPending}
-        onCancel={isCreator ? () => run("cancel", () => router.push(`/apps/${app.slug}`)) : undefined}
+        onCancel={isCreator ? () => run("cancel", () => router.push(routes.app(app.slug))) : undefined}
         onStart={isCreator ? () => void lobbyCall("start") : undefined}
         starting={busy === "start"}
         onPlayBot={
@@ -336,7 +339,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
                 try {
                   await backend.cancelMatch(match.id).catch(() => undefined);
                   const practice = await backend.startPractice(app.slug, match.maxPlayers > 2 ? match.maxPlayers : undefined, match.versionId);
-                  router.replace(`/play/${practice.id}`);
+                  router.replace(routes.match(practice.id));
                 } catch (error) {
                   toast(errorMessage(error), { tone: "danger" });
                 }
@@ -354,7 +357,7 @@ export function PlayRoom({ matchId }: { matchId: string }) {
         emoji="⏳"
         title={pending.length > 1 ? `Waiting for ${pending.length} players` : `Waiting for @${first?.profile.handle ?? "your opponent"}`}
         className="mx-auto mt-24 max-w-md"
-        action={<Button href="/challenges">Back to challenges</Button>}
+        action={<Button href={routes.challenges}>{routes.challenges === SITE_ROUTES.challenges ? "Back to challenges" : "Back"}</Button>}
       >
         Your result is locked in. We&apos;ll let you know the moment {pending.length > 1 ? "everyone has played" : "they play"}.
       </EmptyState>
@@ -366,8 +369,8 @@ export function PlayRoom({ matchId }: { matchId: string }) {
       <Backdrop app={app} />
       <div className="px-3 pt-3">
         <div className="mx-auto flex h-14 max-w-5xl items-center">
-          <Button variant="ghost" size="sm" href={viewer ? "/challenges" : "/"}>
-            ← {viewer ? "Challenges" : "XApps"}
+          <Button variant="ghost" size="sm" href={viewer && !routes.guest ? routes.challenges : routes.home}>
+            ← {viewer && !routes.guest && routes.challenges === SITE_ROUTES.challenges ? "Challenges" : "VibeCade"}
           </Button>
         </div>
       </div>
@@ -393,6 +396,7 @@ function readIntroSeen(matchId: string): boolean {
 /** The live stage: HUD + sandboxed app iframe + intro/voting/results overlays. */
 function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; viewer: Profile }) {
   const router = useRouter();
+  const routes = useHostRoutes();
   const backend = useBackend();
   const queryClient = useQueryClient();
   const action = useMatchAction();
@@ -443,14 +447,14 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   }, []);
 
   const testBuild = isTestBuild(match);
-  /** Practice played on this device while the database was down: nothing is saved. */
-  const offline = isOfflineMatch(match.id);
+  /** Practice played on this device while the database was down: nothing is saved. (The demo and guest engines always run here.) */
+  const offline = backend.kind === "supabase" && isOfflineMatch(match.id);
   /** Stats and achievements are shown but never saved (test builds, offline practice). */
   const unsaved = testBuild || offline;
   useEffect(() => {
     if (!offline) return;
     toast("Offline practice", {
-      description: "XApps can't reach its database, so this practice runs on your device. Results, XP and stats aren't saved.",
+      description: "VibeCade can't reach its database, so this practice runs on your device. Results, XP and stats aren't saved.",
       tone: "info",
       duration: 8000,
     });
@@ -469,6 +473,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
   /** Fire-and-forget developer logs (the backend drops them past its rate limit). */
   const [hostLogBudget] = useState(() => createLogThrottle(30));
+  /** Stale or too-fast saves are refused here, before they cost a database call. */
+  const [stateWriteGate] = useState(() => createStateWriteGate());
   const logEvent = (level: LogLevel, message: string, data: Json | undefined, source: "app" | "host") => {
     if (source === "host" && !hostLogBudget()) return;
     backend.logAppEvent({ appSlug: app.slug, matchId: match.id, level, message, data, source }).catch(() => undefined);
@@ -496,7 +502,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     }
   };
   const seatedOnly = (method: string) => {
-    if (spectating) throw new XAppsError("forbidden", `${method}: spectators can't do that`);
+    if (spectating) throw new VibeCadeError("forbidden", `${method}: spectators can't do that`);
   };
 
   const handlers: HostHandlers = {
@@ -652,6 +658,26 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     },
     "state.set": async ({ state, expectedVersion }) => {
       seatedOnly("state.set");
+      // A live server room that holds the state takes the write instead of the database.
+      const roomState = roomRef.current?.state;
+      const refused = stateWriteGate(expectedVersion, Math.max(latest().stateVersion, roomState?.copy()?.version ?? 0));
+      if (refused) throw refused;
+      if (roomState?.holds()) {
+        // The room isn't told when the match ends; we hear it from the database.
+        if (latest().status !== "active") throw new VibeCadeError("forbidden", "state.set: this match isn't running");
+        try {
+          const version = await roomState.set(state, expectedVersion);
+          ownWrites.current.add(version);
+          const current = latest();
+          if (version > current.stateVersion) announce({ ...current, state, stateVersion: version });
+          return { version };
+        } catch (error) {
+          // A conflict already brought the room's copy into the cache; a drop is retried by the app.
+          const sdkError = toSdkError(error);
+          if (sdkError.code !== "conflict" && sdkError.code !== "internal") toast(errorMessage(error), { tone: "danger" });
+          throw sdkError;
+        }
+      }
       try {
         const { version, match: updated } = await backend.updateState(match.id, state, expectedVersion);
         ownWrites.current.add(version);
@@ -662,8 +688,27 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
         // A conflict is routine (the SDK re-reads and retries), so no toast for it. The re-read
         // (state.get) serves our cached match, which may have missed realtime updates: pull the
         // database's copy first, or every retry would repeat the same stale version.
-        if (sdkError.code === "conflict") await refreshMatch();
-        else toast(errorMessage(error), { tone: "danger" });
+        if (sdkError.code !== "conflict") {
+          toast(errorMessage(error), { tone: "danger" });
+          throw sdkError;
+        }
+        const fresh = await backend.getMatch(match.id).catch(() => null);
+        if (fresh && fresh.stateVersion > latest().stateVersion) announce(fresh);
+        // A live server room held the state and is gone: the database is still at the version from
+        // before it, so compare-and-set can't catch up. Store our copy at its own version instead.
+        if (roomState && fresh && fresh.stateVersion < expectedVersion && expectedVersion === latest().stateVersion) {
+          try {
+            const { version, match: updated } = await backend.rebaseState(match.id, state, expectedVersion + 1);
+            ownWrites.current.add(version);
+            announce(updated);
+            return { version };
+          } catch (rebaseError) {
+            const rebaseSdkError = toSdkError(rebaseError);
+            if (rebaseSdkError.code === "conflict") await refreshMatch();
+            else toast(errorMessage(rebaseError), { tone: "danger" });
+            throw rebaseSdkError;
+          }
+        }
         throw sdkError;
       }
     },
@@ -693,10 +738,10 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     // The stage fills the screen: size hints only matter for the challenge sheet's setup frame.
     "ui.resize": () => null,
     "setup.submit": () => {
-      throw new XAppsError("forbidden", "setup.submit only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.submit only works in setup purpose");
     },
     "setup.cancel": () => {
-      throw new XAppsError("forbidden", "setup.cancel only works in setup purpose");
+      throw new VibeCadeError("forbidden", "setup.cancel only works in setup purpose");
     },
   };
 
@@ -770,9 +815,29 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     onPeerAchievementRef.current = onPeerAchievement;
   });
 
+  /** A new copy of the state from a live server room that holds it (see RoomState). */
+  const onRoomState = (copy: RoomStateCopy, by: string | null) => {
+    const current = latest();
+    if (copy.version > current.stateVersion) {
+      if (by === viewer.id) ownWrites.current.add(copy.version);
+      announce({ ...current, state: copy.state, stateVersion: copy.version });
+    }
+  };
+  /** Our latest copy of the state, offered to a live server room that has none or an older one. */
+  const latestCopy = (): RoomStateCopy => {
+    const current = latest();
+    return { state: current.state, version: current.stateVersion };
+  };
+  const onRoomStateRef = useRef(onRoomState);
+  const latestCopyRef = useRef(latestCopy);
+  useLayoutEffect(() => {
+    onRoomStateRef.current = onRoomState;
+    latestCopyRef.current = latestCopy;
+  });
+
   useEffect(() => {
     if (!live) return;
-    const room = backend.openRoom(match.id, viewer.id);
+    const room = backend.openRoom(match.id, viewer.id, match.appSlug, { latestState: () => latestCopyRef.current() });
     roomRef.current = room;
     room.track({ ready: false });
     const offPresence = room.onPresence(setPeers);
@@ -789,9 +854,11 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
         onPeerAchievementRef.current(event.id, from);
       }
     });
+    const offState = room.state?.onChange((copy, by) => onRoomStateRef.current(copy, by));
     return () => {
       offPresence();
       offEvent();
+      offState?.();
       room.close();
       roomRef.current = null;
     };
@@ -920,7 +987,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       setConfirmLeave(true);
       return;
     }
-    router.push(`/apps/${app.slug}`);
+    router.push(routes.app(app.slug));
   };
 
   const react = (emoji: string) => {
@@ -946,7 +1013,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
               // Same setup (template, dropped image, topic) for the rematch.
               settings: rematchSettings(match.settings),
             });
-      router.replace(`/play/${next.id}`);
+      router.replace(routes.match(next.id));
     } catch (error) {
       toast(errorMessage(error), { tone: "danger" });
       setRematching(false);
@@ -977,7 +1044,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
           onReact={react}
           onForfeit={!spectating && match.status === "active" && seated.length > 1 && me?.state === "joined" ? () => setConfirmLeave(true) : undefined}
           onCopyLink={async () => {
-            const ok = await copyText(`${window.location.origin}/play/${match.id}`);
+            const ok = await copyText(`${window.location.origin}${routes.matchLink(match.id)}`);
             toast(ok ? "Match link copied" : "Couldn't copy the link", { tone: ok ? "success" : "danger" });
           }}
           immersive={immersive}
@@ -1091,7 +1158,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
             viewerId={viewer.id}
             spectating={spectating}
             enabled={started && overlay === "none" && match.status === "active"}
-            onLeave={() => router.push("/challenges")}
+            onLeave={() => router.push(routes.challenges)}
           />
         </motion.div>
       </div>
@@ -1115,8 +1182,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
             app={app}
             match={match}
             viewerId={viewer.id}
-            onShare={() => openXIntent(`Vote for the best entry in my ${app.name} ${multiplayer ? "match" : "duel"} on XApps ${app.icon}`, `${window.location.origin}/arena`)}
-            onLeave={() => router.push("/arena")}
+            onShare={() => openXIntent(`Vote for the best entry in my ${app.name} ${multiplayer ? "match" : "duel"} on VibeCade ${app.icon}`, `${window.location.origin}/arena`)}
+            onLeave={() => router.push(routes.arena)}
           />
         )}
         {overlay === "results" && match.status === "completed" && (
@@ -1126,8 +1193,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
             viewer={queryClient.getQueryData<Profile | null>(["viewer"]) ?? viewer}
             onRematch={spectating ? undefined : rematch}
             rematching={rematching}
-            onShare={() => openXIntent(shareText(app, match, viewer.id), `${window.location.origin}/apps/${app.slug}`)}
-            onHome={() => router.push(`/apps/${app.slug}`)}
+            onShare={() => openXIntent(shareText(app, match, viewer.id), `${window.location.origin}${routes.share(app.slug)}`)}
+            onHome={() => router.push(routes.app(app.slug))}
           />
         )}
       </AnimatePresence>

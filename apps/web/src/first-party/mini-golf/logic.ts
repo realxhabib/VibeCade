@@ -4,7 +4,7 @@
  * No React, no SDK side effects.
  */
 
-import type { Json } from "@xapps/sdk";
+import type { Json } from "vibecade-sdk";
 import { HOLES, TOTAL_PAR } from "./course";
 
 /* ------------------------------------------------------------------ */

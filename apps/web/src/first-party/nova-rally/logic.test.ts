@@ -12,7 +12,9 @@ describe("rules", () => {
   });
 
   it("parses challenge settings", () => {
-    expect(parseSettings({}).cup.id).toBe("solar");
+    expect(parseSettings({}).cup).toMatchObject({ id: "single:mars", tracks: ["mars"] });
+    expect(parseSettings({ cup: "void" }).cup.tracks).toEqual(["nebula", "luna", "europa"]);
+    expect(parseSettings({ cup: "nope" }).cup.tracks).toHaveLength(1);
     const s = parseSettings({ track: "europa", cc: 200, laps: 2, mirror: true, mode: "knockout" });
     expect(s.cup.tracks).toEqual(["europa"]);
     expect(s).toMatchObject({ cc: 200, laps: 2, mirror: true, knockout: true });

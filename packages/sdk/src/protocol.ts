@@ -1,7 +1,7 @@
 /**
- * XApps wire protocol.
+ * VibeCade wire protocol.
  *
- * Apps run inside a sandboxed iframe on the XApps host. Everything an app can
+ * Apps run inside a sandboxed iframe on the VibeCade host. Everything an app can
  * do (talk to opponents, submit results, ask the host to celebrate…) is a
  * message on this protocol. Both the app SDK (`connect()`) and the host bridge
  * (`createHostBridge()`) are built from the types in this file, so it is the
@@ -9,7 +9,7 @@
  */
 
 export const PROTOCOL_VERSION = 1 as const;
-export const SDK_VERSION = "0.8.1";
+export const SDK_VERSION = "0.9.0";
 
 export type Json =
   | string
@@ -415,11 +415,11 @@ export type ErrorCode =
   | "conflict"
   | "internal";
 
-export class XAppsError extends Error {
+export class VibeCadeError extends Error {
   readonly code: ErrorCode | string;
   constructor(code: ErrorCode | string, message: string) {
     super(message);
-    this.name = "XAppsError";
+    this.name = "VibeCadeError";
     this.code = code;
   }
 }

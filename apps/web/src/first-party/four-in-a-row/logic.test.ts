@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRandom } from "@xapps/sdk";
+import { createRandom } from "vibecade-sdk";
 import {
   CELLS,
   COLS,

@@ -4,7 +4,7 @@ import { AppsBrowser } from "@/components/pages/apps-browser";
 
 export const metadata: Metadata = {
   title: "Marketplace",
-  description: "Browse head-to-head games, meme contests and apps on XApps.",
+  description: "Browse head-to-head games, meme contests and apps on VibeCade.",
 };
 
 export default function AppsPage() {

@@ -10,7 +10,7 @@ stays backward compatible: every v1 app keeps working unchanged.
 | 1. General matches | 2–8 players, teams, spectators, shared persistent match state, turns (live or over days), rounds, app-defined challenge setup |
 | 2. Trust | App secret keys, a server API, signed webhooks, server-authoritative results |
 | 3. Media & data | Per-app media uploads, video/audio entries, bigger storage, custom stats + leaderboards, achievements |
-| 4. Shipping | App versions + staging, review queue, analytics, logs, `create-xapp` CLI, publishable SDK |
+| 4. Shipping | App versions + staging, review queue, analytics, logs, `create-vibecade` CLI, publishable SDK |
 
 ---
 
@@ -98,7 +98,7 @@ SQL columns: `matches.min_players`, `max_players`, `team_count`, `state jsonb`,
 | `spectate_match(p_match)` **new** | adds the viewer as a spectator (app must allow it) |
 | `quick_match(p_app)` | fills open quick lobbies up to max; first joiner can start early |
 | `start_practice(p_app, p_players int = null)` | practice with bots filling up to `p_players` (default app min) |
-| `update_match_state(p_match, p_state jsonb, p_expected_version int)` **new** | seated players of an `active` match; error `40001` "state_conflict" if the version moved; ≤ 64 KB; returns the new version |
+| `update_match_state(p_match, p_state jsonb, p_expected_version int)` **new** | seated players of an `active` match; error `PT409` "state_conflict" if the version moved; ≤ 64 KB; returns the new version |
 | `end_turn(p_match, p_next uuid = null)` **new** | only the turn holder (or anyone when no turn is set); `p_next` must be a seated active player; sets `turn_deadline` (async: +3 days) |
 | `set_round(p_match, p_round int)` **new** | seated players, monotonic |
 | `submit_entry` | settles when every seated, non-left player has submitted |
@@ -109,7 +109,26 @@ SQL columns: `matches.min_players`, `max_players`, `team_count`, `state jsonb`,
 Realtime: `is_room_member` includes spectators. State/turn/round changes reach
 clients through the existing `matches` postgres_changes watch.
 
-### SDK (`@xapps/sdk` 0.2.0, protocol v1, additive)
+Live server rooms (`liveServer` apps, `platform/supabase/live-room.ts`, the
+Claude Arcade server's `server/rooms.mjs`) hold the match state in memory while
+a match is played, and nothing is written to the database until the results
+(heartbeats aside). The room orders `state.set` (compare-and-set on its
+version) and broadcasts each copy; every host keeps the latest one in its match
+cache. On each sign-in the host offers its copy (`state.offer`): an empty room
+(new, or the server restarted) takes the newest offer, and a writes-free one a
+newer offer. Writes sent while the room is still empty wait up to 5 s for its
+first copy. The room learns who is seated by reading `get_match` as the joining
+player; it isn't told when the match ends, so hosts refuse `state.set` once
+their match isn't `active`. When the room is unreachable, hosts write to the
+database as before; since its copy is still at the version from before the
+match, the host stores its own newer copy first with
+`rebase_match_state(p_match, p_state, p_version)` (seated players of an active
+match, forward only, at most +1,000,000; `state_conflict` when not ahead).
+Accepted loss: if the room's server dies and every player reloads, that
+match's state is gone (the abandoned-match job ends it). The SDK and the demo
+backend's rooms are unchanged (the demo backend implements `rebaseState`).
+
+### SDK (`vibecade-sdk` 0.2.0, protocol v1, additive)
 
 `LaunchContext` gains `purpose: "match" | "setup"`. In `match`:
 `minPlayers`, `maxPlayers`, `teams`, `role`, `state`, `stateVersion`, `turn`,
@@ -265,10 +284,10 @@ Signature headers: `X-XApps-Event`, `X-XApps-Delivery` (uuid),
 `X-XApps-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(secret, t + "." + body)>`.
 Receivers reject timestamps older than 5 minutes.
 
-### Server SDK (`@xapps/sdk/server`)
+### Server SDK (`vibecade-sdk/server`)
 
 - `verifyWebhook(rawBody: string, signatureHeader: string, secret: string, { toleranceSeconds = 300, now? })`
-  → parsed event, or throws `XAppsError("invalid_signature" | "stale_signature")`. Web Crypto only (Node 18+, Deno, Workers, edge).
+  → parsed event, or throws `VibeCadeError("invalid_signature" | "stale_signature")`. Web Crypto only (Node 18+, Deno, Workers, edge).
 - `createServerClient({ secret, baseUrl })` → `getMatch(id)`, `setState(id, state, expectedVersion)`,
   `updateState(id, fn)` (retry on 409), `endTurn(id, next?)`, `setRound(id, round)`, `reportResult(id, result)`.
 - Types for webhook events.
@@ -382,7 +401,7 @@ Migration: `20261003000000_shipping.sql`. Make yourself an admin with
 
 Goal: developers can iterate safely (versions, staging, testers), get
 reviewed in a real queue, see how their app is doing (analytics, logs), and
-start in seconds (`npx create-xapp`, a publishable SDK).
+start in seconds (`npx create-vibecade`, a publishable SDK).
 
 ### Versions & staging
 
@@ -442,14 +461,14 @@ start in seconds (`npx create-xapp`, a publishable SDK).
   `list_app_logs(p_app, p_level, p_match, p_before, p_limit)` (owner).
 - UI: a Logs tab with level filter, match filter and live tail.
 
-### create-xapp & publishable SDK
+### create-vibecade & publishable SDK
 
-- `packages/create-xapp`: `npx create-xapp my-game [--template react|vanilla|turn-based]`
-  scaffolds a ready project (Vite + React + TS with `@xapps/sdk`, or one
+- `packages/create-vibecade`: `npx create-vibecade my-game [--template react|vanilla|turn-based]`
+  scaffolds a ready project (Vite + React + TS with `vibecade-sdk`, or one
   HTML file using the hosted bundle), a manifest file, README with the
   register → sandbox → version → review path, and `npm run dev` that opens
   the app standalone with the mock host. No network needed to scaffold.
-- `@xapps/sdk` becomes publishable: version = `SDK_VERSION`, `exports`
+- `vibecade-sdk` becomes publishable: version = `SDK_VERSION`, `exports`
   with types (declaration build), `files`, `sideEffects: false`, MIT
   license, CHANGELOG. `npm pack --dry-run` is part of the checks.
 
