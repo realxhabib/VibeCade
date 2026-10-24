@@ -1,12 +1,12 @@
 /**
  * Wire format and the pieces of netcode that don't need a renderer.
  *
- * One packet, sent by every seated client at ~15 Hz (and a little sooner
- * when there's a reliable event to deliver), never more than 20 per second.
+ * One packet, sent by every seated client at ~20 Hz (and a little sooner
+ * when there's a reliable event to deliver), never more than 25 per second.
  * Packets travel over direct WebRTC data channels (`xapps.room.direct`):
  * the fast channel normally, the reliable one for a packet with new events.
  * A peer without a direct path gets them over the XApps room instead, at
- * most RELAY_HZ a second (the room has a message quota), and spectators get
+ * most RELAY_HZ a second (the SDK caps room messages per second), and spectators get
  * that relayed copy too. Each packet carries:
  *
  *   t  the sender's clock (ms)
@@ -24,15 +24,15 @@
 import type { Json } from "vibecade-sdk";
 import type { KillRec } from "./rules";
 
-export const NET_HZ = 15;
-export const MAX_PER_SECOND = 20;
+export const NET_HZ = 20;
+export const MAX_PER_SECOND = 25;
 /** Fast packets per second over the room, when a peer has no direct path. */
-export const RELAY_HZ = 8;
+export const RELAY_HZ = 15;
 /** Packets with new events may go ahead of that (ordered/reliable) this often. */
 export const URGENT_PER_SECOND = 4;
 export const INTERP_MS = 100;
 /** Relayed packets come slower and jitter more: draw those players further in the past. */
-export const RELAY_INTERP_MS = 220;
+export const RELAY_INTERP_MS = 160;
 export const EXTRAPOLATE_MS = 220;
 export const EVENT_TTL_MS = 8000;
 export const MAX_EVENTS_PER_PACKET = 12;

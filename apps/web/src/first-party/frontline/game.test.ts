@@ -411,7 +411,7 @@ describe("direct connections and the relay fallback", () => {
       expect(bobOnAlice.alive).toBe(true);
       expect(Math.hypot(bobOnAlice.body.x - 20, bobOnAlice.body.z + 15)).toBeLessThan(0.05);
     }
-    expect(bobOnAlice.interp).toBeGreaterThan(180);
+    expect(bobOnAlice.interp).toBeGreaterThan(RELAY_INTERP_MS - 20);
     via = "direct";
     await step(2000);
     expect(bobOnAlice.interp).toBeLessThan(115);
