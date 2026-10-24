@@ -9,6 +9,8 @@ import { OFFICIAL_APPS, getOfficialApp, manifestShapeError, withManifestDefaults
 import { OUTAGE_MESSAGE, OutageError, isOfflineMatch, isOutage, noteHealthy, noteOutage } from "../health";
 import { DemoBackend } from "../demo/demo-backend";
 import type {
+  AdminOverview,
+  AdminPlayers,
   AppAnalytics,
   AppLaunch,
   AppLogEntry,
@@ -48,6 +50,8 @@ import {
   normalizeMatch,
   practiceArgs,
   quickMatchArgs,
+  toAdminOverview,
+  toAdminPlayers,
   toAnalytics,
   toApp,
   toAppLaunch,
@@ -471,6 +475,14 @@ export class SupabaseBackend implements Backend {
 
   async appPlayers(appSlug: string, filter: { query?: string; limit?: number } = {}): Promise<AppPlayers> {
     return toAppPlayers(await this.ownerRpc("app_players", { p_app: appSlug, p_query: filter.query?.trim() || null, p_limit: filter.limit ?? 500 }));
+  }
+
+  async adminOverview(days = 30): Promise<AdminOverview> {
+    return toAdminOverview(await this.ownerRpc("admin_overview", { p_days: days }), days);
+  }
+
+  async adminPlayers(filter: { query?: string; limit?: number } = {}): Promise<AdminPlayers> {
+    return toAdminPlayers(await this.ownerRpc("admin_players", { p_query: filter.query?.trim() || null, p_limit: filter.limit ?? 500 }));
   }
 
   async getEmailSharing(appSlug: string): Promise<boolean> {

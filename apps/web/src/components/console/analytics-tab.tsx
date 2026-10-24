@@ -32,7 +32,7 @@ const PLAYER_SERIES = [
   { key: "newPlayers" as const, label: "New players", color: SERIES_COLORS[1] },
 ];
 
-export function AnalyticsTab({ app }: { app: AppManifest }) {
+export function AnalyticsTab({ app, adminView = false }: { app: AppManifest; adminView?: boolean }) {
   const [range, setRange] = useState<Range>("30");
   const [table, setTable] = useState(false);
   const { data, isPending, isError, isFetching } = useAppAnalytics(app.slug, Number(range));
@@ -68,7 +68,7 @@ export function AnalyticsTab({ app }: { app: AppManifest }) {
           We couldn&apos;t load analytics for this app. Try again in a moment.
         </EmptyState>
       ) : data.totals.matches === 0 ? (
-        <NoMatches app={app} days={data.days} />
+        <NoMatches app={app} days={data.days} canPlay={!adminView} />
       ) : (
         <motion.div className={cn("transition-opacity", isFetching && "opacity-60")}>
           <Dashboard data={data} table={table} />
@@ -78,7 +78,7 @@ export function AnalyticsTab({ app }: { app: AppManifest }) {
   );
 }
 
-function NoMatches({ app, days }: { app: AppManifest; days: number }) {
+function NoMatches({ app, days, canPlay }: { app: AppManifest; days: number; canPlay: boolean }) {
   const { data: versions } = useAppVersions(app.slug);
   const playBuild = usePlayTestBuild(app.slug);
   const target = versions?.find((v) => v.status === "published") ?? versions?.[0] ?? null;
@@ -88,7 +88,7 @@ function NoMatches({ app, days }: { app: AppManifest; days: number }) {
       title={`No matches in the last ${days} days`}
       className="mt-4"
       action={
-        target ? (
+        target && canPlay ? (
           <Button variant="primary" icon={<Play className="size-4" />} loading={playBuild.isPending} onClick={() => playBuild.mutate(target)}>
             Play a practice match
           </Button>

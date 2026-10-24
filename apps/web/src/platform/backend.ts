@@ -1,5 +1,7 @@
 import type { AppImageKind } from "@/lib/app-images";
 import type {
+  AdminOverview,
+  AdminPlayers,
   AppAnalytics,
   AppLogEntry,
   AppPlayers,
@@ -166,6 +168,10 @@ export interface Backend {
    * `query` filters by handle or name; `limit` defaults to 500 (max 1000).
    */
   appPlayers(appSlug: string, filter?: { query?: string; limit?: number }): Promise<AppPlayers>;
+  /** Admins only: every app with its numbers over the last `days` days, plus platform totals. */
+  adminOverview(days?: number): Promise<AdminOverview>;
+  /** Admins only: everyone on the platform, newest activity first (`query` by handle or name, `limit` default 500, max 1000). */
+  adminPlayers(filter?: { query?: string; limit?: number }): Promise<AdminPlayers>;
   /** Whether the viewer shares their email with this app's developer (false when signed out). */
   getEmailSharing(appSlug: string): Promise<boolean>;
   /** Share (or stop sharing) the viewer's email with this app's developer; resolves with the new state. */
