@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AppWindow, ChevronDown, FlaskConical, GitCompare, Pencil, Play, Plus, Rocket, Send, Swords, Undo2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "@/components/chrome/toasts";
 import { celebrate } from "@/components/motion/confetti";
@@ -27,7 +28,13 @@ type Confirm = { kind: "submit" | "withdraw" | "publish"; version: AppVersion } 
 
 export function VersionsTab({ app }: { app: AppManifest }) {
   const { data, isPending, isError } = useAppVersions(app.slug);
-  const [editor, setEditor] = useState<Editor>(null);
+  const [editorState, setEditor] = useState<Editor>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  // `?new=1` (the console home's "New version") opens the editor once the versions are in.
+  const wantsNew = params.get("new") === "1";
+  const editor: Editor = editorState ?? (wantsNew && data ? { kind: "new" } : null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [challenge, setChallenge] = useState<AppVersion | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -79,6 +86,11 @@ export function VersionsTab({ app }: { app: AppManifest }) {
         editing={editor.kind === "edit" ? editor.version : null}
         onDone={(saved) => {
           setEditor(null);
+          if (wantsNew) {
+            const query = new URLSearchParams(params.toString());
+            query.delete("new");
+            router.replace(`${pathname}?${query.toString()}`, { scroll: false });
+          }
           if (saved) setOpen(saved.id);
         }}
       />

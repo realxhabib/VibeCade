@@ -7,6 +7,7 @@ import {
   BookOpen,
   Boxes,
   KeyRound,
+  LayoutDashboard,
   ServerCog,
   Smartphone,
   Webhook,
@@ -329,13 +330,30 @@ const MANIFEST: [string, string][] = [
   ["howTo", "Up to 3 short steps shown on your listing"],
 ];
 
+/** "Your console", for developers who have registered an app. */
+function ConsoleButton() {
+  const { viewer } = useViewer();
+  const { data } = useMyApps();
+  if (!viewer || !data || data.length === 0) return null;
+  return (
+    <Button href="/developers/apps" size="xl" variant="ghost" icon={<LayoutDashboard className="size-5" />}>
+      Your console
+    </Button>
+  );
+}
+
 function MyApps() {
   const { viewer } = useViewer();
   const { data } = useMyApps();
   if (!viewer || !data || data.length === 0) return null;
   return (
     <section className="mt-16">
-      <h2 className="font-display text-2xl font-extrabold">Your apps</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-2xl font-extrabold">Your apps</h2>
+        <Link href="/developers/apps" className="inline-flex items-center gap-1 text-sm font-semibold text-nova-300 hover:underline">
+          Open your console <ArrowRight className="size-3.5" />
+        </Link>
+      </div>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {data.map((app) => (
           <MyAppCard key={app.slug} app={app} />
@@ -580,6 +598,7 @@ export function Developers() {
             <Button href="/developers/new" size="xl" variant="glass" icon={<Plus className="size-5" />}>
               Register an app
             </Button>
+            <ConsoleButton />
           </div>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 30, rotate: 2 }} animate={{ opacity: 1, y: 0, rotate: 0 }} transition={{ delay: 0.1, ...spring.soft }}>
