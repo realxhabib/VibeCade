@@ -23,6 +23,8 @@ npm i vibecade-sdk          # React bindings need react ≥ 18 (optional peer)
 
 Entry points: `vibecade-sdk` (apps), `vibecade-sdk/react` (hooks), `vibecade-sdk/host` (embed apps / integration tests), `vibecade-sdk/server` (your app's server: webhooks + server API) and `vibecade-sdk/protocol` (wire types). ESM only, with TypeScript declarations.
 
+Building with an agent (Claude Code, Cursor, any MCP client)? [`vibecade-mcp`](https://github.com/realxhabib/VibeCade/tree/HEAD/packages/mcp#readme) serves these docs, scaffolds projects, validates manifests and checks your code: `claude mcp add vibecade -- npx -y vibecade-mcp`.
+
 Starting from scratch? Scaffold a ready project:
 
 ```bash
