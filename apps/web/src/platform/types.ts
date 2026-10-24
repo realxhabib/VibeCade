@@ -402,6 +402,31 @@ export interface AppAnalytics {
   versions: { versionId: string | null; version: string | null; matches: number }[];
 }
 
+/** One person on an app's roster (`app_players`, owner/admin only). */
+export interface AppPlayer {
+  profile: Profile;
+  /** Seats taken in live (non-test) matches, and how many of those they won. */
+  matches: number;
+  wins: number;
+  /** Signed-in opens of a standalone app. */
+  opens: number;
+  firstSeenAt: string | null;
+  lastSeenAt: string | null;
+  /** Only when the player chose to share it with this app's developer (and X gave us one). */
+  email: string | null;
+  emailSharedAt: string | null;
+}
+
+export interface AppPlayers {
+  /** Across the whole roster (not just the filtered page). */
+  total: number;
+  emailsShared: number;
+  /** First seen in the last 7 days. */
+  newThisWeek: number;
+  /** Most recently active first. */
+  players: AppPlayer[];
+}
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export type DeveloperNoticeKind = "version_approved" | "version_rejected" | "version_published";

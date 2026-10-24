@@ -11,6 +11,7 @@ import { AppGlyph } from "@/components/marketplace/app-glyph";
 import { useIsAppOwner } from "@/components/developers/server-panel";
 import { AppProgress } from "./app-progress";
 import { ChallengeSheet } from "@/components/marketplace/challenge-sheet";
+import { EmailShare } from "@/components/marketplace/email-share";
 import { UpvoteButton } from "@/components/marketplace/upvote-button";
 import { ActivityPill } from "@/components/marketplace/match-card";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
@@ -308,6 +309,7 @@ export function AppDetail({ slug }: { slug: string }) {
                 <Share2 className="size-4" /> Share
               </button>
             </div>
+            <EmailShare app={app} className="mt-4" />
           </section>
           <AnimatePresence initial={false}>
             {watchable.length > 0 && (
@@ -421,7 +423,7 @@ export function AppDetail({ slug }: { slug: string }) {
         >
           <LayoutDashboard className="size-4 text-ink-300" />
           <span className="min-w-0 flex-1">
-            <span className="font-semibold">You own this app.</span> <span className="text-ink-400">Versions, analytics, logs and server settings live in the console.</span>
+            <span className="font-semibold">You own this app.</span> <span className="text-ink-400">Versions, analytics, players, logs and server settings live in the console.</span>
           </span>
           <span className="shrink-0 font-semibold text-nova-300">Manage in console →</span>
         </Link>

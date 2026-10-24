@@ -2,6 +2,7 @@ import type { AppImageKind } from "@/lib/app-images";
 import type {
   AppAnalytics,
   AppLogEntry,
+  AppPlayers,
   AppVersion,
   DeveloperNotice,
   LogLevel,
@@ -123,6 +124,16 @@ export interface Backend {
   reviewAppVersion(versionId: string, decision: "approve" | "reject", notes: string): Promise<AppVersion>;
   /** Owner/admin analytics for the last `days` days. */
   appAnalytics(appSlug: string, days?: number): Promise<AppAnalytics>;
+  /**
+   * Owner/admin roster: everyone who played the live app (seats in non-test matches) or opened it
+   * signed in, newest activity first. Emails only for players who share theirs (`setEmailSharing`).
+   * `query` filters by handle or name; `limit` defaults to 500 (max 1000).
+   */
+  appPlayers(appSlug: string, filter?: { query?: string; limit?: number }): Promise<AppPlayers>;
+  /** Whether the viewer shares their email with this app's developer (false when signed out). */
+  getEmailSharing(appSlug: string): Promise<boolean>;
+  /** Share (or stop sharing) the viewer's email with this app's developer; resolves with the new state. */
+  setEmailSharing(appSlug: string, on: boolean): Promise<boolean>;
   logAppEvent(entry: { appSlug: string; matchId: string | null; level: LogLevel; message: string; data?: Json; source: "app" | "host" }): Promise<void>;
   listAppLogs(appSlug: string, filter?: { level?: LogLevel; matchId?: string; before?: string; limit?: number }): Promise<AppLogEntry[]>;
   /** Review decisions for the viewer's apps, newest first. */
@@ -166,6 +177,11 @@ export interface Backend {
   heartbeat(matchId: string): Promise<void>;
   /** Opponent vanished mid-match — the server checks their last heartbeat. */
   claimForfeit(matchId: string): Promise<Match>;
+  /**
+   * A live match still waiting to start: take these players (whose game never got ready) out of contention,
+   * no forfeit, so it starts without them; too few left cancels it. Refused until 15 s after the last join.
+   */
+  dropNoShows(matchId: string, userIds: string[]): Promise<Match>;
   forfeit(matchId: string): Promise<Match>;
   submit(matchId: string, input: SubmitInput): Promise<Match>;
   vote(matchId: string, choiceUserId: string): Promise<Match>;

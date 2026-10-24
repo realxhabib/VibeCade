@@ -43,6 +43,7 @@ import {
 } from "../shipping";
 import type {
   AppAnalytics,
+  AppPlayers,
   AppLaunch,
   AppLogEntry,
   AppVersion,
@@ -72,6 +73,7 @@ import type {
 } from "../types";
 import { UPVOTES_PER_MINUTE } from "../upvotes";
 import { computeAnalytics } from "./analytics";
+import { computePlayers, emailSharing, recordOpen, setEmailSharing } from "./audience";
 import { createDemoRoom } from "./room";
 import { applySettlement, buildSeed, ensureShowcase, isPracticeBot, newMatchId, PRACTICE_BOTS, upgradeDb } from "./seed";
 import {
@@ -116,6 +118,8 @@ const SESSION_START = Date.now();
 export const TURN_TIMEOUT_MS = 3 * 86_400_000;
 /** A player who hasn't sent a heartbeat for this long can be claimed against. */
 const CLAIM_AFTER_MS = 45_000;
+/** A live match still waiting on players this long after the last one joined starts without them. */
+export const NO_SHOW_AFTER_MS = 15_000;
 
 /* ---------------------------------------------------------------------- */
 /* Row helpers                                                            */
@@ -319,6 +323,29 @@ export function endAbandonedMatches(db: DemoDb, now = Date.now(), userId?: strin
     }
   }
   return changed;
+}
+
+/**
+ * Mirrors leave_other_matches: `userId` leaves every other running live or practice match they're
+ * still playing (live: marked left, and the match settles if too few remain; practice: cancelled).
+ * Async matches and lobbies are left alone. Returns how many they left.
+ */
+export function leaveOtherMatches(db: DemoDb, userId: string, keepId: string): number {
+  let n = 0;
+  for (const row of Object.values(db.matches)) {
+    if (row.id === keepId || row.status !== "active" || row.mode === "async") continue;
+    const me = seatRows(row).find((p) => p.userId === userId && p.state === "joined");
+    if (!me) continue;
+    if (row.mode === "practice") {
+      row.status = "cancelled";
+    } else {
+      me.state = "left";
+      afterLeave(db, row, userId);
+    }
+    row.updatedAt = nowIso();
+    n++;
+  }
+  return n;
 }
 
 function hydrate(db: DemoDb, row: MatchRow, viewerId = getViewerId()): Match {
@@ -769,6 +796,7 @@ export class DemoBackend implements Backend {
       const community = db.apps[appSlug];
       if (community) community.playCount = (community.playCount ?? 0) + 1;
       else db.playCounts[appSlug] = (db.playCounts[appSlug] ?? 0) + 1;
+      if (viewerId && db.profiles[viewerId]) recordOpen(db, appSlug, viewerId, nowIso());
       return { app: appFor(db, appSlug) ?? listed, versionId: null };
     });
   }
@@ -1374,6 +1402,25 @@ export class DemoBackend implements Backend {
     return computeAnalytics(db, appSlug, window);
   }
 
+  async appPlayers(appSlug: string, filter: { query?: string; limit?: number } = {}): Promise<AppPlayers> {
+    const db = load();
+    this.requireInsight(db, appSlug);
+    return computePlayers(db, appSlug, filter);
+  }
+
+  async getEmailSharing(appSlug: string): Promise<boolean> {
+    return emailSharing(load(), appSlug, getViewerId());
+  }
+
+  async setEmailSharing(appSlug: string, on: boolean): Promise<boolean> {
+    const viewer = this.requireViewer();
+    return mutate((db) => {
+      const app = appFor(db, appSlug);
+      if (!app || (on && app.status !== "published" && !canTest(db, appSlug, viewer.id))) throw new BackendError("App not found", "not_found");
+      return setEmailSharing(db, appSlug, viewer.id, on, nowIso());
+    });
+  }
+
   async logAppEvent(entry: {
     appSlug: string;
     matchId: string | null;
@@ -1620,6 +1667,7 @@ export class DemoBackend implements Backend {
         if (mine.state === "invited") {
           if (!isLobby(asked) && asked.mode !== "async") throw new BackendError("This challenge is no longer open", "conflict");
           mine.state = "joined";
+          mine.joinedAt = nowIso();
           tryActivate(db, asked);
           asked.updatedAt = nowIso();
         }
@@ -1763,6 +1811,7 @@ export class DemoBackend implements Backend {
         if (me.state === "invited") {
           if (!isLobby(row) && !asyncRunning) throw new BackendError("This challenge is no longer open", "conflict");
           me.state = "joined";
+          me.joinedAt = nowIso();
         }
       } else if (row.versionId && !canTest(db, row.appSlug, viewer.id)) {
         throw new BackendError("Only the developer and testers can join a test build", "forbidden");
@@ -1933,8 +1982,11 @@ export class DemoBackend implements Backend {
   }
 
   async markStarted(matchId: string): Promise<Match> {
-    return this.withMatch(matchId, (_db, row) => {
+    return this.withMatch(matchId, (db, row, viewerId) => {
       row.startedAt = row.startedAt ?? nowIso();
+      // Starting a live or practice game ends my other ones.
+      const playing = seatRows(row).some((p) => p.userId === viewerId && p.state === "joined");
+      if (viewerId && playing && row.status === "active" && row.mode !== "async") leaveOtherMatches(db, viewerId, row.id);
     });
   }
 
@@ -1966,6 +2018,27 @@ export class DemoBackend implements Backend {
       }
       quiet.state = "left";
       afterLeave(db, row, quiet.userId);
+    });
+  }
+
+  async dropNoShows(matchId: string, userIds: string[]): Promise<Match> {
+    const viewer = this.requireViewer();
+    return this.withMatch(matchId, (db, row) => {
+      if (row.status !== "active" || row.mode !== "live" || row.startedAt) throw new BackendError("Match isn't waiting to start", "conflict");
+      if (!seatRows(row).some((p) => p.userId === viewer.id && p.state === "joined")) throw new BackendError("Not your match", "forbidden");
+      const humans = seatRows(row).filter((p) => !p.isBot && p.state === "joined");
+      const fullSince = Math.max(...humans.map((p) => Date.parse(p.joinedAt ?? row.createdAt)));
+      if (fullSince > Date.now() - NO_SHOW_AFTER_MS) throw new BackendError("Give them a little longer", "conflict");
+      const gone = humans.filter((p) => p.userId !== viewer.id && userIds.includes(p.userId));
+      if (!gone.length) return;
+      // Out of contention, not forfeited: declined seats are never placed.
+      for (const p of gone) p.state = "declined";
+      if (row.turnUserId && gone.some((p) => p.userId === row.turnUserId)) setTurn(row, nextTurnAfter(row, row.turnUserId));
+      const alive = seatRows(row).filter((p) => p.state === "invited" || p.state === "joined" || p.state === "submitted");
+      let teamEmpty = false;
+      for (let team = 0; row.teams >= 2 && team < row.teams; team++) if (!alive.some((p) => p.team === team)) teamEmpty = true;
+      // Too few left to play: nobody played, so nobody wins.
+      if (alive.length < 2 || !alive.some((p) => !p.isBot) || teamEmpty) row.status = "cancelled";
     });
   }
 

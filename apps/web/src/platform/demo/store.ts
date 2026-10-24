@@ -35,6 +35,8 @@ export interface PlayerRow {
   result: PlayerResult;
   xpDelta: number;
   lastSeenAt: string | null;
+  /** When the seat was taken or the invite accepted (older demo data has none: the match's createdAt). */
+  joinedAt?: string;
 }
 
 export interface MatchRow {
@@ -164,6 +166,16 @@ export interface DemoDb {
   notices?: (DeveloperNotice & { userId: string })[];
   /** App upvotes by app slug (optional too; official and showcase apps have seeded ones until changed). */
   upvotes?: Record<string, UpvoteRow>;
+  /** App audience by `app:user` (`app_audience`; optional too). */
+  audience?: Record<string, AudienceRow>;
+}
+
+/** Standalone-app opens and email sharing for one person on one app. `emailSharedAt` absent = never chosen. */
+export interface AudienceRow {
+  opens: number;
+  firstOpenedAt: string | null;
+  lastOpenedAt: string | null;
+  emailSharedAt?: string | null;
 }
 
 /** An app's upvotes (`app_upvotes` + `apps.upvotes`): a seeded crowd count plus who upvoted (personas and people). */
@@ -411,6 +423,7 @@ export function newPlayerRow(userId: string, seat: number | null, extra: Partial
     result: null,
     xpDelta: 0,
     lastSeenAt: null,
+    joinedAt: new Date().toISOString(),
     ...extra,
   };
 }

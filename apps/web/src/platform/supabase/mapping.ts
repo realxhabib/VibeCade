@@ -10,6 +10,8 @@ import type {
   AppKind,
   AppLaunch,
   AppLogEntry,
+  AppPlayer,
+  AppPlayers,
   AppVersion,
   AppVersionStatus,
   DeveloperNotice,
@@ -761,6 +763,33 @@ export function toAnalytics(data: unknown, days: number): AppAnalytics {
 }
 
 /** `list_app_logs` → entries (newest first). */
+/** `app_players` → `AppPlayers`. */
+export function toAppPlayers(data: unknown): AppPlayers {
+  const raw = firstRow(data) ?? {};
+  const players = objects(raw.players).flatMap((p): AppPlayer[] => {
+    const profile = toProfile(p.profile);
+    if (!profile) return [];
+    return [
+      {
+        profile,
+        matches: num(p.matches) ?? 0,
+        wins: num(p.wins) ?? 0,
+        opens: num(p.opens) ?? 0,
+        firstSeenAt: str(pick(p, "firstSeenAt")),
+        lastSeenAt: str(pick(p, "lastSeenAt")),
+        email: str(p.email),
+        emailSharedAt: str(pick(p, "emailSharedAt")),
+      },
+    ];
+  });
+  return {
+    total: num(raw.total) ?? players.length,
+    emailsShared: num(pick(raw, "emailsShared")) ?? players.filter((p) => p.email).length,
+    newThisWeek: num(pick(raw, "newThisWeek")) ?? 0,
+    players,
+  };
+}
+
 export function toAppLogs(data: unknown): AppLogEntry[] {
   const out: AppLogEntry[] = [];
   for (const r of rows(data)) {

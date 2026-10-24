@@ -115,5 +115,5 @@ test("signed in, the card has your challenges and your profile", async ({ page }
 test("a posted challenge's link describes a player card for the match", async ({ request }) => {
   const html = await (await request.get("/x/m/some-match")).text();
   expect(html).toMatch(/<meta name="twitter:card" content="player"/);
-  expect(html).toMatch(/<meta name="twitter:player" content="https?:\/\/[^/]+\/x\/play\/match\/some-match"/);
+  expect(html).toMatch(/<meta name="twitter:player" content="https?:\/\/[^/]+\/x\/play\/match\/some-match\?join=1"/);
 });

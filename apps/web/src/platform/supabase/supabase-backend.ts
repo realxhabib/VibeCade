@@ -12,6 +12,7 @@ import type {
   AppAnalytics,
   AppLaunch,
   AppLogEntry,
+  AppPlayers,
   AppVersion,
   DeveloperNotice,
   LogLevel,
@@ -50,6 +51,7 @@ import {
   toApp,
   toAppLaunch,
   toAppLogs,
+  toAppPlayers,
   toAppVersion,
   toAppVersionResult,
   toAppVersions,
@@ -460,6 +462,28 @@ export class SupabaseBackend implements Backend {
     return toAnalytics(await this.ownerRpc("app_analytics", { p_app: appSlug, p_days: days }), days);
   }
 
+  async appPlayers(appSlug: string, filter: { query?: string; limit?: number } = {}): Promise<AppPlayers> {
+    return toAppPlayers(await this.ownerRpc("app_players", { p_app: appSlug, p_query: filter.query?.trim() || null, p_limit: filter.limit ?? 500 }));
+  }
+
+  async getEmailSharing(appSlug: string): Promise<boolean> {
+    const userId = await this.userId();
+    if (!userId) return false;
+    const { data, error } = await this.sb
+      .from("app_audience")
+      .select("email_shared_at")
+      .eq("app_slug", appSlug)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) fail(error);
+    return !!(data as { email_shared_at?: string | null } | null)?.email_shared_at;
+  }
+
+  async setEmailSharing(appSlug: string, on: boolean): Promise<boolean> {
+    await this.requireUserId();
+    return (await this.rpc("set_app_email_sharing", { p_app: appSlug, p_on: on })) === true;
+  }
+
   async logAppEvent(entry: {
     appSlug: string;
     matchId: string | null;
@@ -693,6 +717,12 @@ export class SupabaseBackend implements Backend {
     const local = this.localFor(matchId);
     if (local) return local.claimForfeit(matchId);
     return this.rpcThenGet("claim_forfeit", matchId);
+  }
+
+  dropNoShows(matchId: string, userIds: string[]): Promise<Match> {
+    const local = this.localFor(matchId);
+    if (local) return local.dropNoShows(matchId, userIds);
+    return this.rpcThenGet("drop_no_shows", matchId, { p_users: userIds });
   }
 
   forfeit(matchId: string): Promise<Match> {

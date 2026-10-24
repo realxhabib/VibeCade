@@ -82,6 +82,40 @@ test("two players duel live across tabs", async ({ context }) => {
   await expect(bob.getByRole("dialog", { name: /Defeat/ })).toBeVisible({ timeout: 15_000 });
 });
 
+test("opening a shared match link takes the seat", async ({ context }) => {
+  await context.addInitScript(() => {
+    localStorage.setItem("xapps:force-demo", "1");
+    sessionStorage.setItem("xapps:demo-banner", "hidden");
+    sessionStorage.setItem("xapps:demo-invited", "1");
+  });
+  const suffix = Date.now().toString(36).slice(-4);
+  const [host, guest] = [await context.newPage(), await context.newPage()];
+  for (const [page, handle] of [
+    [host, `host${suffix}`],
+    [guest, `guest${suffix}`],
+  ] as const) {
+    await page.goto("/");
+    await page.evaluate(() => localStorage.removeItem("xapps:demo-last-viewer"));
+    await page.goto("/login");
+    await page.getByLabel("Demo handle").fill(handle);
+    await page.getByRole("button", { name: "Go" }).click();
+    await expect(page).toHaveURL("/");
+  }
+
+  await host.goto("/apps/rps-showdown");
+  await host.getByRole("button", { name: "Challenge someone" }).click();
+  await host.getByRole("button", { name: /Open challenge/ }).click();
+  await host.getByRole("button", { name: "Create open challenge" }).click();
+  await expect(host).toHaveURL(/\/play\//);
+  const link = (await host.getByText(/\/play\/[^/?]+\?join=1$/).textContent())!;
+
+  // No Accept step: the guest is seated, and the flag is gone from the address.
+  await guest.goto(link);
+  await expect(guest).toHaveURL(/\/play\/[^/?]+$/);
+  await expect(guest.getByRole("button", { name: "Accept challenge" })).toBeHidden();
+  await expect(guest.frameLocator("iframe").getByRole("button", { name: "Paper" })).toBeVisible({ timeout: 30_000 });
+});
+
 test("four-player practice runs to a podium", async ({ page }) => {
   // Wedge Wars seats 2–4: the viewer locks in and three practice bots brawl it out until the 2:30 bell
   // at the latest. Headless WebGL is slow, so render at the lowest quality tier.
