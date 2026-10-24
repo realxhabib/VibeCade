@@ -16,13 +16,13 @@ import { XSignInButton } from "./account";
  * match (an open challenge someone posted, an invite) needs the card signed in,
  * so a guest gets the sign-in prompt instead.
  */
-export function XPlayerMatch({ matchId }: { matchId: string }) {
+export function XPlayerMatch({ matchId, join }: { matchId: string; join?: boolean }) {
   const mounted = useMounted();
   const backend = useBackend();
   // The backend is only known in the browser (the card's session lives there).
   if (!mounted) return null;
   if (backend.kind === "demo" && isSupabaseConfigured && !isOfflineMatch(matchId)) return <SignInToPlay />;
-  return <PlayRoom matchId={matchId} />;
+  return <PlayRoom matchId={matchId} join={join} />;
 }
 
 function SignInToPlay() {

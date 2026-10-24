@@ -2,13 +2,15 @@
 
 import { LIMITS } from "vibecade-sdk";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Plus, Trash2 } from "lucide-react";
+import { Braces, Check, ChevronDown, Copy, Download, Plus, Trash2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
 import { Segmented } from "@/components/ui/segmented";
 import { spring } from "@/lib/motion";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 import { ACHIEVEMENT_DESCRIPTION_MAX, ACHIEVEMENT_XP_MAX, DEF_LABEL_MAX } from "@/platform/catalog";
 import type { AchievementDef, StatDef } from "@/platform/types";
+import { describeProgress, importProgressJson, progressToJson, toDefId, type ImportMode } from "./progress-json";
 
 /** Editor rows remember whether the id was typed by hand (else it follows the name). */
 export type StatRow = StatDef & { keyTouched?: boolean };
@@ -17,17 +19,7 @@ export type AchievementRow = AchievementDef & { idTouched?: boolean };
 const field =
   "h-10 w-full min-w-0 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm outline-none transition placeholder:text-ink-500 focus:border-nova-400/60 focus:bg-white/[0.05]";
 
-/** "Best time (ms)" → "best_time_ms". */
-export function toDefId(text: string): string {
-  const id = text
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^[^a-z]+/, "")
-    .replace(/_+$/g, "")
-    .slice(0, 32);
-  return id.replace(/_+$/g, "");
-}
+export { toDefId };
 
 export function stripStatRows(rows: StatRow[]): StatDef[] {
   return rows.map(({ key, label, aggregate, format }) => ({ key, label: label.trim(), aggregate, ...(format ? { format } : {}) }));
@@ -289,6 +281,210 @@ export function AchievementsEditor({
         Add an achievement
       </AddButton>
       <SectionError error={error} />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* JSON import / export                                                   */
+/* ---------------------------------------------------------------------- */
+
+const JSON_EXAMPLE = `{
+  "stats": [
+    { "key": "best_time", "label": "Best time", "aggregate": "min", "format": "ms" }
+  ],
+  "achievements": [
+    { "id": "level_1", "name": "Level 1", "description": "Clear level 1", "icon": "🥉", "xp": 10 }
+  ]
+}`;
+
+/**
+ * Edit stats and achievements as one JSON document: paste or upload a file to
+ * replace (or merge into) the rows above, and copy or download what's there now.
+ */
+export function ProgressJsonPanel({
+  stats,
+  achievements,
+  onApply,
+  fileName = "progress",
+}: {
+  stats: StatRow[];
+  achievements: AchievementRow[];
+  onApply: (next: { stats: StatRow[]; achievements: AchievementRow[] }) => void;
+  /** Download name, without `.json`. */
+  fileName?: string;
+}) {
+  const reduced = useReducedMotion();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [mode, setMode] = useState<ImportMode>("replace");
+  const [feedback, setFeedback] = useState<{ tone: "error" | "ok"; message: string; warnings?: string[] } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const current = () => ({ stats: stripStatRows(stats), achievements: stripAchievementRows(achievements) });
+
+  const toggle = () => {
+    if (!open) {
+      const defs = current();
+      setText(defs.stats.length || defs.achievements.length ? progressToJson(defs) : JSON_EXAMPLE);
+      setFeedback(null);
+    }
+    setOpen(!open);
+  };
+
+  const apply = () => {
+    const result = importProgressJson(text, current(), mode);
+    if (!result.ok) {
+      setFeedback({ tone: "error", message: result.error });
+      play("error");
+      return;
+    }
+    onApply({
+      stats: result.touched.stats ? result.value.stats.map((s) => ({ ...s, keyTouched: true })) : stats,
+      achievements:
+        result.touched.achievements ? result.value.achievements.map((a) => ({ ...a, idTouched: true })) : achievements,
+    });
+    const kept = [!result.touched.stats && "stats", !result.touched.achievements && "achievements"].filter(Boolean);
+    setFeedback({
+      tone: "ok",
+      message: `Applied: ${describeProgress(result.value)}${kept.length ? ` · ${kept.join(" and ")} left as they were` : ""}`,
+      warnings: result.warnings,
+    });
+    play("pop");
+  };
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 256 * 1024) {
+      setFeedback({ tone: "error", message: "That file is over 256 KB" });
+      return;
+    }
+    setText(await file.text());
+    setFeedback(null);
+  };
+
+  const download = () => {
+    const blob = new Blob([progressToJson(current())], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${toDefId(fileName) || "progress"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(progressToJson(current()));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setFeedback({ tone: "error", message: "Couldn't reach the clipboard. Use Download instead." });
+    }
+  };
+
+  const tool =
+    "flex h-9 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-xs font-semibold text-ink-200 transition hover:border-white/25 hover:bg-white/[0.04]";
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02]">
+      <button type="button" onClick={toggle} aria-expanded={open} className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
+        <Braces className="size-4 shrink-0 text-nova-300" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">Stats & achievements as JSON</span>
+          <span className="block text-xs text-ink-400">Paste or upload a file to set them all at once, or export what&apos;s here.</span>
+        </span>
+        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={reduced ? { duration: 0 } : spring.snappy} className="shrink-0 text-ink-400">
+          <ChevronDown className="size-4" aria-hidden />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            animate={reduced ? { opacity: 1 } : { opacity: 1, height: "auto" }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            transition={spring.soft}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-white/10 p-3">
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={tool} onClick={() => fileInput.current?.click()}>
+                  <Upload className="size-3.5" aria-hidden /> Upload .json
+                </button>
+                <button type="button" className={tool} onClick={download}>
+                  <Download className="size-3.5" aria-hidden /> Download
+                </button>
+                <button type="button" className={tool} onClick={copy}>
+                  {copied ? <Check className="size-3.5 text-volt" aria-hidden /> : <Copy className="size-3.5" aria-hidden />} {copied ? "Copied" : "Copy"}
+                </button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(e) => {
+                    void upload(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+              <textarea
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setFeedback(null);
+                }}
+                spellCheck={false}
+                rows={12}
+                aria-label="Stats and achievements JSON"
+                className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-ink-950/60 p-3 font-mono text-xs leading-relaxed outline-none transition focus:border-nova-400/60"
+              />
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <Segmented
+                  size="sm"
+                  layoutId="progress-json-mode"
+                  value={mode}
+                  onChange={setMode}
+                  items={[
+                    { id: "replace", label: "Replace" },
+                    { id: "merge", label: "Merge by id" },
+                  ]}
+                />
+                <motion.button
+                  type="button"
+                  onClick={apply}
+                  whileTap={reduced ? undefined : { scale: 0.96 }}
+                  className="h-9 rounded-xl bg-white px-4 text-sm font-semibold text-ink-950 transition hover:bg-ink-100"
+                >
+                  Apply JSON
+                </motion.button>
+              </div>
+              <p className="mt-1.5 text-xs text-ink-400">
+                {mode === "replace"
+                  ? "Replaces the lists in the JSON. A list you leave out stays as it is."
+                  : "Updates entries with the same key or id and adds the rest, handy for adding a new level's achievements."}{" "}
+                Optional fields: <span className="font-mono">aggregate</span> (max), <span className="font-mono">format</span>,{" "}
+                <span className="font-mono">description</span>, <span className="font-mono">icon</span> (🏆), <span className="font-mono">xp</span> (0),{" "}
+                <span className="font-mono">secret</span>. Keys and ids follow the label or name when left out.
+              </p>
+              <AnimatePresence initial={false}>
+                {feedback && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-2 text-xs" role="status">
+                    <p className={feedback.tone === "error" ? "text-danger" : "text-volt"}>{feedback.message}</p>
+                    {feedback.warnings?.map((w) => (
+                      <p key={w} className="mt-0.5 text-gold">
+                        {w}
+                      </p>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

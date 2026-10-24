@@ -4,7 +4,7 @@ import { createHostBridge, decideWinner, rankStatValues, type HostBridge, type H
 import type { HostEvent, HostEventData, Json, LaunchContext, MatchResult, PlayerInfo, Scoring, SubmissionDisplay } from "vibecade-sdk/protocol";
 import { randomId, VibeCadeError } from "vibecade-sdk";
 import { AnimatePresence, motion } from "motion/react";
-import { Eraser, Play, RotateCcw, Trophy } from "lucide-react";
+import { Eraser, Play, Rocket, RotateCcw, Trophy } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EntryView } from "@/components/arena/entry-view";
@@ -399,6 +399,12 @@ export function Sandbox() {
     setRun({ url, scoring, mode, seed: randomId(12), key: Date.now() });
   };
 
+  // A hosted app that's been launched here can go straight to registration with its URL filled in.
+  const registerHref =
+    run && run.url.startsWith("https://") && !PRESETS.some((p) => p.url === run.url)
+      ? `/developers/new?url=${encodeURIComponent(run.url)}&scoring=${run.scoring}`
+      : null;
+
   const visibleLog = log.filter((l) => filter === "all" || String(l.seat) === filter || l.seat === "host");
   const bothIn = players.length > 0 && players.every((p) => entries[p.id]);
 
@@ -455,6 +461,11 @@ export function Sandbox() {
           <Button variant="accent" icon={run ? <RotateCcw className="size-4" /> : <Play className="size-4" />} onClick={launch} magnetic>
             {run ? "Restart" : "Launch"}
           </Button>
+          {registerHref && (
+            <Button variant="glass" icon={<Rocket className="size-4" />} href={registerHref}>
+              Submit app
+            </Button>
+          )}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {PRESETS.map((p) => (

@@ -12,6 +12,7 @@ import type {
   AppAnalytics,
   AppLaunch,
   AppLogEntry,
+  AppPlayers,
   AppVersion,
   DeveloperNotice,
   LogLevel,
@@ -51,6 +52,7 @@ import {
   toApp,
   toAppLaunch,
   toAppLogs,
+  toAppPlayers,
   toAppVersion,
   toAppVersionResult,
   toAppVersions,
@@ -465,6 +467,28 @@ export class SupabaseBackend implements Backend {
 
   async appAnalytics(appSlug: string, days = 30): Promise<AppAnalytics> {
     return toAnalytics(await this.ownerRpc("app_analytics", { p_app: appSlug, p_days: days }), days);
+  }
+
+  async appPlayers(appSlug: string, filter: { query?: string; limit?: number } = {}): Promise<AppPlayers> {
+    return toAppPlayers(await this.ownerRpc("app_players", { p_app: appSlug, p_query: filter.query?.trim() || null, p_limit: filter.limit ?? 500 }));
+  }
+
+  async getEmailSharing(appSlug: string): Promise<boolean> {
+    const userId = await this.userId();
+    if (!userId) return false;
+    const { data, error } = await this.sb
+      .from("app_audience")
+      .select("email_shared_at")
+      .eq("app_slug", appSlug)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) fail(error);
+    return !!(data as { email_shared_at?: string | null } | null)?.email_shared_at;
+  }
+
+  async setEmailSharing(appSlug: string, on: boolean): Promise<boolean> {
+    await this.requireUserId();
+    return (await this.rpc("set_app_email_sharing", { p_app: appSlug, p_on: on })) === true;
   }
 
   async logAppEvent(entry: {

@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: PageProps<"/play/[matchId]">)
   };
 }
 
-export default async function PlayPage({ params }: PageProps<"/play/[matchId]">) {
-  const { matchId } = await params;
-  return <PlayRoom matchId={matchId} />;
+export default async function PlayPage({ params, searchParams }: PageProps<"/play/[matchId]">) {
+  const [{ matchId }, query] = await Promise.all([params, searchParams]);
+  return <PlayRoom matchId={matchId} join={query.join !== undefined} />;
 }

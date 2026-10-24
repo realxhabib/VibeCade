@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { AppWindow, CheckCircle2, FlaskConical, LayoutDashboard, Rocket } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "@/components/chrome/toasts";
@@ -21,6 +21,7 @@ import { useRegisterApp } from "@/platform/queries";
 import { CATEGORIES, type AppCategory, type AppManifest, type AppVersion, type PlayableMode, type Scoring } from "@/platform/types";
 import {
   AchievementsEditor,
+  ProgressJsonPanel,
   StatsEditor,
   stripAchievementRows,
   stripStatRows,
@@ -121,6 +122,8 @@ function VersionState({ version, live }: { version: AppVersion | null; live: boo
 
 export function RegisterApp() {
   const router = useRouter();
+  // The Sandbox's "Submit app" links here with the URL (and scoring) it was tested with.
+  const params = useSearchParams();
   const backend = useBackend();
   const { viewer, loading } = useViewer();
   const register = useRegisterApp();
@@ -140,9 +143,9 @@ export function RegisterApp() {
     iconImage: null,
     coverImage: null,
     accent: PALETTES[0]!,
-    url: "https://",
+    url: params.get("url") ?? "https://",
     modes: ["live", "practice"],
-    scoring: "high",
+    scoring: (["high", "low", "votes"] as const).find((s) => s === params.get("scoring")) ?? "high",
     howTo: ["", "", ""],
     players: { min: 2, max: 2 },
     teams: 0,
@@ -191,7 +194,14 @@ export function RegisterApp() {
   );
 
   if (loading) return null;
-  if (!viewer) return <SignInPrompt title="Sign in to register an app">Apps are tied to your X account so players know who built them.</SignInPrompt>;
+  if (!viewer) {
+    const query = params.toString();
+    return (
+      <SignInPrompt title="Sign in to register an app" next={query ? `/developers/new?${query}` : undefined}>
+        Apps are tied to your X account so players know who built them.
+      </SignInPrompt>
+    );
+  }
 
   const submit = async () => {
     const parsed = schema.safeParse(form);
@@ -472,6 +482,15 @@ export function RegisterApp() {
             />
           )}
 
+          <ProgressJsonPanel
+            stats={form.stats}
+            achievements={form.achievements}
+            fileName={form.name ? `${form.name} progress` : undefined}
+            onApply={(next) => {
+              setForm((f) => ({ ...f, ...next }));
+              setErrors((e) => ({ ...e, stats: undefined, achievements: undefined }));
+            }}
+          />
           <StatsEditor value={form.stats} error={errors.stats} onChange={(rows) => set("stats", rows)} />
           <AchievementsEditor value={form.achievements} error={errors.achievements} onChange={(rows) => set("achievements", rows)} />
 
