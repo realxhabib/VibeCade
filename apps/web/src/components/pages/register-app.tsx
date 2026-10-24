@@ -13,6 +13,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { play } from "@/lib/sfx";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { AppScanPanel, withScanPatch } from "@/components/developers/app-scan-panel";
 import { CoverField, IconField } from "@/components/developers/app-images-field";
 import { KindPicker } from "@/components/developers/kind-picker";
 import { useBackend, useViewer } from "@/platform/client";
@@ -345,6 +346,23 @@ export function RegisterApp() {
           <Field label="App URL" error={errors.url} hint="Your app must allow framing by this site and by X (playable posts): no frame-ancestors, or this site plus https://x.com https://*.x.com">
             <input className={cn(input, "font-mono")} value={form.url} onChange={(e) => set("url", e.target.value)} placeholder="https://tap-race.dev" />
           </Field>
+
+          <AppScanPanel
+            url={form.url}
+            current={{ ...form, stats: stripStatRows(form.stats), achievements: stripAchievementRows(form.achievements) }}
+            idPrefix="register"
+            onApply={(patch) => {
+              setForm((f) => {
+                const next = withScanPatch(f, patch);
+                return patch.name && !slugTouched ? { ...next, slug: slugify(patch.name) } : next;
+              });
+              setErrors((e) => {
+                const copy = { ...e };
+                for (const k of Object.keys(patch) as (keyof Form)[]) delete copy[k];
+                return copy;
+              });
+            }}
+          />
 
           <div>
             <span className="text-sm font-semibold">Category</span>

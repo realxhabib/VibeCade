@@ -544,7 +544,7 @@ const SHIP_STEPS: { title: string; body: string; code?: (origin: string) => stri
     code: (origin) => `Content-Security-Policy: frame-ancestors ${origin || "https://vibecade.si"} https://x.com https://*.x.com https://twitter.com https://*.twitter.com`,
   },
   { title: "Test it", body: "Play both seats in the Sandbox until its log is clean." },
-  { title: "Register it", body: "Sign in with X and fill in your listing from vibecade.manifest.json. It's reviewed, then you publish it." },
+  { title: "Register it", body: "Sign in with X and scan your app (its URL or project folder) to fill in the listing from vibecade.manifest.json and your SDK calls. It's reviewed, then you publish it." },
   { title: "Share it", body: "Post its link on X: people play it right inside the post, and challenge each other from there.", code: (origin) => `${origin || "https://vibecade.si"}/x/<your-game>` },
 ];
 

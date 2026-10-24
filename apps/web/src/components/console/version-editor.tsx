@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown, Save, Send, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "@/components/chrome/toasts";
+import { AppScanPanel, withScanPatch } from "@/components/developers/app-scan-panel";
 import { Button } from "@/components/ui/button";
 import { haptic } from "@/lib/haptics";
 import { spring } from "@/lib/motion";
@@ -13,6 +14,7 @@ import { useCreateVersion, useReviseVersion, useSubmitVersion, useUpdateVersion 
 import type { AppManifest, AppVersion } from "@/platform/types";
 import type { ManifestSide } from "./manifest-diff";
 import { diffManifests } from "./manifest-diff";
+import { stripAchievementRows, stripStatRows } from "@/components/pages/progress-editors";
 import { ManifestFields, formFromSide, sideFromForm, validateManifestForm, type ManifestErrors, type ManifestForm } from "./manifest-fields";
 import { VERSION_NOTES_MAX, manifestOf, nextRevisionVersion, versionLabelError } from "@/platform/shipping";
 import { bumpSemver, compareSemver, latestSemver, type Bump } from "./semver";
@@ -213,6 +215,22 @@ export function VersionEditor({
             </AnimatePresence>
           </div>
         )}
+
+        <div className="mt-6">
+          <AppScanPanel
+            url={form.url}
+            current={{ ...form, stats: stripStatRows(form.stats), achievements: stripAchievementRows(form.achievements) }}
+            idPrefix="version-editor"
+            onApply={(scanned) => {
+              setForm((f) => withScanPatch(f, scanned));
+              setErrors((e) => {
+                const copy = { ...e };
+                for (const k of Object.keys(scanned) as (keyof ManifestForm)[]) delete copy[k];
+                return copy;
+              });
+            }}
+          />
+        </div>
 
         <div className="mt-6">
           <ManifestFields value={form} errors={errors} onChange={patch} idPrefix="version-editor" />
