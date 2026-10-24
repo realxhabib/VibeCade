@@ -747,6 +747,34 @@ export function useAppPlayers(slug: string, query = "", enabled = true) {
   });
 }
 
+/** Admins only: platform totals and every app's numbers over the last `days` days (disabled for everyone else). */
+export function useAdminOverview(days = 30, enabled = true) {
+  const backend = useBackend();
+  const { viewer } = useViewer();
+  return useQuery({
+    queryKey: ["admin-overview", days, viewer?.id],
+    queryFn: () => backend.adminOverview(days),
+    enabled: enabled && !!viewer?.isAdmin,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
+/** Admins only: everyone on the platform, newest activity first. */
+export function useAdminPlayers(query = "", enabled = true) {
+  const backend = useBackend();
+  const { viewer } = useViewer();
+  return useQuery({
+    queryKey: ["admin-players", query, viewer?.id],
+    queryFn: () => backend.adminPlayers({ query: query || undefined, limit: 1000 }),
+    enabled: enabled && !!viewer?.isAdmin,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
 /** Whether the viewer shares their email with the app's developer. */
 export function useEmailSharing(slug: string, enabled = true) {
   const backend = useBackend();

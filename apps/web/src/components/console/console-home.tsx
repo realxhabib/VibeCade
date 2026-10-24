@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, BarChart3, ExternalLink, GitBranch, Plus, Rocket } from "lucide-react";
+import { ArrowRight, BarChart3, ExternalLink, GitBranch, Plus, Rocket, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState, type ReactNode } from "react";
 import { toast } from "@/components/chrome/toasts";
@@ -53,6 +53,11 @@ export function ConsoleHome() {
           <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Your apps</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          {viewer.isAdmin && (
+            <Button href="/admin" variant="glass" size="sm" icon={<ShieldCheck className="size-4" />}>
+              All apps
+            </Button>
+          )}
           <Button href="/developers/new" variant="primary" size="sm" icon={<Plus className="size-4" />}>
             Register an app
           </Button>

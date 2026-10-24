@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { BarChart3, ExternalLink, GitBranch, LayoutDashboard, ScrollText, ServerCog, Users } from "lucide-react";
+import { BarChart3, ExternalLink, GitBranch, LayoutDashboard, ScrollText, ServerCog, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -17,7 +17,7 @@ import { BLUR_TWEEN, spring } from "@/lib/motion";
 import { useMounted } from "@/lib/use-mounted";
 import { accentVars } from "@/lib/utils";
 import { useViewer } from "@/platform/client";
-import { useApp, useAppVersions } from "@/platform/queries";
+import { useAdminOverview, useApp, useAppVersions, useIsAdmin } from "@/platform/queries";
 import type { AppManifest } from "@/platform/types";
 import { AnalyticsTab } from "./analytics-tab";
 import { LogsTab } from "./logs-tab";
@@ -37,23 +37,31 @@ const TAB_ITEMS = [
   { id: "server" as const, label: "Server", icon: <ServerCog className="hidden size-3.5 sm:block" aria-hidden /> },
 ];
 
+/** What an admin sees of someone else's app (or an official one): the numbers, not the controls. */
+const ADMIN_TABS: readonly ConsoleTab[] = ["overview", "analytics", "players", "logs"];
+
 function isTab(value: string | null): value is ConsoleTab {
   return !!value && (CONSOLE_TABS as readonly string[]).includes(value);
 }
 
-/** `/developers/apps/[slug]`: the owner's console for one app. */
+/** `/developers/apps/[slug]`: the owner's console for one app (admins can open any app's, read only). */
 export function AppConsole({ slug }: { slug: string }) {
   const { viewer, loading } = useViewer();
-  const { data: app, isPending } = useApp(slug);
+  const isAdmin = useIsAdmin();
+  const { data: listed, isPending } = useApp(slug);
+  // Admins can open unlisted apps too, which the apps table only shows their developer: take the row from the overview.
+  const needAdminRow = isAdmin && !isPending && !listed;
+  const overview = useAdminOverview(30, needAdminRow);
+  const app = listed ?? (needAdminRow ? overview.data?.apps.find((a) => a.app.slug === slug)?.app : undefined);
   const isOwner = useIsAppOwner(app);
   // The viewer lives in the browser (demo) or a cookie session: render the shell after mount.
   const mounted = useMounted();
 
-  if (!mounted || loading || (isPending && !app)) return <ConsoleSkeleton />;
+  if (!mounted || loading || (isPending && !app) || (needAdminRow && overview.isPending)) return <ConsoleSkeleton />;
   if (!viewer) {
     return <SignInPrompt title="Sign in to open the console">The developer console is only for the app&apos;s owner.</SignInPrompt>;
   }
-  if (!app || !isOwner) {
+  if (!app || (!isOwner && !isAdmin)) {
     return (
       <EmptyState
         emoji="🧭"
@@ -75,16 +83,17 @@ export function AppConsole({ slug }: { slug: string }) {
       </EmptyState>
     );
   }
-  return <ConsoleBody app={app} />;
+  return <ConsoleBody app={app} adminView={!isOwner} />;
 }
 
-function ConsoleBody({ app }: { app: AppManifest }) {
+function ConsoleBody({ app, adminView }: { app: AppManifest; adminView: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const reduced = useReducedMotion();
   const raw = params.get("tab");
-  const tab: ConsoleTab = isTab(raw) ? raw : "overview";
+  const tabs = adminView ? TAB_ITEMS.filter((t) => ADMIN_TABS.includes(t.id)) : TAB_ITEMS;
+  const tab: ConsoleTab = isTab(raw) && tabs.some((t) => t.id === raw) ? raw : "overview";
   const { data: versions } = useAppVersions(app.slug);
   const live = versions?.find((v) => v.status === "published") ?? null;
   const pending = versions?.filter((v) => v.status === "in_review").length ?? 0;
@@ -109,8 +118,8 @@ function ConsoleBody({ app }: { app: AppManifest }) {
 
   return (
     <div style={accentVars(app.accent)}>
-      <Link href="/developers/apps" transitionTypes={["nav-back"]} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-400 transition hover:text-ink-100">
-        ← Your apps
+      <Link href={adminView ? "/admin" : "/developers/apps"} transitionTypes={["nav-back"]} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-400 transition hover:text-ink-100">
+        {adminView ? "← All apps" : "← Your apps"}
       </Link>
 
       <motion.header
@@ -134,6 +143,11 @@ function ConsoleBody({ app }: { app: AppManifest }) {
                 {app.status === "published" ? "Listed" : app.status === "pending" ? "Not listed yet" : "Rejected"}
               </Badge>
               {live && <Badge tone="neutral" className="font-mono normal-case tracking-normal">v{live.version} live</Badge>}
+              {adminView && (
+                <Badge tone="neutral" className="normal-case tracking-normal">
+                  <ShieldCheck className="size-3" aria-hidden /> Admin view{app.official ? " · official" : app.developer.handle ? ` · @${app.developer.handle}` : ""}
+                </Badge>
+              )}
               {pending > 0 && (
                 <Badge tone="gold" pulse>
                   {pending} in review
@@ -148,7 +162,7 @@ function ConsoleBody({ app }: { app: AppManifest }) {
       </motion.header>
 
       <div data-console-tabs className="mt-4">
-        <Segmented layoutId="console-tab" size="sm" value={tab} onChange={setTab} items={TAB_ITEMS.map((t) => ({ ...t, count: t.id === "versions" ? pending : undefined }))} className="w-full sm:w-auto" />
+        <Segmented layoutId="console-tab" size="sm" value={tab} onChange={setTab} items={tabs.map((t) => ({ ...t, count: t.id === "versions" ? pending : undefined }))} className="w-full sm:w-auto" />
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -161,9 +175,9 @@ function ConsoleBody({ app }: { app: AppManifest }) {
           transition={{ ...spring.soft, filter: BLUR_TWEEN }}
           role="tabpanel"
         >
-          {tab === "overview" && <OverviewTab app={app} onTab={setTab} />}
+          {tab === "overview" && <OverviewTab app={app} onTab={setTab} adminView={adminView} />}
           {tab === "versions" && <VersionsTab app={app} />}
-          {tab === "analytics" && <AnalyticsTab app={app} />}
+          {tab === "analytics" && <AnalyticsTab app={app} adminView={adminView} />}
           {tab === "players" && <PlayersTab app={app} />}
           {tab === "logs" && <LogsTab app={app} />}
           {tab === "server" && <ServerPanel app={app} />}
