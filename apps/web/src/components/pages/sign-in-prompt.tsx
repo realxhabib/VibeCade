@@ -5,14 +5,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { XLogo } from "@/components/ui/x-logo";
 
-export function SignInPrompt({ title, children }: { title: string; children: React.ReactNode }) {
+/** `next` is where sign-in returns to (default: this path, without its query). */
+export function SignInPrompt({ title, next, children }: { title: string; next?: string; children: React.ReactNode }) {
   const pathname = usePathname();
   return (
     <EmptyState
       emoji="🔐"
       title={title}
       action={
-        <Button href={`/login?next=${encodeURIComponent(pathname)}`} variant="primary" size="lg" icon={<XLogo className="size-4" />}>
+        <Button href={`/login?next=${encodeURIComponent(next ?? pathname)}`} variant="primary" size="lg" icon={<XLogo className="size-4" />}>
           Sign in with X
         </Button>
       }
