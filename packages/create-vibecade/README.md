@@ -28,7 +28,8 @@ The whole path, from here to a game people play inside a post on X, is in
 | `turn-based` | The React setup with tic-tac-toe on the shared match state (`state.update` + `turn.end`), read-only spectators and a practice bot |
 | `vanilla` | A single `index.html` importing the SDK bundle from your VibeCade host (`https://vibecade.si/sdk/v1.js`) |
 
-Every template includes a `vibecade.manifest.json` (your listing and capabilities: name, tagline,
+Every template includes an `AGENTS.md` (the rules for coding agents, and how to add the
+[VibeCade MCP server](https://github.com/realxhabib/VibeCade/tree/HEAD/packages/mcp#readme)), a `vibecade.manifest.json` (your listing and capabilities: name, tagline,
 category, icon, accent, modes, players, teams, spectators, turnBased, scoring, how-to…) and a
 README with the path to launch: `npm run dev` → register at `https://vibecade.si/developers/new` →
 Sandbox → versions → review.

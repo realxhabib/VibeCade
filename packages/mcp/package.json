@@ -1,0 +1,56 @@
+{
+  "name": "vibecade-mcp",
+  "version": "0.9.0",
+  "description": "MCP server for building VibeCade games with an agent: SDK docs search, scaffolding, manifest validation, stats and achievements, and a project check.",
+  "license": "MIT",
+  "author": "VibeCade contributors",
+  "homepage": "https://github.com/realxhabib/VibeCade/tree/HEAD/packages/mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realxhabib/VibeCade.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/realxhabib/VibeCade/issues"
+  },
+  "keywords": [
+    "vibecade",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "agent",
+    "game",
+    "multiplayer",
+    "sdk"
+  ],
+  "type": "module",
+  "bin": {
+    "vibecade-mcp": "dist/vibecade-mcp.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node build.mjs && vitest run",
+    "prepack": "node build.mjs"
+  },
+  "dependencies": {
+    "create-vibecade": "^0.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "esbuild": "^0.28.2",
+    "typescript": "^5",
+    "vitest": "^5.0.2"
+  }
+}

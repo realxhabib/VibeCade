@@ -17,6 +17,13 @@ The steps, in short:
 8. [Share it on X](#8-share-it-on-x) as a playable post
 9. [Ship updates](#9-ship-updates)
 
+**Building with an AI agent?** Give it the VibeCade MCP server (`claude mcp add vibecade -- npx -y vibecade-mcp`,
+or `npx -y vibecade-mcp` in any MCP client) or, in Claude Code, the `vibecade-dev` plugin
+(`/plugin marketplace add realxhabib/VibeCade`, then `/plugin install vibecade-dev@xapps`). It can
+scaffold the project, search these docs, write and validate your manifest, declare stats and
+achievements, and check the project for the mistakes in [When something's wrong](#when-somethings-wrong).
+Every starter also has an `AGENTS.md` with the rules.
+
 **What you need:** [Node.js](https://nodejs.org) 22 or 24 (the LTS download), an X account to sign
 in to VibeCade with, and somewhere to host a static site over HTTPS (Vercel, Netlify, Cloudflare
 Pages and GitHub Pages all work and have free plans).
