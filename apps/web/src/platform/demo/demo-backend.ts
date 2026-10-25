@@ -42,6 +42,8 @@ import {
   versionUrlError,
 } from "../shipping";
 import type {
+  AdminOverview,
+  AdminPlayers,
   AppAnalytics,
   AppPlayers,
   AppLaunch,
@@ -72,6 +74,7 @@ import type {
   WebhookDelivery,
 } from "../types";
 import { UPVOTES_PER_MINUTE } from "../upvotes";
+import { computeAdminOverview, computeAdminPlayers } from "./admin";
 import { computeAnalytics } from "./analytics";
 import { computePlayers, emailSharing, recordOpen, setEmailSharing } from "./audience";
 import { createDemoRoom } from "./room";
@@ -1406,6 +1409,22 @@ export class DemoBackend implements Backend {
     const db = load();
     this.requireInsight(db, appSlug);
     return computePlayers(db, appSlug, filter);
+  }
+
+  async adminOverview(days = ANALYTICS_DAYS_DEFAULT): Promise<AdminOverview> {
+    this.requireAdmin();
+    const window = Math.floor(days ?? ANALYTICS_DAYS_DEFAULT);
+    if (!Number.isFinite(window) || window < 1 || window > ANALYTICS_DAYS_MAX) {
+      throw new BackendError(`Pick 1 to ${ANALYTICS_DAYS_MAX} days`, "invalid");
+    }
+    const db = load();
+    const apps = [...OFFICIAL_APPS.map((a) => a.slug), ...Object.keys(db.apps)].flatMap((slug) => appFor(db, slug) ?? []);
+    return computeAdminOverview(db, apps, window);
+  }
+
+  async adminPlayers(filter: { query?: string; limit?: number } = {}): Promise<AdminPlayers> {
+    this.requireAdmin();
+    return computeAdminPlayers(load(), filter);
   }
 
   async getEmailSharing(appSlug: string): Promise<boolean> {

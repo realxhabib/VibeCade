@@ -25,7 +25,7 @@ export function asRatio(value: number | null | undefined): number | null {
   return value > 1 ? value / 100 : value;
 }
 
-export function OverviewTab({ app, onTab }: { app: AppManifest; onTab: (tab: ConsoleTab) => void }) {
+export function OverviewTab({ app, onTab, adminView = false }: { app: AppManifest; onTab: (tab: ConsoleTab) => void; adminView?: boolean }) {
   const reduced = useReducedMotion();
   const now = useNow(60_000);
   const { data: versions, isPending: versionsPending } = useAppVersions(app.slug);
@@ -66,7 +66,7 @@ export function OverviewTab({ app, onTab }: { app: AppManifest; onTab: (tab: Con
         </Panel>
 
         <Panel>
-          <PanelTitle sub="What players get, and what's next" action={<TabLink onClick={() => onTab("versions")}>Versions</TabLink>}>
+          <PanelTitle sub="What players get, and what's next" action={adminView ? undefined : <TabLink onClick={() => onTab("versions")}>Versions</TabLink>}>
             Status
           </PanelTitle>
           {versionsPending ? (
@@ -99,6 +99,7 @@ export function OverviewTab({ app, onTab }: { app: AppManifest; onTab: (tab: Con
       </div>
 
       <div className="space-y-4">
+        {!adminView && (
         <Panel>
           <PanelTitle sub="register → sandbox → submit → review → publish">Next steps</PanelTitle>
           <ol className="relative mt-4 space-y-1">
@@ -143,6 +144,7 @@ export function OverviewTab({ app, onTab }: { app: AppManifest; onTab: (tab: Con
             })}
           </ol>
         </Panel>
+        )}
 
         <Panel>
           <PanelTitle>Links</PanelTitle>

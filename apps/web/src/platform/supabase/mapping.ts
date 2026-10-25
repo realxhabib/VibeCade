@@ -6,6 +6,10 @@
 import { getOfficialApp, toAchievementDefs, toStatDefs, withManifestDefaults } from "../catalog";
 import { CATEGORIES } from "../types";
 import type {
+  AdminAppStats,
+  AdminOverview,
+  AdminPlayer,
+  AdminPlayers,
   AppAnalytics,
   AppKind,
   AppLaunch,
@@ -786,6 +790,71 @@ export function toAppPlayers(data: unknown): AppPlayers {
     total: num(raw.total) ?? players.length,
     emailsShared: num(pick(raw, "emailsShared")) ?? players.filter((p) => p.email).length,
     newThisWeek: num(pick(raw, "newThisWeek")) ?? 0,
+    players,
+  };
+}
+
+export function toAdminOverview(data: unknown, days: number): AdminOverview {
+  const raw = firstRow(data) ?? {};
+  const totals = raw.totals && typeof raw.totals === "object" ? (raw.totals as Loose) : {};
+  const series = objects(raw.series).map((d) => ({
+    date: (str(d.date) ?? str(d.day) ?? "").slice(0, 10),
+    matches: num(d.matches) ?? 0,
+    players: num(d.players) ?? 0,
+    newPeople: num(pick(d, "newPeople")) ?? 0,
+  }));
+  const apps = objects(raw.apps).flatMap((r): AdminAppStats[] => {
+    const app = toAppLoose(r.app);
+    if (!app) return [];
+    return [
+      {
+        app,
+        matches: num(r.matches) ?? 0,
+        completed: num(r.completed) ?? 0,
+        players: num(r.players) ?? 0,
+        roster: num(r.roster) ?? 0,
+        opens: num(r.opens) ?? app.playCount,
+        lastActiveAt: str(pick(r, "lastActiveAt")),
+      },
+    ];
+  });
+  return {
+    days: num(raw.days) ?? days,
+    totals: {
+      apps: num(totals.apps) ?? apps.length,
+      listedApps: num(pick(totals, "listedApps")) ?? apps.filter((a) => a.app.status === "published").length,
+      people: num(totals.people) ?? 0,
+      newPeople: num(pick(totals, "newPeople")) ?? 0,
+      activePlayers: num(pick(totals, "activePlayers")) ?? 0,
+      matches: num(totals.matches) ?? series.reduce((n, d) => n + d.matches, 0),
+      completed: num(totals.completed) ?? 0,
+    },
+    series,
+    apps,
+  };
+}
+
+export function toAdminPlayers(data: unknown): AdminPlayers {
+  const raw = firstRow(data) ?? {};
+  const players = objects(raw.players).flatMap((p): AdminPlayer[] => {
+    const profile = toProfile(p.profile);
+    if (!profile) return [];
+    return [
+      {
+        profile,
+        matches: num(p.matches) ?? 0,
+        wins: num(p.wins) ?? 0,
+        opens: num(p.opens) ?? 0,
+        apps: num(p.apps) ?? 0,
+        joinedAt: str(pick(p, "joinedAt")) ?? profile.createdAt,
+        lastSeenAt: str(pick(p, "lastSeenAt")),
+      },
+    ];
+  });
+  return {
+    total: num(raw.total) ?? players.length,
+    newThisWeek: num(pick(raw, "newThisWeek")) ?? 0,
+    activeThisWeek: num(pick(raw, "activeThisWeek")) ?? 0,
     players,
   };
 }
