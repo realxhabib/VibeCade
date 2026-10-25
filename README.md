@@ -164,7 +164,7 @@ cd my-game && npm install && npm run dev   # runs standalone against the SDK's m
 
 To make someone an admin, run `update public.profiles set is_admin = true where handle = '<handle>';` in the SQL editor. In demo mode, the review page has a "Become admin" switch.
 
-`vibecade-sdk`, `create-vibecade` and `vibecade-mcp` are ready for npm (`npm publish` from `packages/sdk`, `packages/create-vibecade` and `packages/mcp`). Until you publish them, scaffolded projects can't install the SDK, and the MCP server only runs from a checkout (`node packages/mcp/dist/vibecade-mcp.js` after `npm run build -w vibecade-mcp`).
+`vibecade-sdk`, `create-vibecade` and `vibecade-mcp` are published to npm together, with the same version. To release, bump the three `version` fields (and `SDK_VERSION` in `packages/sdk/src/protocol.ts`), then from the repo root run `npm publish -w vibecade-sdk`, `npm publish -w create-vibecade` and `npm publish -w vibecade-mcp`, in that order. Each one builds itself first.
 
 **With an agent:** `claude mcp add vibecade -- npx -y vibecade-mcp` gives any MCP client the SDK docs, scaffolding, manifest validation, stats and achievements, and a project check. In Claude Code, `/plugin marketplace add realxhabib/VibeCade` then `/plugin install vibecade-dev@vibecade` adds the server and a skill with the VibeCade workflow and rules. See [`packages/mcp`](packages/mcp/README.md).
 

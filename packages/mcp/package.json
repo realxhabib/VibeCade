@@ -1,6 +1,6 @@
 {
   "name": "vibecade-mcp",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "MCP server for building VibeCade games with an agent: SDK docs search, scaffolding, manifest validation, stats and achievements, and a project check.",
   "license": "MIT",
   "author": "VibeCade contributors",
@@ -45,7 +45,7 @@
     "prepack": "node build.mjs"
   },
   "dependencies": {
-    "create-vibecade": "^0.9.0"
+    "create-vibecade": "^0.9.1"
   },
   "devDependencies": {
     "@types/node": "^20",

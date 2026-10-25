@@ -1,6 +1,6 @@
 {
   "name": "create-vibecade",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Scaffold a VibeCade app in seconds: Vite + React + TypeScript with vibecade-sdk, a turn-based starter, or one HTML file.",
   "license": "MIT",
   "author": "VibeCade contributors",
