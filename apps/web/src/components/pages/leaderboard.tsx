@@ -3,18 +3,22 @@
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { AnimatedNumber } from "@/components/motion/animated-number";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { spring } from "@/lib/motion";
+import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
+import { AppGlyph } from "@/components/marketplace/app-glyph";
 import { OFFICIAL_APPS } from "@/platform/catalog";
 import { useViewer } from "@/platform/client";
 import { levelInfo } from "@/platform/scoring";
-import { useLeaderboard } from "@/platform/queries";
-import type { LeaderRow } from "@/platform/types";
+import { useApps, useLeaderboard } from "@/platform/queries";
+import type { AppManifest, LeaderRow } from "@/platform/types";
+import { StatLeaderboards } from "./app-progress";
 
 const PODIUM = [
   { place: 2, height: "h-28", color: "from-[#c9d2e6] to-[#8b97b3]", delay: 0.15 },
@@ -66,12 +70,46 @@ function Podium({ rows }: { rows: LeaderRow[] }) {
   );
 }
 
+/**
+ * Apps with a board here: games rank by match wins/XP; standalone apps (no matches) only when they
+ * declare stats, whose boards they show instead. Official apps first (catalog order), then published
+ * community apps by popularity.
+ */
+function rankedApps(apps: AppManifest[]): AppManifest[] {
+  const ranked = apps.filter((a) => a.status === "published" && !a.retired && (a.kind !== "app" || !!a.stats?.length));
+  const community = ranked
+    .filter((a) => !a.official)
+    .sort((a, b) => (b.upvotes ?? 0) - (a.upvotes ?? 0) || b.playCount - a.playCount || a.name.localeCompare(b.name));
+  return [...ranked.filter((a) => a.official), ...community];
+}
+
 export function Leaderboard() {
   const router = useRouter();
   const params = useSearchParams();
   const app = params.get("app") ?? "all";
   const { viewer } = useViewer();
-  const { data, isPending } = useLeaderboard(app === "all" ? undefined : app);
+  const mounted = useMounted();
+  const { data: cachedApps } = useApps();
+  // Until the apps list loads (or if it fails), the built-in apps still show; the server render has
+  // no list, so the first client render doesn't use a cached one either (hydration).
+  const apps = mounted ? cachedApps : undefined;
+  const boards = rankedApps(apps ?? OFFICIAL_APPS);
+  const picked = app === "all" ? null : (boards.find((a) => a.slug === app) ?? apps?.find((a) => a.slug === app) ?? null);
+  const standalone = picked?.kind === "app";
+  const { data, isPending } = useLeaderboard(app === "all" ? undefined : app, !standalone);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const tabCount = boards.length;
+
+  // A deep link to a community app picks a tab past the strip's edge: scroll the strip (not the page) to it.
+  useEffect(() => {
+    const strip = filterRef.current?.querySelector<HTMLElement>("[role=tablist]");
+    const tab = strip?.querySelector<HTMLElement>("[aria-selected=true]");
+    if (!strip || !tab) return;
+    const left = tab.offsetLeft - strip.offsetLeft;
+    if (left < strip.scrollLeft || left + tab.offsetWidth > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollTo({ left: left - (strip.clientWidth - tab.offsetWidth) / 2 });
+    }
+  }, [app, tabCount]);
 
   return (
     <div>
@@ -79,7 +117,7 @@ export function Leaderboard() {
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold">Leaderboard</p>
         <h1 className="mt-2 font-display text-5xl font-extrabold tracking-tight sm:text-6xl">Hall of receipts</h1>
       </motion.header>
-      <div className="mt-6 flex justify-center">
+      <div ref={filterRef} className="mt-6 flex justify-center">
         <Segmented
           layoutId="lb-filter"
           size="sm"
@@ -87,13 +125,31 @@ export function Leaderboard() {
           onChange={(value) => router.replace(value === "all" ? "/leaderboard" : `/leaderboard?app=${value}`, { scroll: false })}
           items={[
             { id: "all", label: "Overall" },
-            // Match wins only: standalone apps (kind app) have no matches (their stat boards live on their pages).
-            ...OFFICIAL_APPS.filter((a) => a.official && a.kind !== "app").map((a) => ({ id: a.slug, label: a.name, icon: <span>{a.icon}</span> })),
+            ...boards.map((a) => ({ id: a.slug, label: a.name, icon: a.iconImage ? <AppGlyph app={a} size={18} /> : <span>{a.icon}</span> })),
           ]}
         />
       </div>
+      {picked && !picked.official && (
+        <p className="mt-3 text-center text-xs text-ink-400">
+          Community {standalone ? "app" : "game"}
+          {picked.developer.id && <> by @{picked.developer.handle}</>} ·{" "}
+          <Link href={`/apps/${picked.slug}`} className="text-ink-200 underline-offset-2 hover:underline">
+            Open {picked.name}
+          </Link>
+        </p>
+      )}
       <div className="mt-12">
-        {isPending ? (
+        {standalone && picked ? (
+          picked.stats?.length ? (
+            <div className="mx-auto max-w-2xl">
+              <StatLeaderboards key={picked.slug} app={picked} stats={picked.stats} />
+            </div>
+          ) : (
+            <EmptyState emoji="📊" title="No leaderboard">
+              {picked.name} doesn&apos;t keep stats yet.
+            </EmptyState>
+          )
+        ) : isPending ? (
           <Skeleton className="mx-auto h-72 max-w-2xl rounded-[2rem]" />
         ) : !data || data.length === 0 ? (
           <EmptyState emoji="🏁" title="No ranked matches yet">
