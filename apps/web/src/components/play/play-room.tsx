@@ -1037,7 +1037,10 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
   async function forfeit() {
     try {
-      await action.mutateAsync({ action: "forfeit", matchId: match.id });
+      const after = await action.mutateAsync({ action: "forfeit", matchId: match.id });
+      // With three or more players the others play on: there's nothing left here for you,
+      // so leave rather than sit in a game you're out of. A finished match shows its results.
+      if (after.status === "open" || after.status === "pending" || after.status === "active" || after.status === "voting") router.push(routes.app(app.slug));
     } catch (error) {
       toast(errorMessage(error), { tone: "danger" });
     }
