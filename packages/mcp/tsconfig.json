@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["es2022", "dom"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@/*": ["../../apps/web/src/*"],
+      "vibecade-sdk": ["../sdk/src/index.ts"],
+      "vibecade-sdk/host": ["../sdk/src/host.ts"],
+      "vibecade-sdk/protocol": ["../sdk/src/protocol.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}

@@ -6,18 +6,19 @@
  * several copies of your app side by side.
  *
  * Handy URL switches (they override the options passed in code):
- * - `?xapps-purpose=setup` opens your app in challenge-setup mode.
- * - `?xapps-purpose=app` opens it as a standalone app: you alone in a one-player stub, no
+ * - `?vibecade-purpose=setup` opens your app in challenge-setup mode.
+ * - `?vibecade-purpose=app` opens it as a standalone app: you alone in a one-player stub, no
  *   match lifecycle, match-only calls refused; storage, stats, achievements and media work.
- * - `?xapps-settings=<json>` sets `match.settings` (the setup banner links here).
- * - `?xapps-players=4` seats 4 players (you + 3 bots); `?xapps-teams=2` plays in teams.
- * - `?xapps-turns=1` starts with a turn (seat 0); `?xapps-role=spectator` watches bots play.
- * - `?xapps-stats=<json>` / `?xapps-achievements=<json>` declare manifest stats / achievements.
+ * - `?vibecade-settings=<json>` sets `match.settings` (the setup banner links here).
+ * - `?vibecade-players=4` seats 4 players (you + 3 bots); `?vibecade-teams=2` plays in teams.
+ * - `?vibecade-turns=1` starts with a turn (seat 0); `?vibecade-role=spectator` watches bots play.
+ * - `?vibecade-stats=<json>` / `?vibecade-achievements=<json>` declare manifest stats / achievements.
+ * The older `?xapps-*` spellings of every switch still work.
  *
  * `stats.leaderboard` answers from the stats you reported plus a handful of
  * made-up players (spread around your first value, or `leaderboard` values).
  *
- * `xapps.log.*` entries are printed to the console as `[xapps log]` lines and
+ * `vibecade.log.*` entries are printed to the console as `[vibecade log]` lines and
  * kept in `mock.logs`.
  */
 import { createHostCore, rankPlayers, type HostBridge } from "./host";
@@ -59,7 +60,7 @@ export interface MockHostOptions {
   seed?: string;
   /** Delay before `match.start` fires after `ready()`. Default 400 ms. */
   startDelayMs?: number;
-  /** Match settings passed to the app (`?xapps-settings=<json>` overrides). */
+  /** Match settings passed to the app (`?vibecade-settings=<json>` overrides). */
   settings?: { [key: string]: Json };
   /** Silence the console output. */
   quiet?: boolean;
@@ -83,11 +84,11 @@ export interface MockHostOptions {
    */
   purpose?: LaunchPurpose;
   mode?: MatchMode;
-  /** Read the `?xapps-*` URL switches. Default true. */
+  /** Read the `?vibecade-*` URL switches. Default true. */
   readUrl?: boolean;
   /** Show a small banner when setup settings are submitted or an achievement unlocks. Default true (in browsers). */
   banner?: boolean;
-  /** Manifest stats (`?xapps-stats=<json>` overrides). `stats.report` aggregates them in memory. */
+  /** Manifest stats (`?vibecade-stats=<json>` overrides). `stats.report` aggregates them in memory. */
   stats?: StatDef[];
   /**
    * Made-up players' values per stat for `stats.leaderboard` (you are ranked among them).
@@ -95,7 +96,7 @@ export interface MockHostOptions {
    * (or a typical value for its format); `false` leaves you alone on every board.
    */
   leaderboard?: { [key: string]: number[] } | false;
-  /** Manifest achievements (`?xapps-achievements=<json>` overrides). Each unlocks once per mock host. */
+  /** Manifest achievements (`?vibecade-achievements=<json>` overrides). Each unlocks once per mock host. */
   achievements?: AchievementDef[];
   /** Seed for the read-only `app` storage scope (your server writes it on the real platform). */
   appStorage?: { [key: string]: Json };
@@ -103,7 +104,7 @@ export interface MockHostOptions {
   probeMedia?: boolean;
 }
 
-/** An entry your app wrote with `xapps.log.*` (or an uncaught error it captured). */
+/** An entry your app wrote with `vibecade.log.*` (or an uncaught error it captured). */
 export interface MockLogEntry {
   level: LogLevel;
   message: string;
@@ -137,7 +138,7 @@ export interface MockHost {
   readonly uploads: ReadonlyArray<MediaRef & { alt: string | null; file: Blob }>;
   /** Pretend the app's server wrote an `app` scope key (`undefined` deletes it). */
   setAppStorage(key: string, value: Json | undefined): void;
-  /** What the app logged (`xapps.log.*`, captured errors), oldest first; the last 500 entries. */
+  /** What the app logged (`vibecade.log.*`, captured errors), oldest first; the last 500 entries. */
   readonly logs: ReadonlyArray<MockLogEntry>;
 }
 
@@ -157,25 +158,29 @@ const clampInt = (value: unknown, min: number, max: number, fallback: number): n
 function readUrlOptions(): Partial<MockHostOptions> {
   if (typeof location === "undefined" || !location.search) return {};
   const params = new URLSearchParams(location.search);
+  // `?vibecade-players=4`; the old `?vibecade-players=4` spelling still works.
+  const key = (name: string) => (params.has(`vibecade-${name}`) ? `vibecade-${name}` : `xapps-${name}`);
+  const has = (name: string) => params.has(key(name));
+  const get = (name: string) => params.get(key(name));
   const out: Partial<MockHostOptions> = {};
-  const purpose = params.get("xapps-purpose");
+  const purpose = get("purpose");
   if (purpose === "setup" || purpose === "match" || purpose === "app") out.purpose = purpose;
-  const settings = params.get("xapps-settings");
+  const settings = get("settings");
   if (settings) {
     try {
       const parsed: unknown = JSON.parse(settings);
       if (isPlainObject(parsed)) out.settings = parsed as { [key: string]: Json };
     } catch {
-      console.warn("[xapps mock] ignoring ?xapps-settings: not valid JSON");
+      console.warn("[vibecade mock] ignoring ?vibecade-settings: not valid JSON");
     }
   }
-  if (params.has("xapps-players")) out.players = clampInt(params.get("xapps-players"), 2, 8, 2);
-  if (params.has("xapps-teams")) out.teams = clampInt(params.get("xapps-teams"), 0, 4, 0);
-  const role = params.get("xapps-role");
+  if (has("players")) out.players = clampInt(get("players"), 2, 8, 2);
+  if (has("teams")) out.teams = clampInt(get("teams"), 0, 4, 0);
+  const role = get("role");
   if (role === "spectator" || role === "player") out.role = role;
-  if (params.has("xapps-turns")) out.turnBased = params.get("xapps-turns") !== "0";
+  if (has("turns")) out.turnBased = get("turns") !== "0";
   const defs = (name: string): unknown[] | undefined => {
-    const raw = params.get(name);
+    const raw = get(name);
     if (!raw) return undefined;
     try {
       const parsed: unknown = JSON.parse(raw);
@@ -183,12 +188,12 @@ function readUrlOptions(): Partial<MockHostOptions> {
     } catch {
       // fall through
     }
-    console.warn(`[xapps mock] ignoring ?${name}: not a JSON array`);
+    console.warn(`[vibecade mock] ignoring ?${key(name)}: not a JSON array`);
     return undefined;
   };
-  const stats = defs("xapps-stats");
+  const stats = defs("stats");
   if (stats) out.stats = stats.filter(isStatDef);
-  const achievements = defs("xapps-achievements");
+  const achievements = defs("achievements");
   if (achievements) out.achievements = achievements.filter(isAchievementDef);
   return out;
 }
@@ -201,7 +206,7 @@ const isStatDef = (value: unknown): value is StatDef =>
 const isAchievementDef = (value: unknown): value is AchievementDef =>
   isPlainObject(value) && typeof value.id === "string";
 
-/** Fills in the display fields a quick `?xapps-stats=[{"key":"best","aggregate":"max"}]` leaves out. */
+/** Fills in the display fields a quick `?vibecade-stats=[{"key":"best","aggregate":"max"}]` leaves out. */
 const completeStat = (d: StatDef): StatDef => ({ ...d, label: typeof d.label === "string" ? d.label : d.key });
 const completeAchievement = (d: AchievementDef): AchievementDef => ({
   ...d,
@@ -283,7 +288,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
   const options: MockHostOptions = { ...input, ...(input.readUrl === false ? {} : readUrlOptions()) };
   const pair = createMemoryTransportPair();
   const log = (...args: unknown[]) => {
-    if (!options.quiet) console.info("%c[xapps mock]", "color:#8b5cf6;font-weight:600", ...args);
+    if (!options.quiet) console.info("%c[vibecade mock]", "color:#8b5cf6;font-weight:600", ...args);
   };
 
   const purpose: LaunchPurpose = purposeOf(options.purpose);
@@ -300,7 +305,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
     const botNumber = spectating ? seat + 1 : seat;
     return {
       id: human ? user.id : botNumber === 1 ? "bot" : `bot${botNumber}`,
-      handle: human ? user.handle : botNumber === 1 ? "xapps_bot" : `xapps_bot${botNumber}`,
+      handle: human ? user.handle : botNumber === 1 ? "vibecade_bot" : `vibecade_bot${botNumber}`,
       name: human ? user.name : botNumber === 1 ? "Practice Bot" : `Bot ${botNumber}`,
       avatarUrl: null,
       seat,
@@ -367,7 +372,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
   const appStorage = new Map<string, Json>(Object.entries(options.appStorage ?? {}).map(([k, v]) => [k, cloneJson(v)]));
   const statDefs = context.app.stats ?? [];
   const achievementDefs = context.app.achievements ?? [];
-  const storagePrefix = "xapps-mock:";
+  const storagePrefix = "xapps-mock:"; // kept from before the rename, so saved mock data survives
   const userKeys = (): string[] => {
     if (typeof localStorage === "undefined") return [];
     const keys: string[] = [];
@@ -449,9 +454,9 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
 
   const showBanner = (outcome: MockSetupOutcome) => {
     if (options.banner === false || typeof document === "undefined" || !document.body) return;
-    document.getElementById("xapps-mock-banner")?.remove();
+    document.getElementById("vibecade-mock-banner")?.remove();
     const el = document.createElement("div");
-    el.id = "xapps-mock-banner";
+    el.id = "vibecade-mock-banner";
     el.setAttribute("role", "status");
     el.style.cssText =
       "position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483647;max-height:45vh;overflow:auto;" +
@@ -473,8 +478,8 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       el.append(pre);
       if (typeof location !== "undefined") {
         const url = new URL(location.href);
-        url.searchParams.delete("xapps-purpose");
-        url.searchParams.set("xapps-settings", JSON.stringify(outcome.settings));
+        for (const name of ["vibecade-purpose", "xapps-purpose", "xapps-settings"]) url.searchParams.delete(name);
+        url.searchParams.set("vibecade-settings", JSON.stringify(outcome.settings));
         const link = document.createElement("a");
         link.href = url.toString();
         link.textContent = "Play a mock match with these settings →";
@@ -495,9 +500,9 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
 
   const showAchievement = (def: AchievementDef) => {
     if (options.banner === false || typeof document === "undefined" || !document.body) return;
-    document.getElementById("xapps-mock-achievement")?.remove();
+    document.getElementById("vibecade-mock-achievement")?.remove();
     const el = document.createElement("div");
-    el.id = "xapps-mock-achievement";
+    el.id = "vibecade-mock-achievement";
     el.setAttribute("role", "status");
     el.style.cssText =
       "position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:2147483647;display:flex;gap:10px;" +
@@ -526,7 +531,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
     handlers: {
       ready: () => {
         if (purpose === "setup") {
-          log("setup mode: call xapps.setup.submit(settings, summary) when the player is done");
+          log("setup mode: call vibecade.setup.submit(settings, summary) when the player is done");
           return { startedAt: null };
         }
         // Standalone apps have no match to start.
@@ -595,7 +600,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       "ui.turn": ({ playerId }) => (log("turn", playerId), null),
       // Standalone the page already fills the window: nothing to resize.
       "ui.resize": ({ height }) => {
-        if (!options.quiet) console.debug("%c[xapps mock]", "color:#8b5cf6;font-weight:600", "resize", height);
+        if (!options.quiet) console.debug("%c[vibecade mock]", "color:#8b5cf6;font-weight:600", "resize", height);
         return null;
       },
       "social.share": ({ text, url }) => {
@@ -639,7 +644,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         ) {
           throw new VibeCadeError("rate_limited", "media.upload: daily upload quota reached");
         }
-        let url = `blob:xapps-mock/${randomId(12)}`; // placeholder where object URLs aren't available
+        let url = `blob:vibecade-mock/${randomId(12)}`; // placeholder where object URLs aren't available
         try {
           if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") url = URL.createObjectURL(file);
         } catch {
@@ -663,7 +668,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
           if (!def) {
             throw new VibeCadeError(
               "invalid_params",
-              `stats.report: "${key}" is not a declared stat (mock: pass stats in connect({ mock }) or ?xapps-stats=)`,
+              `stats.report: "${key}" is not a declared stat (mock: pass stats in connect({ mock }) or ?vibecade-stats=)`,
             );
           }
           out[key] = statValues[key] = aggregateStat(def.aggregate, statValues[key], value);
@@ -676,7 +681,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         if (!def) {
           throw new VibeCadeError(
             "invalid_params",
-            `stats.leaderboard: "${key}" is not a declared stat (mock: pass stats in connect({ mock }) or ?xapps-stats=)`,
+            `stats.leaderboard: "${key}" is not a declared stat (mock: pass stats in connect({ mock }) or ?vibecade-stats=)`,
           );
         }
         let crowd = crowds.get(key);
@@ -708,7 +713,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         if (!def) {
           throw new VibeCadeError(
             "invalid_params",
-            `achievements.unlock: "${id}" is not a declared achievement (mock: pass achievements in connect({ mock }) or ?xapps-achievements=)`,
+            `achievements.unlock: "${id}" is not a declared achievement (mock: pass achievements in connect({ mock }) or ?vibecade-achievements=)`,
           );
         }
         if (unlocked.has(id)) return { unlocked: false };
@@ -725,7 +730,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
         if (logs.length > MAX_MOCK_LOGS) logs.splice(0, logs.length - MAX_MOCK_LOGS);
         if (!options.quiet) {
           const print = level === "debug" ? console.debug : level === "info" ? console.info : level === "warn" ? console.warn : console.error;
-          const args: unknown[] = [`%c[xapps log] ${level}`, LOG_STYLE[level], message];
+          const args: unknown[] = [`%c[vibecade log] ${level}`, LOG_STYLE[level], message];
           if (data !== undefined) args.push(data);
           print(...args);
         }
@@ -761,7 +766,7 @@ export function createMockHost(input: MockHostOptions = {}): MockHost {
       "setup.submit": ({ settings, summary }) => {
         setupOutcome = { status: "submitted", settings, summary: summary ?? null };
         log("setup submitted", summary ?? "", settings);
-        log("play a match with them: add ?xapps-settings=" + encodeURIComponent(JSON.stringify(settings)));
+        log("play a match with them: add ?vibecade-settings=" + encodeURIComponent(JSON.stringify(settings)));
         showBanner(setupOutcome);
         return null;
       },

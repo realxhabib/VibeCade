@@ -10,7 +10,7 @@ createRoot(document.getElementById("root")!).render(
       fallback={<p className="center muted">Connecting…</p>}
       errorFallback={(error) => <p className="center">Couldn’t reach VibeCade: {error.message}</p>}
       // Only used when the page is opened directly (npm run dev): a local mock
-      // host seats you against a practice bot (?xapps-players=4 for more bots).
+      // host seats you against a practice bot (?vibecade-players=4 for more bots).
       options={{ mock: { startDelayMs: 800 } }}
     >
       <App />

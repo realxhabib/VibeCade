@@ -11,11 +11,11 @@ npm run dev        # http://localhost:5173
 ```
 
 Opened directly, the SDK starts a **mock host**: you are seated against a practice bot that this app
-plays itself (`submitFor`). The browser console shows what the host sees (`[xapps mock]`) and your
-logs (`[xapps log]`). Handy URL switches:
+plays itself (`submitFor`). The browser console shows what the host sees (`[vibecade mock]`) and your
+logs (`[vibecade log]`). Handy URL switches:
 
-- `?xapps-players=4` seats more bots (the manifest says 2, but the code handles any table).
-- `?xapps-role=spectator` shows the read-only spectator view (in the mock nobody plays the bots, so
+- `?vibecade-players=4` seats more bots (the manifest says 2, but the code handles any table).
+- `?vibecade-role=spectator` shows the read-only spectator view (in the mock nobody plays the bots, so
   use the Sandbox to watch a real race).
 
 Where things are:

@@ -1,6 +1,9 @@
 {
-  "name": "xapps",
-  "description": "VibeCade games as Claude Code mods: play while Claude works",
+  "name": "vibecade",
+  "description": "VibeCade for Claude Code: build VibeCade games with Claude, and play VibeCade games while Claude works",
   "owner": { "name": "VibeCade", "url": "https://github.com/realxhabib/VibeCade" },
-  "plugins": [{ "name": "xapps-arcade", "source": "./mods/xapps-arcade" }]
+  "plugins": [
+    { "name": "vibecade-dev", "source": "./mods/vibecade-dev" },
+    { "name": "xapps-arcade", "source": "./mods/xapps-arcade" }
+  ]
 }
