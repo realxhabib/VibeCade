@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Code2, Gavel, LayoutDashboard, LogOut, Repeat2, Swords, UserRound, Volume2, VolumeX } from "lucide-react";
+import { Code2, Gavel, LayoutDashboard, LogOut, Repeat2, ShieldCheck, Swords, UserRound, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -103,9 +103,14 @@ export function UserMenu({ viewer }: { viewer: Profile }) {
               <LayoutDashboard className="size-4 text-ink-300" /> Developer console
             </Link>
             {viewer.isAdmin && (
-              <Link href="/admin/review" className={item} onClick={() => setOpen(false)}>
-                <Gavel className="size-4 text-ink-300" /> Review queue
-              </Link>
+              <>
+                <Link href="/admin" className={item} onClick={() => setOpen(false)}>
+                  <ShieldCheck className="size-4 text-ink-300" /> All apps (admin)
+                </Link>
+                <Link href="/admin/review" className={item} onClick={() => setOpen(false)}>
+                  <Gavel className="size-4 text-ink-300" /> Review queue
+                </Link>
+              </>
             )}
             <button className={item} onClick={() => setSoundEnabled(!sound)}>
               {sound ? <Volume2 className="size-4 text-ink-300" /> : <VolumeX className="size-4 text-ink-300" />}

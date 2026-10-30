@@ -427,6 +427,64 @@ export interface AppPlayers {
   players: AppPlayer[];
 }
 
+/** One app on the admin overview (`admin_overview`, admins only). */
+export interface AdminAppStats {
+  app: AppManifest;
+  /** Over the overview's window, test builds left out. */
+  matches: number;
+  completed: number;
+  /** Distinct humans seated in the window's matches. */
+  players: number;
+  /** All time: everyone who took a seat or opened it signed in. */
+  roster: number;
+  /** All-time opens (`playCount`). */
+  opens: number;
+  lastActiveAt: string | null;
+}
+
+/** Platform-wide numbers for admins: every app, official ones included. */
+export interface AdminOverview {
+  days: number;
+  totals: {
+    apps: number;
+    listedApps: number;
+    /** Human profiles (bots left out). */
+    people: number;
+    /** Signed up in the window. */
+    newPeople: number;
+    /** Seated in a match or opened an app in the window. */
+    activePlayers: number;
+    matches: number;
+    completed: number;
+  };
+  series: { date: string; matches: number; players: number; newPeople: number }[];
+  /** Busiest first. */
+  apps: AdminAppStats[];
+}
+
+/** One person across every app (`admin_players`). No emails: those stay per app and opt-in. */
+export interface AdminPlayer {
+  profile: Profile;
+  matches: number;
+  wins: number;
+  opens: number;
+  /** Apps they took a seat in or opened. */
+  apps: number;
+  joinedAt: string;
+  lastSeenAt: string | null;
+}
+
+export interface AdminPlayers {
+  /** Everyone (not just the filtered page). */
+  total: number;
+  /** Signed up in the last 7 days. */
+  newThisWeek: number;
+  /** Played or opened an app in the last 7 days. */
+  activeThisWeek: number;
+  /** Most recently active first, then newest sign-up. */
+  players: AdminPlayer[];
+}
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export type DeveloperNoticeKind = "version_approved" | "version_rejected" | "version_published";

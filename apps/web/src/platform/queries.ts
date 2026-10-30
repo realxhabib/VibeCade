@@ -101,9 +101,9 @@ export function useSearchProfiles(query: string, enabled = true) {
   });
 }
 
-export function useLeaderboard(appSlug?: string) {
+export function useLeaderboard(appSlug?: string, enabled = true) {
   const backend = useBackend();
-  return useQuery({ queryKey: ["leaderboard", appSlug ?? "all"], queryFn: () => backend.leaderboard(appSlug) });
+  return useQuery({ queryKey: ["leaderboard", appSlug ?? "all"], queryFn: () => backend.leaderboard(appSlug), enabled });
 }
 
 /** One stat's leaderboard for an app (Stage 3). */
@@ -741,6 +741,34 @@ export function useAppPlayers(slug: string, query = "", enabled = true) {
     queryKey: [...playersKey(slug), query, viewer?.id],
     queryFn: () => backend.appPlayers(slug, { query: query || undefined, limit: 1000 }),
     enabled: enabled && !!slug && !!viewer,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
+/** Admins only: platform totals and every app's numbers over the last `days` days (disabled for everyone else). */
+export function useAdminOverview(days = 30, enabled = true) {
+  const backend = useBackend();
+  const { viewer } = useViewer();
+  return useQuery({
+    queryKey: ["admin-overview", days, viewer?.id],
+    queryFn: () => backend.adminOverview(days),
+    enabled: enabled && !!viewer?.isAdmin,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
+/** Admins only: everyone on the platform, newest activity first. */
+export function useAdminPlayers(query = "", enabled = true) {
+  const backend = useBackend();
+  const { viewer } = useViewer();
+  return useQuery({
+    queryKey: ["admin-players", query, viewer?.id],
+    queryFn: () => backend.adminPlayers({ query: query || undefined, limit: 1000 }),
+    enabled: enabled && !!viewer?.isAdmin,
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     retry: false,
