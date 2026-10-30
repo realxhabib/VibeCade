@@ -23,6 +23,7 @@ import type { Game, HudState } from "./game";
 import { GRENADE_WEAPON } from "./grenade";
 import { GunGlyph, LoadoutPicker } from "./loadout";
 import { TouchControls } from "./touch";
+import { LookSpeed } from "./look-speed";
 import type { PeerLink } from "./net";
 import type { Tier } from "./quality";
 import { RADAR_STREAK, formatClock } from "./rules";
@@ -675,13 +676,7 @@ function SettingsPanel({ settings, onSettings, touch, tier }: { settings: Settin
   const set = (patch: Partial<Settings>) => onSettings({ ...settings, ...patch });
   return (
     <div className="mt-4 flex flex-col gap-3 text-sm">
-      <label className="flex flex-col gap-1">
-        <span className="flex justify-between text-xs font-semibold text-ink-300">
-          <span>{touch ? "Look sensitivity" : "Mouse sensitivity"}</span>
-          <span className="font-mono tabular">{settings.sensitivity.toFixed(1)}</span>
-        </span>
-        <input type="range" min={0.3} max={8} step={0.1} value={settings.sensitivity} onChange={(e) => set({ sensitivity: Number(e.target.value) })} className="accent-[var(--accent-from)]" aria-label="Sensitivity" />
-      </label>
+      <LookSpeed settings={settings} onSettings={onSettings} touch={touch} />
       <Toggle label="Invert look up/down" on={settings.invert} onChange={(invert) => set({ invert })} />
       {touch && <Toggle label="Aim assist (slows your aim a little over enemies)" on={settings.aimAssist} onChange={(aimAssist) => set({ aimAssist })} />}
       <div className="flex items-center justify-between gap-2">

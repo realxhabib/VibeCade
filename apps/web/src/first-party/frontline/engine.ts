@@ -431,7 +431,7 @@ export class Engine {
     if (me && me.alive && g.phase === "live" && !this.paused && (this.input.locked || this.opts.touch)) {
       const w = g.weapon(me);
       const zoom = Math.tan((this.fov * DEG) / 2) / Math.tan((BASE_FOV * DEG) / 2);
-      const d = this.input.sample(this.intent, settings.sensitivity, settings.invert, zoom, me.slot);
+      const d = this.input.sample(this.intent, this.opts.touch ? settings.touchSensitivity : settings.sensitivity, settings.invert, zoom, me.slot);
       intent = this.intent;
       if (this.opts.touch && settings.aimAssist) this.aimAssist(me, w, d, intent, dt);
       look = { yaw: d.dYaw, pitch: d.dPitch };
