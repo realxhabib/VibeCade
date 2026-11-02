@@ -26,6 +26,7 @@ import { FrontlineLoading } from "./loading";
 import { TIERS, assetsCover, detectTier, lower, type AssetLevel, type Tier } from "./quality";
 import { lineOfSight } from "./physics";
 import { formatClock, isWinner, parseDoc } from "./rules";
+import { docOverrides, isNoLimit, parseOptions, type Season } from "./options";
 import type { Settings } from "./settings";
 import { PacketLink, RELAY_HZ } from "./net";
 import { WEAPONS } from "./weapons";
@@ -37,14 +38,17 @@ function seatsOf(players: PlayerInfo[]): SeatInfo[] {
   return players.map((p) => ({ id: p.id, seat: p.seat, name: p.name, handle: p.handle, isBot: p.isBot, avatarUrl: p.avatarUrl }));
 }
 
-/** Dev only: shorter matches / lower limits for testing (`localStorage["frontline:debug"] = '{"lim":3,"dur":60000}'`). */
+/** Dev only: shorter matches / lower limits for testing (`localStorage["frontline:debug"] = '{"lim":3,"dur":60000}'`; add `"season"` to try one). */
 function debugOverrides(): { dur?: number; lim?: number } | undefined {
   if (process.env.NODE_ENV === "production") return undefined;
   try {
     const raw = window.localStorage.getItem("frontline:debug");
     if (!raw) return undefined;
     const o = JSON.parse(raw) as { dur?: unknown; lim?: unknown };
-    return { dur: typeof o.dur === "number" ? o.dur : undefined, lim: typeof o.lim === "number" ? o.lim : undefined };
+    const out: { dur?: number; lim?: number } = {};
+    if (typeof o.dur === "number") out.dur = o.dur;
+    if (typeof o.lim === "number") out.lim = o.lim;
+    return out;
   } catch {
     return undefined;
   }
@@ -96,7 +100,7 @@ function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo
       update: (fn) => xapps.state.update((raw) => fn(raw) as unknown as Json | undefined, { retries: 12 }),
     },
     initialState: xapps.state.current,
-    docOverrides: debugOverrides(),
+    docOverrides: { ...docOverrides(parseOptions(xapps.match.settings)), ...debugOverrides() },
   });
 }
 
@@ -132,7 +136,7 @@ function submitResults(xapps: VibeCadeClient, game: Game, rows: FinalRow[], subm
   if (me && isWinner(me.seat, game.soldiers.map((s) => s.seat), game.finalTally(), game.teams)) xapps.ui.celebrate("big").catch(ignore);
 }
 
-export function MatchView({ settings, onSettings }: { settings: Settings; onSettings: (s: Settings) => void }) {
+export function MatchView({ settings, onSettings, season }: { settings: Settings; onSettings: (s: Settings) => void; season: Season }) {
   const xapps = useVibeCade();
   const { players, me, isSpectator } = usePlayers();
   const reduce = useReducedMotion() ?? false;
@@ -197,6 +201,7 @@ export function MatchView({ settings, onSettings }: { settings: Settings; onSett
           tier: tierRef.current,
           reduceMotion: reduce,
           touch,
+          season,
           settings: () => settingsRef.current,
           haptic: (style) => {
             if (touch) xapps.ui.haptic(style).catch(ignore);
@@ -232,7 +237,7 @@ export function MatchView({ settings, onSettings }: { settings: Settings; onSett
         setEngine(null);
       };
     },
-    [game, reduce, touch, xapps, pack],
+    [game, reduce, touch, xapps, pack, season],
   );
 
   useEffect(() => {
@@ -283,8 +288,8 @@ export function MatchView({ settings, onSettings }: { settings: Settings; onSett
       }
       const leader = Math.max(0, ...hud.scores.map((s) => s.kills));
       const clock = hud.teams
-        ? `${formatClock(hud.remainingMs)} · ${hud.teamScores.join("–")} of ${hud.limit}`
-        : `${formatClock(hud.remainingMs)} · leader ${leader}/${hud.limit}`;
+        ? `${formatClock(hud.remainingMs)} · ${hud.teamScores.join("–")}${isNoLimit(hud.limit) ? "" : ` of ${hud.limit}`}`
+        : `${formatClock(hud.remainingMs)} · leader ${leader}${isNoLimit(hud.limit) ? "" : `/${hud.limit}`}`;
       // Players have the clock and score in the game's own top bar: the host's line stays empty
       // instead of repeating it (spectators watching from the host get it there).
       const status = hud.phase === "over" ? "Match over" : isSpectator ? `Watching · ${clock}` : "";

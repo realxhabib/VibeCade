@@ -670,7 +670,7 @@ export const OFFICIAL_APPS: AppManifest[] = [
     name: "Frontline",
     tagline: "Fast first-person firefights in a sun-bleached container port.",
     description:
-      "A real-time first-person shooter for 2–8 players. Pick a primary (assault rifle, SMG, sniper or shotgun), a sidearm and a perk, then fight through Saltyard: a covered warehouse, a stack of containers with perches up the stairs, and three tight container lanes. Aim down sights, learn each gun's recoil, land headshots, and chain three kills for a radar sweep. First to 20 kills or the most when the clock runs out wins. Team up when the table plays in teams, or practice against bots.",
+      "A real-time first-person shooter for 2–8 players. Pick a primary (assault rifle, SMG, sniper or shotgun), a sidearm and a perk, then fight through Saltyard: a covered warehouse, a stack of containers with perches up the stairs, and three tight container lanes. Aim down sights, learn each gun's recoil, land headshots, and chain three kills for a radar sweep. First to 20 kills or the most when the clock runs out wins (the host can change the time and kill limits). The yard changes with the seasons: snow in winter, falling leaves in autumn, blossom in spring. Team up when the table plays in teams, or practice against bots.",
     category: "games",
     icon: "🪖",
     coverImage: "/showcase/frontline-cover.webp",
@@ -680,7 +680,7 @@ export const OFFICIAL_APPS: AppManifest[] = [
     players: { min: 2, max: 8 },
     teams: 0,
     spectators: true,
-    setup: false,
+    setup: true,
     turnBased: false,
     // Fast real-time: its room runs on the live server (AppManifest.liveServer).
     liveServer: true,
@@ -691,7 +691,7 @@ export const OFFICIAL_APPS: AppManifest[] = [
       "Desktop: click to lock the mouse. WASD moves, Shift sprints, C or Ctrl crouches, Space jumps, right mouse aims, R reloads, 1/2 or the wheel swaps, hold G to aim a frag grenade and release to throw it. Esc opens settings.",
       "Phone: the left stick moves (push to the edge to sprint), drag on the right to look, and use the fire, aim, reload, jump, crouch and grenade buttons (hold the grenade to see its arc, let go to throw).",
       "Headshots hurt more, bullets lose power with distance, and you heal when you stay out of fire. Three kills without dying calls in a radar sweep.",
-      "First to 20 kills wins (team play: the team total), or the most kills when the 7-minute clock runs out. Your score is your kills.",
+      "First to 20 kills wins (team play: the team total), or the most kills when the 7-minute clock runs out. The host can change the time limit, the kill limit and the season when setting up a challenge. Your score is your kills.",
     ],
     official: true,
     developer: OFFICIAL_DEV,

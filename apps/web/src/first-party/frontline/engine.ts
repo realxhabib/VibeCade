@@ -49,6 +49,8 @@ import { Vfx } from "./vfx";
 import { ViewModel } from "./viewmodel";
 import { BASE_FOV, spreadDeg, type WeaponDef } from "./weapons";
 import { buildWorld, type WorldView } from "./world";
+import type { Season } from "./options";
+import { SeasonFx, applySeasonLight, seasonalMap } from "./season";
 
 const DEG = Math.PI / 180;
 
@@ -80,6 +82,8 @@ export interface EngineOptions {
   pack: AssetPack;
   reduceMotion: boolean;
   touch: boolean;
+  /** Snow, leaves, blossom or summer haze (see season.ts). */
+  season: Season;
   settings: () => Settings;
   haptic: (style: "light" | "medium" | "heavy" | "success") => void;
   /** Auto quality gave up on this tier (resolution already at its floor). */
@@ -120,6 +124,7 @@ export class Engine {
   private readonly nadeFx: NadeFx;
   private readonly ammoFx: AmmoFx;
   private readonly vfx: Vfx;
+  private readonly seasonFx: SeasonFx;
   private readonly textures: Texture[];
   private readonly governor: FrameGovernor;
   private readonly opts: EngineOptions;
@@ -209,13 +214,16 @@ export class Engine {
     this.sun.target.position.set(0, 0, 0);
     this.scene.add(this.sun, this.sun.target);
     this.configureShadows(t.shadows, t.shadowMapSize, t.shadowSoftness);
-    this.world = buildWorld(map, o.pack, { shadows: t.shadows, groundPx: o.touch || o.tier === "low" ? 12 : 22, skyline: t.skyline });
+    const seasonTex = applySeasonLight(o.season, this.scene, this.hemi, this.sun);
+    this.world = buildWorld(seasonalMap(map, o.season), o.pack, { shadows: t.shadows, groundPx: o.touch || o.tier === "low" ? 12 : 22, skyline: t.skyline });
     this.scene.add(this.world.group);
+    this.seasonFx = new SeasonFx(map, o.season, { budget: t.particles, reduceMotion: o.reduceMotion, shadows: t.shadows, pbr });
+    this.scene.add(this.seasonFx.group);
 
     const flash = flashTexture();
     const blob = softDot(0.3, "0,0,0");
     const fxTex = { streak: streakTexture(), dot: softDot(0.15), hole: holeTexture(), smoke: smokeTexture(), fire: fireTexture(), scorch: scorchTexture() };
-    this.textures = [flash, blob, ...Object.values(fxTex)];
+    this.textures = [flash, blob, ...Object.values(fxTex), ...seasonTex];
     this.kit = new AvatarKit(blob, flash);
     this.skinKit = pbr && o.pack.soldier ? new SoldierKit(o.pack.soldier, o.pack.fabric, flash) : null;
     for (const s of this.game.soldiers) this.addRig(s, t.shadows);
@@ -342,6 +350,7 @@ export class Engine {
     if (this.scene.fog instanceof Fog) this.scene.fog.far = t.far;
     this.world.setSkyline(t.skyline);
     this.vfx.setBudget(t.particles);
+    this.seasonFx.setBudget(t.particles);
     if (t.post && !this.post) {
       this.post = new PostFx(this.renderer, this.scene, this.camera, { scene: this.vm.scene, camera: this.vm.camera, visible: () => this.vmVisible });
       this.post.setSize(this.width, this.height);
@@ -354,6 +363,7 @@ export class Engine {
       this.renderer.shadowMap.enabled = t.shadows;
       this.configureShadows(t.shadows, t.shadowMapSize, t.shadowSoftness);
       this.world.setShadows(t.shadows);
+      this.seasonFx.setShadows(t.shadows);
       this.rigs.forEach((r) => r.rig.setShadows(t.shadows));
       this.scene.traverse((o) => {
         const m = (o as { material?: { needsUpdate: boolean } }).material;
@@ -464,6 +474,7 @@ export class Engine {
     this.vfx.update(frozen ? 0 : dt, this.camera);
     this.updateNades(now);
     this.world.update(now / 1000);
+    this.seasonFx.update(frozen ? 0 : dt, now / 1000, this.camera.position);
     this.updateViewModel(now, dt);
     if (me && me.alive) this.audio.setListener(me.body.x, me.body.z, me.yaw);
     else this.audio.setListener(this.camera.position.x, this.camera.position.z, this.cameraYaw());
@@ -1042,6 +1053,7 @@ export class Engine {
     this.ammoFx.dispose();
     this.vm.dispose();
     this.world.dispose();
+    this.seasonFx.dispose();
     this.kit.dispose();
     this.rigs.forEach((r) => r.rig.dispose());
     this.skinKit?.dispose();

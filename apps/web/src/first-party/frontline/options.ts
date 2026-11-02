@@ -1,0 +1,98 @@
+/**
+ * Host match options: the challenger picks them in the setup screen
+ * (purpose "setup", `setup.tsx`) and they arrive as `match.settings`:
+ *
+ *   { min?: number, kills?: number, season?: "auto" | Season }
+ *
+ * Missing keys keep the defaults (7 minutes, the standard kill limit, the
+ * season of the calendar). `kills: 0` means no kill limit (time only).
+ * Everything is clamped, so a hand-made settings blob can't break a match.
+ */
+
+import { MATCH_MS } from "./rules";
+
+export type Season = "spring" | "summer" | "autumn" | "winter";
+export type SeasonChoice = "auto" | Season;
+
+export const SEASONS: readonly Season[] = ["spring", "summer", "autumn", "winter"];
+
+export const SEASON_LABEL: Record<Season, string> = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" };
+export const SEASON_ICON: Record<Season, string> = { spring: "🌸", summer: "☀️", autumn: "🍂", winter: "❄️" };
+
+/** Minutes the host can pick (the default is 7). */
+export const TIME_CHOICES = [3, 5, 7, 10, 15] as const;
+/** Kill limits the host can pick (null = the standard one, 0 = none). */
+export const KILL_CHOICES = [null, 10, 30, 50, 0] as const;
+
+/** "No limit" is stored as a limit nobody reaches in a 30 minute match. */
+export const NO_LIMIT = 999;
+
+export interface MatchOptions {
+  /** Match length in minutes, or null for the default. */
+  minutes: number | null;
+  /** Kill limit (per player free for all, per team in team play): null = standard, 0 = no limit. */
+  kills: number | null;
+  season: SeasonChoice;
+}
+
+export const DEFAULT_OPTIONS: MatchOptions = { minutes: null, kills: null, season: "auto" };
+
+const int = (v: unknown, lo: number, hi: number): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : null);
+
+export function parseOptions(raw: unknown): MatchOptions {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_OPTIONS };
+  const o = raw as { min?: unknown; kills?: unknown; season?: unknown };
+  const kills = o.kills === 0 ? 0 : int(o.kills, 5, 200);
+  const season = typeof o.season === "string" && (SEASONS as readonly string[]).includes(o.season) ? (o.season as Season) : "auto";
+  return { minutes: int(o.min, 1, 30), kills, season };
+}
+
+/** The settings blob the setup screen submits (only what differs from the defaults). */
+export function toSettings(o: MatchOptions): { [key: string]: string | number } {
+  const out: { [key: string]: string | number } = {};
+  if (o.minutes !== null && o.minutes * 60_000 !== MATCH_MS) out.min = o.minutes;
+  if (o.kills !== null) out.kills = o.kills;
+  if (o.season !== "auto") out.season = o.season;
+  return out;
+}
+
+/** Overrides for the match document (`newDoc`). */
+export function docOverrides(o: MatchOptions): { dur?: number; lim?: number } {
+  const out: { dur?: number; lim?: number } = {};
+  if (o.minutes !== null) out.dur = o.minutes * 60_000;
+  if (o.kills !== null) out.lim = o.kills === 0 ? NO_LIMIT : o.kills;
+  return out;
+}
+
+/** Northern-hemisphere meteorological seasons. */
+export function seasonOf(date: Date): Season {
+  const m = date.getMonth();
+  if (m === 11 || m <= 1) return "winter";
+  if (m <= 4) return "spring";
+  if (m <= 7) return "summer";
+  return "autumn";
+}
+
+export function resolveSeason(choice: SeasonChoice, now: Date = new Date()): Season {
+  return choice === "auto" ? seasonOf(now) : choice;
+}
+
+export const isNoLimit = (lim: number): boolean => lim >= NO_LIMIT;
+
+export function minutesOf(o: MatchOptions): number {
+  return o.minutes ?? MATCH_MS / 60_000;
+}
+
+/** "first to 20", "first team to 40", "no kill limit". */
+export function limitLabel(lim: number, teams: boolean): string {
+  if (isNoLimit(lim)) return "no kill limit";
+  return teams ? `first team to ${lim}` : `first to ${lim}`;
+}
+
+/** One line for the challenge card: "10 min · first to 30 · ❄️ Winter". */
+export function optionsSummary(o: MatchOptions): string {
+  const parts = [`${minutesOf(o)} min`];
+  if (o.kills !== null) parts.push(o.kills === 0 ? "no kill limit" : `first to ${o.kills}`);
+  if (o.season !== "auto") parts.push(`${SEASON_ICON[o.season]} ${SEASON_LABEL[o.season]}`);
+  return parts.join(" · ");
+}

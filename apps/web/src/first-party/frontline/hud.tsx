@@ -27,6 +27,7 @@ import { LookSpeed } from "./look-speed";
 import type { PeerLink } from "./net";
 import type { Tier } from "./quality";
 import { RADAR_STREAK, formatClock } from "./rules";
+import { isNoLimit } from "./options";
 import type { Settings } from "./settings";
 import { PRIMARIES, WEAPONS, weaponAt, type WeaponId } from "./weapons";
 
@@ -409,7 +410,7 @@ function ScoreBar({ hud, onTap, compact }: { hud: HudState; onTap: () => void; c
   return (
     <button type="button" onClick={onTap} className="glass-strong pointer-events-auto flex flex-col items-center rounded-2xl px-3 py-1 shadow-[0_10px_30px_-12px_rgb(0_0_0/0.8)]">
       {middle}
-      {!compact && <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-400">{hud.teams ? `first to ${hud.limit}` : `first to ${hud.limit} kills`}</span>}
+      {!compact && <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-400">{isNoLimit(hud.limit) ? "most kills wins" : hud.teams ? `first to ${hud.limit}` : `first to ${hud.limit} kills`}</span>}
     </button>
   );
 }
