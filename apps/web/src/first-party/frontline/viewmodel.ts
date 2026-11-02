@@ -377,7 +377,7 @@ export class ViewModel {
     const parts: BufferGeometry[] = [];
     if (this.season) {
       // The season's throwable (snowball, turkey, egg, firecracker), a little smaller than in the world.
-      for (const p of throwableParts(this.season, 0.68)) parts.push(this.place(p.geo, p.color, "polymer", 0, 0.045, -0.02));
+      for (const p of throwableParts(this.season, 1.05)) parts.push(this.place(p.geo, p.color, "polymer", 0, 0.045, -0.02));
     } else {
       parts.push(this.place(new SphereGeometry(0.03, 12, 10).scale(1, 1.2, 1), 0x3d4a2c, "polymer", 0, 0.04, -0.02));
       parts.push(this.place(new CylinderGeometry(0.011, 0.014, 0.02, 8), 0x5a5d60, "steel", 0, 0.08, -0.02));

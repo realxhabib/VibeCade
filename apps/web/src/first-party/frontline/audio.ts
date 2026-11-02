@@ -300,19 +300,21 @@ export class FrontAudio {
   }
 
   /** The season's grenade as it flies: a turkey gobbles, a firecracker fizzes. */
-  nadeCall(kind: "gobble" | "fizz", x: number, z: number): void {
+  nadeCall(kind: "gobble" | "fizz", x: number, z: number, mine = false): void {
     if (!this.enabled || !this.ensure()) return;
-    const spot = this.spot(x, z, 8);
+    const spot = mine ? this.spot(null, null) : this.spot(x, z, 18);
     if (!spot || spot.gain < 0.04) return;
     const g = spot.gain;
     if (kind === "gobble") {
       // Quick warbling syllables, falling in pitch.
-      for (let i = 0; i < 6; i++) {
-        const f = 620 - i * 35 + (i % 2) * 140;
-        this.tone(spot.out, { freq: f, to: f * 0.72, type: "sawtooth", gain: 0.05 * g, decay: 0.07, start: 0.05 + i * 0.075, attack: 0.01 });
+      for (let i = 0; i < 8; i++) {
+        const f = 700 - i * 30 + (i % 2) * 180;
+        const at = 0.04 + i * 0.07;
+        this.tone(spot.out, { freq: f, to: f * 0.7, type: "sawtooth", gain: 0.22 * g, decay: 0.065, start: at, attack: 0.008 });
+        this.tone(spot.out, { freq: f * 2, to: f * 1.4, type: "square", gain: 0.06 * g, decay: 0.05, start: at, attack: 0.008 });
       }
     } else {
-      this.noiseBurst(spot.out, { gain: 0.09 * g, decay: 0.7, freq: 5200, q: 0.8, type: "highpass", attack: 0.05 });
+      this.noiseBurst(spot.out, { gain: 0.25 * g, decay: 0.8, freq: 5200, q: 0.8, type: "highpass", attack: 0.05 });
     }
   }
 

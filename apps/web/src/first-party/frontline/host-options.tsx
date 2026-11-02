@@ -13,7 +13,7 @@ import { useMatchState } from "vibecade-sdk/react";
 import type { Json } from "vibecade-sdk";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
-import { KILL_CHOICES, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
+import { killChoices, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
 import { parseDoc } from "./rules";
 
 export function HostOptions({ options, host, standardKills, compact }: { options: MatchOptions; host: boolean; standardKills: number; compact?: boolean }) {
@@ -42,7 +42,7 @@ export function HostOptions({ options, host, standardKills, compact }: { options
         ))}
       </Row>
       <Row label="Kills">
-        {KILL_CHOICES.map((k) => (
+        {killChoices(standardKills).map((k) => (
           <Chip key={String(k)} on={k === options.kills} disabled={!host} onClick={() => change({ kills: k })}>
             {k === null ? standardKills : k === 0 ? "∞" : k}
           </Chip>

@@ -721,13 +721,15 @@ export class Engine {
       const s = this.game.bySeat.get(n.thrower);
       const mine = !!s?.isMe && !this.spectating();
       if (s) this.audio.throwNade(s.body.x, s.body.z, mine);
-      if (s && (this.game.season === "autumn" || this.game.season === "summer")) this.audio.nadeCall(this.game.season === "autumn" ? "gobble" : "fizz", s.body.x, s.body.z);
+      if (s && (this.game.season === "autumn" || this.game.season === "summer")) this.audio.nadeCall(this.game.season === "autumn" ? "gobble" : "fizz", s.body.x, s.body.z, mine);
       if (mine) this.vm.throwNade(performance.now());
     },
     explosion: (n) => {
       const p = n.flight.end;
       this.vfx.explosion(p.x, p.y, p.z);
       this.seasonFx.burst(p.x, p.y, p.z);
+      // The turkey's last word.
+      if (this.game.season === "autumn") this.audio.nadeCall("gobble", p.x, p.z);
       this.audio.explosion(p.x, p.z);
       const d = this.camera.position.distanceTo(_v.set(p.x, p.y, p.z));
       this.trauma = Math.min(1, this.trauma + Math.max(0, 1.1 - d / 18));

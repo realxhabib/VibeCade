@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_OPTIONS, NO_LIMIT, optionsFrom, docOverrides, limitLabel, optionsSummary, parseOptions, resolveSeason, seasonOf, toSettings } from "./options";
+import { DEFAULT_OPTIONS, NO_LIMIT, killChoices, optionsFrom, docOverrides, limitLabel, optionsSummary, parseOptions, resolveSeason, seasonOf, toSettings } from "./options";
 import { FFA_LIMIT, MATCH_MS, limitReached, newDoc, applyKill, type KillRec } from "./rules";
 
 describe("match options", () => {
@@ -63,5 +63,12 @@ describe("options in the shared state", () => {
   it("reads a started match from its document (a reconnect keeps the same season)", () => {
     const doc = newDoc(0, 0, 2, { ...docOverrides(parseOptions({ min: 15, kills: 0 })), s: "spring" });
     expect(optionsFrom(doc, {})).toEqual({ minutes: 15, kills: 0, season: "spring" });
+  });
+});
+
+describe("kill limit buttons", () => {
+  it("go lowest to highest, standard in its place, no limit last", () => {
+    expect(killChoices(20)).toEqual([10, null, 30, 50, 0]);
+    expect(killChoices(40)).toEqual([10, 20, 30, null, 50, 0]);
   });
 });

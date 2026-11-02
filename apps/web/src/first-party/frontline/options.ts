@@ -22,7 +22,18 @@ export const SEASON_ICON: Record<Season, string> = { spring: "ðŸŒ¸", summer: "â˜
 /** Minutes the host can pick (the default is 7). */
 export const TIME_CHOICES = [3, 5, 7, 10, 15] as const;
 /** Kill limits the host can pick (null = the standard one, 0 = none). */
-export const KILL_CHOICES = [null, 10, 30, 50, 0] as const;
+export const KILL_CHOICES = [10, 20, 30, 50] as const;
+
+/**
+ * Kill limit buttons, lowest first then "no limit" (0): the standard limit
+ * (null) takes its place by value, or replaces the button it equals.
+ */
+export function killChoices(standard: number): (number | null)[] {
+  const out: (number | null)[] = KILL_CHOICES.filter((k) => k !== standard);
+  const at = out.findIndex((k) => k !== null && k > standard);
+  out.splice(at < 0 ? out.length : at, 0, null);
+  return [...out, 0];
+}
 
 /** "No limit" is stored as a limit nobody reaches in a 30 minute match. */
 export const NO_LIMIT = 999;

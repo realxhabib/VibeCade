@@ -44,7 +44,8 @@ export class NadeFx {
   /** `season`: the grenade dresses up (snowball, turkey, egg, firecracker; see throwables.ts). */
   constructor(scene: Scene, season?: Season) {
     if (season) {
-      this.bodyGeo = throwableGeometry(season);
+      // Bigger than a frag so it reads at a glance (it is a turkey, after all).
+      this.bodyGeo = throwableGeometry(season, 1.7);
       this.bodyMat = new MeshStandardMaterial({ vertexColors: true, roughness: season === "winter" ? 0.8 : 0.5, metalness: 0.05 });
     } else {
       const body = new SphereGeometry(0.045, 10, 8).scale(1, 1.2, 1);

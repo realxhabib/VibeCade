@@ -14,7 +14,7 @@ import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 import { FFA_LIMIT } from "./rules";
 import {
-  KILL_CHOICES,
+  killChoices,
   SEASON_ICON,
   SEASON_LABEL,
   SEASONS,
@@ -76,7 +76,7 @@ export function FrontlineSetup() {
             label="Kill limit"
             value={opts.kills === null ? "std" : String(opts.kills)}
             onChange={(v) => set({ kills: v === "std" ? null : Number(v) })}
-            options={KILL_CHOICES.map((k) => ({
+            options={killChoices(FFA_LIMIT).map((k) => ({
               value: k === null ? "std" : String(k),
               label: k === null ? `${FFA_LIMIT}*` : k === 0 ? "None" : String(k),
             }))}
