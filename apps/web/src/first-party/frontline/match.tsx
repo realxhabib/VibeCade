@@ -26,7 +26,7 @@ import { FrontlineLoading } from "./loading";
 import { TIERS, assetsCover, detectTier, lower, type AssetLevel, type Tier } from "./quality";
 import { lineOfSight } from "./physics";
 import { formatClock, isWinner, parseDoc } from "./rules";
-import { docOverrides, isNoLimit, parseOptions, type Season } from "./options";
+import { docOverrides, isNoLimit, optionsFrom, type Season } from "./options";
 import type { Settings } from "./settings";
 import { PacketLink, RELAY_HZ } from "./net";
 import { WEAPONS } from "./weapons";
@@ -101,7 +101,7 @@ function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo
     },
     initialState: xapps.state.current,
     season,
-    docOverrides: { ...docOverrides(parseOptions(xapps.match.settings)), ...debugOverrides() },
+    docOverrides: { ...docOverrides(optionsFrom(xapps.state.current, xapps.match.settings)), ...debugOverrides() },
   });
 }
 

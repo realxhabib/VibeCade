@@ -21,6 +21,7 @@ import { SEAT_COLORS, TEAM_COLORS } from "./avatars";
 import type { Callout, Engine } from "./engine";
 import type { Game, HudState } from "./game";
 import { GRENADE_WEAPON } from "./grenade";
+import type { Throwable } from "./throwables";
 import { GunGlyph, LoadoutPicker } from "./loadout";
 import { TouchControls } from "./touch";
 import { LookSpeed } from "./look-speed";
@@ -225,7 +226,7 @@ export function Hud({
                 >
                   <RotateCw className={cn("size-4", me.reloading && "animate-spin")} />
                 </button>
-                <Ammo me={me} touch onSwap={() => engine.input.setTouch({ swap: true })} />
+                <Ammo me={me} nade={hud.nade} touch onSwap={() => engine.input.setTouch({ swap: true })} />
               </>
             )}
             <button type="button" aria-label="Menu" onClick={() => setMenu(true)} className="glass pointer-events-auto flex size-9 items-center justify-center rounded-full">
@@ -256,7 +257,7 @@ export function Hud({
               transition={spring.snappy}
               className={cn("rounded-full px-3 py-1 text-center text-sm font-extrabold uppercase tracking-wider [text-shadow:0_2px_8px_rgb(0_0_0/0.7)]", c.kind === "radar" ? "text-[#7dffa8]" : "text-white")}
             >
-              <CalloutText c={c} />
+              <CalloutText c={c} nade={hud.nade} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -266,7 +267,7 @@ export function Hud({
       {!touch && me && me.alive && live && (
         <div className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] flex items-end justify-between gap-3 px-3">
           <Vitals hp={me.hp} streak={me.streak} />
-          <Ammo me={me} touch={false} />
+          <Ammo me={me} nade={hud.nade} touch={false} />
         </div>
       )}
 
@@ -311,7 +312,7 @@ export function Hud({
                   </>
                 )}
               </button>
-              {!touch && <p className="mt-2 text-center text-[11px] text-ink-400">WASD move · Shift sprint · C crouch · Space jump · Right mouse aim · R reload · 1/2 swap · G grenade (hold, release to throw) · Tab scores · Esc menu</p>}
+              {!touch && <p className="mt-2 text-center text-[11px] text-ink-400">WASD move · Shift sprint · C crouch · Space jump · Right mouse aim · R reload · 1/2 swap · G throw (hold, release) · Tab scores · Esc menu</p>}
               {game.solo && <p className="mt-1 text-center text-[11px] font-semibold text-ink-300">Practice is paused</p>}
               <Connections hud={hud} />
               <SettingsPanel settings={settings} onSettings={onSettings} touch={touch} tier={tier} />
@@ -323,7 +324,7 @@ export function Hud({
   );
 }
 
-function CalloutText({ c }: { c: Callout }) {
+function CalloutText({ c, nade }: { c: Callout; nade: Throwable }) {
   if (c.kind === "kill")
     return (
       <span className="inline-flex items-center gap-1.5">
@@ -342,7 +343,7 @@ function CalloutText({ c }: { c: Callout }) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[#ffd25a]">
         <Package className="size-4" /> {c.rounds > 0 ? `+${c.rounds} ammo` : "Ammo full"}
-        {c.nades > 0 && " · +1 grenade"}
+        {c.nades > 0 && ` · +1 ${nade.noun}`}
       </span>
     );
   if (c.kind === "first_blood") return <span className="text-[#ff6a5a]">First blood</span>;
@@ -460,7 +461,11 @@ function KillFeed({ hud, compact }: { hud: HudState; compact: boolean }) {
                 {name(f.killer)}
               </span>
               {w && <GunGlyph id={w.id} className="h-3 w-8 shrink-0 text-white/85" />}
-              {f.weapon === GRENADE_WEAPON && <Bomb className="size-3.5 shrink-0 text-white/85" aria-label="grenade" />}
+              {f.weapon === GRENADE_WEAPON && (
+                <span className="shrink-0 text-[12px] leading-none" role="img" aria-label={hud.nade.noun}>
+                  {hud.nade.icon}
+                </span>
+              )}
               {f.headshot && <Crosshair className="size-3 shrink-0 text-[#ffc23d]" aria-label="headshot" />}
               <span className="max-w-20 truncate sm:max-w-28" style={{ color: color(f.victim) }}>
                 {name(f.victim)}
@@ -489,7 +494,7 @@ function Vitals({ hp, streak, compact = false }: { hp: number; streak: number; c
   );
 }
 
-function Ammo({ me, touch, onSwap }: { me: NonNullable<HudState["me"]>; touch: boolean; onSwap?: () => void }) {
+function Ammo({ me, nade, touch, onSwap }: { me: NonNullable<HudState["me"]>; nade: Throwable; touch: boolean; onSwap?: () => void }) {
   const w = WEAPONS[me.weapon];
   const low = me.mag <= Math.ceil(me.magSize * 0.25);
   const canSwap = !!onSwap && me.weapons.length > 1;
@@ -519,8 +524,8 @@ function Ammo({ me, touch, onSwap }: { me: NonNullable<HudState["me"]>; touch: b
             {canSwap && <ArrowLeftRight className="size-3 text-white/60" aria-hidden />}
           </span>
         )}
-        <span className={cn("flex items-center gap-0.5", me.nades > 0 ? "text-white" : "text-white/30")} aria-label={`${me.nades} grenade${me.nades === 1 ? "" : "s"}`}>
-          <Bomb className="size-3.5" />
+        <span className={cn("flex items-center gap-0.5", me.nades > 0 ? "text-white" : "text-white/30")} aria-label={`${me.nades} ${nade.noun}${me.nades === 1 ? "" : "s"}`}>
+          <span className={cn("text-[13px] leading-none", me.nades === 0 && "grayscale")}>{nade.icon}</span>
           {!touch && <span className="text-[9px]">G</span>}
         </span>
         {!touch && (
@@ -569,7 +574,7 @@ function DeathPanel({ hud, game, settings, onSettings, engine, touch }: { hud: H
           <p className="flex items-center gap-1.5 text-xs text-ink-300">
             {w && <GunGlyph id={w.id} className="h-3 w-8 text-ink-200" />}
             {me.killedBy?.weapon === GRENADE_WEAPON && <Bomb className="size-3.5 text-ink-200" />}
-            {w?.name ?? (me.killedBy?.weapon === GRENADE_WEAPON ? "Frag grenade" : null)}
+            {w?.name ?? (me.killedBy?.weapon === GRENADE_WEAPON ? hud.nade.name : null)}
             {me.killedBy?.headshot && <span className="rounded bg-[#ffc23d] px-1 text-[10px] font-bold text-ink-950">Headshot</span>}
           </p>
         </div>

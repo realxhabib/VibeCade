@@ -16,7 +16,8 @@ import { BotBrain, botLevel, botSkill, botWeapon, type BotEnemy } from "./bots";
 import { GRENADE_WEAPON, NADES_PER_LIFE, NADE_FUSE_MS, aimNade, blastOn, simulateNade, throwStart, validateBlast, type NadeFlight } from "./grenade";
 import type { MapDef } from "./map";
 import { buildNav, type NavGraph } from "./nav";
-import { SEASON_RULES, type Season, type SeasonRules } from "./options";
+import { SEASONS, SEASON_RULES, type Season, type SeasonRules } from "./options";
+import { THROWABLES, type Throwable } from "./throwables";
 import {
   EV_BLAST,
   EV_HIT,
@@ -411,7 +412,9 @@ export class Game {
     this.spectator = o.spectator;
     this.simAll = o.simAll;
     this.teams = o.teams >= 2 ? o.teams : 0;
-    this.season = o.season ?? "summer";
+    // A match already under way keeps the season it started in.
+    const started = parseDoc(o.initialState)?.s;
+    this.season = started && (SEASONS as readonly string[]).includes(started) ? (started as Season) : (o.season ?? "summer");
     this.rules = SEASON_RULES[this.season];
     this.practice = o.practice;
     this.transport = o.transport;
@@ -444,7 +447,7 @@ export class Game {
     this.me = this.meId ? (this.byId.get(this.meId) ?? null) : null;
 
     const fromState = parseDoc(o.initialState);
-    this.doc = fromState ?? newDoc(Date.now(), this.teams, seats.length, o.docOverrides);
+    this.doc = fromState ?? newDoc(Date.now(), this.teams, seats.length, { ...o.docOverrides, s: this.season });
     this.docShared = !!fromState;
     if (fromState) {
       mergeKills(this.kills, fromState.k);
@@ -457,7 +460,7 @@ export class Game {
       s.life = this.deathsOf(s.seat);
       this.spawn(s, !fromState || (fromState.k.length === 0 && Date.now() - fromState.t0 < 10_000));
     }
-    if (!fromState && this.transport.canWrite) this.initDoc(o.docOverrides);
+    if (!fromState && this.transport.canWrite) this.initDoc({ ...o.docOverrides, s: this.season });
     if (this.me) this.log = this.logFromLedger(this.me.seat);
   }
 
@@ -607,7 +610,7 @@ export class Game {
   /* Shared doc                                                             */
   /* ---------------------------------------------------------------------- */
 
-  private initDoc(overrides?: { dur?: number; lim?: number }): void {
+  private initDoc(overrides?: { dur?: number; lim?: number; s?: string }): void {
     const seats = this.soldiers.length;
     this.transport
       .update((raw) => (parseDoc(raw) ? undefined : newDoc(Date.now(), this.teams, seats, overrides)))
@@ -1756,6 +1759,7 @@ export class Game {
       teams: this.teams,
       scores: this.soldiers.map((s) => ({ seat: s.seat, id: s.id, name: s.name, avatarUrl: s.avatarUrl, handle: s.handle, isBot: s.isBot, isMe: s.isMe, team: s.team, kills: t.kills.get(s.seat) ?? 0, deaths: t.deaths.get(s.seat) ?? 0, alive: s.alive, online: s.isBot || s.isMe || !this.online || this.online.has(s.id), link: s.isBot || s.isMe ? null : (this.transport.link?.(s.id) ?? null) })),
       teamScores: t.team,
+      nade: THROWABLES[this.season],
       me: me
         ? {
             alive: me.alive,
@@ -1827,6 +1831,8 @@ export class Game {
 
 export interface HudState {
   phase: Phase;
+  /** The season's grenade (snowball, turkey, …) for names and icons. */
+  nade: Throwable;
   remainingMs: number;
   limit: number;
   teams: number;

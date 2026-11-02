@@ -7,7 +7,7 @@
  * so three.js never touches the marketplace bundles.
  */
 
-import { useMatchStarted, usePlayers, useVibeCade } from "vibecade-sdk/react";
+import { useMatchStarted, useMatchState, usePlayers, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion } from "motion/react";
 import { Crosshair, Map as MapIcon, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +20,8 @@ import { LoadoutPicker } from "./loadout";
 import { MAPS, DEFAULT_MAP } from "./map";
 import { MatchView } from "./match";
 import { newDoc } from "./rules";
-import { DEFAULT_OPTIONS, SEASON_ICON, SEASON_LABEL, SEASON_TWIST, docOverrides, limitLabel, minutesOf, parseOptions, resolveSeason, type MatchOptions, type SeasonChoice } from "./options";
+import { DEFAULT_OPTIONS, SEASON_ICON, SEASON_LABEL, SEASON_TWIST, docOverrides, limitLabel, minutesOf, optionsFrom, parseOptions, resolveSeason, type MatchOptions, type SeasonChoice } from "./options";
+import { HostOptions } from "./host-options";
 import { loadAssets } from "./assets";
 import { TIERS, tierFor } from "./quality";
 import { loadLocal, loadRemote, saveSettings, type Settings } from "./settings";
@@ -58,9 +59,14 @@ export function FrontlineApp() {
   const readyRef = useRef(false);
   const touchedRef = useRef(false);
   const teams = xapps.match.teams >= 2 ? xapps.match.teams : 0;
-  // The host's choices (challenge setup): time and kill limits, and the season.
-  const [options] = useState(() => parseOptions(xapps.match.settings));
-  const [season] = useState(() => resolveSeason(debugSeason() ?? options.season));
+  // The host's choices (challenge setup, or the loadout screen): time and kill limits, and the season.
+  const { state } = useMatchState();
+  const options = optionsFrom(state, xapps.match.settings);
+  const [debug] = useState(debugSeason);
+  const season = resolveSeason(debug ?? options.season);
+  const humans = players.filter((p) => !p.isBot);
+  const hostSeat = humans.length ? Math.min(...humans.map((p) => p.seat)) : -1;
+  const isHost = !isSpectator && me.seat === hostSeat;
 
   // Start downloading this device's textures, sky and soldier while players pick loadouts.
   const level = TIERS[tierFor(settings.quality)].assets;
@@ -168,6 +174,8 @@ export function FrontlineApp() {
                 </p>
                 {!small && <p className="max-w-md text-xs text-ink-400">{SEASON_TWIST[season]}</p>}
               </header>
+
+              <HostOptions options={options} host={isHost} standardKills={newDoc(0, teams, players.length).lim} compact={small} />
 
               <Roster teams={teams} />
 

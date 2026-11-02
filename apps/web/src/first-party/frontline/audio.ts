@@ -299,6 +299,23 @@ export class FrontAudio {
     this.noiseBurst(spot.out, { gain: 0.14 * g, decay: 0.16, freq: 900, q: 0.5, start: 0.04, attack: 0.04 });
   }
 
+  /** The season's grenade as it flies: a turkey gobbles, a firecracker fizzes. */
+  nadeCall(kind: "gobble" | "fizz", x: number, z: number): void {
+    if (!this.enabled || !this.ensure()) return;
+    const spot = this.spot(x, z, 8);
+    if (!spot || spot.gain < 0.04) return;
+    const g = spot.gain;
+    if (kind === "gobble") {
+      // Quick warbling syllables, falling in pitch.
+      for (let i = 0; i < 6; i++) {
+        const f = 620 - i * 35 + (i % 2) * 140;
+        this.tone(spot.out, { freq: f, to: f * 0.72, type: "sawtooth", gain: 0.05 * g, decay: 0.07, start: 0.05 + i * 0.075, attack: 0.01 });
+      }
+    } else {
+      this.noiseBurst(spot.out, { gain: 0.09 * g, decay: 0.7, freq: 5200, q: 0.8, type: "highpass", attack: 0.05 });
+    }
+  }
+
   /** A grenade clinking off the ground or a container. */
   clink(x: number, z: number): void {
     if (!this.enabled || !this.ensure() || !this.budget("clink", 2, 120)) return;

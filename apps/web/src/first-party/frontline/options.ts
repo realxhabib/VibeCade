@@ -64,6 +64,27 @@ export function docOverrides(o: MatchOptions): { dur?: number; lim?: number } {
   return out;
 }
 
+/**
+ * The options in force: the host's picks on the loadout screen (kept in the
+ * shared state as `{ pre: settings }` until the match starts, so quick
+ * matches can change them too), else the challenge's settings. Once the
+ * match document exists it carries the length, the limit and the season.
+ */
+export function optionsFrom(state: unknown, settings: unknown): MatchOptions {
+  const base = parseOptions(settings);
+  if (!state || typeof state !== "object") return base;
+  const s = state as { pre?: unknown; v?: unknown; dur?: unknown; lim?: unknown; s?: unknown };
+  if (s.pre && typeof s.pre === "object") return parseOptions(s.pre);
+  if (s.v === 1) {
+    return {
+      minutes: typeof s.dur === "number" ? Math.round(s.dur / 60_000) : base.minutes,
+      kills: typeof s.lim === "number" ? (s.lim >= NO_LIMIT ? 0 : s.lim) : base.kills,
+      season: typeof s.s === "string" && (SEASONS as readonly string[]).includes(s.s) ? (s.s as Season) : base.season,
+    };
+  }
+  return base;
+}
+
 /** Northern-hemisphere meteorological seasons, by the UTC calendar (so every player in a match agrees). */
 export function seasonOf(date: Date): Season {
   const m = date.getUTCMonth();

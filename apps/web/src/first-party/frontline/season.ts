@@ -20,6 +20,7 @@
 
 import {
   AdditiveBlending,
+  BufferAttribute,
   CanvasTexture,
   ClampToEdgeWrapping,
   Color,
@@ -53,6 +54,7 @@ import type { MapDef } from "./map";
 import type { Season } from "./options";
 import type { Box } from "./physics";
 import { softDot } from "./textures";
+import { THROWABLES, type Throwable } from "./throwables";
 
 /* ---------------------------------------------------------------------- */
 /* Light, fog and sky                                                     */
@@ -408,6 +410,9 @@ const TOP = 17;
 const WIND = { x: 0.55, z: 0.3 };
 /** Boot prints kept in the snow (about 15 seconds of a full table running around). */
 const PRINTS = 480;
+/** Bits thrown out by one grenade burst, and the pool for overlapping ones. */
+const BURST_N = 140;
+const BURST_MAX = 420;
 
 export class SeasonFx {
   readonly group = new Group();
@@ -433,6 +438,10 @@ export class SeasonFx {
   private printNext = 0;
   private readonly printSide = new Map<string, number>();
   private readonly dummy = new Object3D();
+  private readonly throwable: Throwable;
+  private readonly burstCol = new Color();
+  private burstNext = 0;
+  private readonly burstPts: { points: Points; pos: Float32Array; vel: Float32Array; col: Float32Array; life: Float32Array };
   private seed = 1;
 
   constructor(
@@ -481,7 +490,7 @@ export class SeasonFx {
 
     if (this.kind === "snow" || this.kind === "motes") {
       const geo = this.geo(new BufferGeometry());
-      geo.setAttribute("position", new Float32BufferAttribute(this.p, 3));
+      geo.setAttribute("position", new BufferAttribute(this.p, 3));
       const snow = this.kind === "snow";
       const mat = this.mat(
         new PointsMaterial({
@@ -509,6 +518,30 @@ export class SeasonFx {
       for (let i = 0; i < this.max; i++) this.quads.setColorAt(i, col.setHex(colors[Math.floor(this.rand() * colors.length)]!));
       this.group.add(this.quads);
     }
+    // The grenade's burst (see throwables.ts).
+    this.throwable = THROWABLES[season];
+    const pos = new Float32Array(BURST_MAX * 3).fill(-50);
+    const col = new Float32Array(BURST_MAX * 3);
+    const bgeo = this.geo(new BufferGeometry());
+    bgeo.setAttribute("position", new Float32BufferAttribute(pos, 3));
+    bgeo.setAttribute("color", new Float32BufferAttribute(col, 3));
+    const glow = this.throwable.glow;
+    const bmat = this.mat(
+      new PointsMaterial({
+        map: this.tex(softDot(glow ? 0.1 : 0.45)),
+        size: glow ? 0.18 : season === "autumn" ? 0.26 : 0.2,
+        vertexColors: true,
+        transparent: true,
+        depthWrite: false,
+        blending: glow ? AdditiveBlending : undefined,
+      }),
+    );
+    const bpts = new Points(bgeo, bmat);
+    bpts.frustumCulled = false;
+    bpts.visible = false;
+    this.group.add(bpts);
+    // Points read their attributes' arrays directly: keep these exact arrays.
+    this.burstPts = { points: bpts, pos: bgeo.getAttribute("position").array as Float32Array, vel: new Float32Array(BURST_MAX * 3), col: bgeo.getAttribute("color").array as Float32Array, life: new Float32Array(BURST_MAX) };
     this.setBudget(opts.budget);
   }
 
@@ -620,6 +653,55 @@ export class SeasonFx {
     });
   }
 
+  /** The season's grenade going off: snow, feathers, confetti or sparks thrown out from (x, y, z). */
+  burst(x: number, y: number, z: number): void {
+    const b = this.burstPts;
+    const n = Math.round(BURST_N * Math.max(0.4, this.opts.budget));
+    for (let k = 0; k < n; k++) {
+      const i = this.burstNext;
+      this.burstNext = (this.burstNext + 1) % BURST_MAX;
+      const a = this.rand() * Math.PI * 2;
+      const up = 0.2 + this.rand() * 0.9;
+      const sp = 3 + this.rand() * 7;
+      b.pos.set([x, y + 0.2, z], i * 3);
+      b.vel.set([Math.cos(a) * sp * (1 - up * 0.5), up * sp, Math.sin(a) * sp * (1 - up * 0.5)], i * 3);
+      b.life[i] = 1.4 + this.rand() * 1.2;
+      const c = this.burstCol.setHex(this.throwable.burst[Math.floor(this.rand() * this.throwable.burst.length)]!);
+      b.col.set([c.r, c.g, c.b], i * 3);
+    }
+    b.points.visible = true;
+    (b.points.geometry.getAttribute("color") as Float32BufferAttribute).needsUpdate = true;
+  }
+
+  private updateBurst(dt: number): void {
+    const b = this.burstPts;
+    if (!b.points.visible || dt <= 0) return;
+    const glow = this.throwable.glow;
+    // Snow and sparks fall; feathers, petals and confetti flutter down slowly.
+    const g = glow ? 9.8 : this.season === "winter" ? 7 : 2.2;
+    const drag = glow ? 1.2 : this.season === "winter" ? 1.8 : 3.4;
+    let alive = 0;
+    for (let i = 0; i < BURST_MAX; i++) {
+      if (b.life[i]! <= 0) continue;
+      const j = i * 3;
+      b.life[i] = b.life[i]! - dt;
+      if (b.life[i]! <= 0) {
+        b.pos[j + 1] = -50;
+        continue;
+      }
+      alive++;
+      const k = Math.exp(-drag * dt);
+      b.vel[j] = b.vel[j]! * k;
+      b.vel[j + 1] = b.vel[j + 1]! * k - g * dt;
+      b.vel[j + 2] = b.vel[j + 2]! * k;
+      b.pos[j] = b.pos[j]! + b.vel[j]! * dt;
+      b.pos[j + 1] = Math.max(0.03, b.pos[j + 1]! + b.vel[j + 1]! * dt);
+      b.pos[j + 2] = b.pos[j + 2]! + b.vel[j + 2]! * dt;
+    }
+    (b.points.geometry.getAttribute("position") as Float32BufferAttribute).needsUpdate = true;
+    if (!alive) b.points.visible = false;
+  }
+
   /** Winter: a boot print where `id` just stepped (alternating feet, facing `yaw`). */
   footprint(id: string, x: number, z: number, yaw: number): void {
     const prints = this.prints;
@@ -641,6 +723,7 @@ export class SeasonFx {
 
   /** Moves the falling things (`dt` seconds; 0 while paused) around the camera. */
   update(dt: number, t: number, cam: Vector3): void {
+    this.updateBurst(dt);
     if (this.count === 0) return;
     const p = this.p;
     const k = this.speedK;
@@ -683,7 +766,7 @@ export class SeasonFx {
         quads.setMatrixAt(i, this.dummy.matrix);
       }
     }
-    if (this.points) (this.points.geometry.getAttribute("position") as Float32BufferAttribute).needsUpdate = true;
+    if (this.points) this.points.geometry.getAttribute("position").needsUpdate = true;
     if (quads) quads.instanceMatrix.needsUpdate = true;
   }
 

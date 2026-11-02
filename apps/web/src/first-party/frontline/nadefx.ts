@@ -25,12 +25,14 @@ import {
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Game, LiveNade } from "./game";
 import type { NadeFlight } from "./grenade";
+import type { Season } from "./options";
+import { throwableGeometry } from "./throwables";
 
 const ARC_POINTS = 48;
 
 export class NadeFx {
   private readonly bodyGeo: BufferGeometry;
-  private readonly bodyMat = new MeshStandardMaterial({ color: 0x3d4a2c, roughness: 0.55, metalness: 0.35 });
+  private readonly bodyMat: MeshStandardMaterial;
   private readonly meshes: Mesh[] = [];
   private readonly arc: Points;
   private readonly arcGeo = new BufferGeometry();
@@ -39,12 +41,19 @@ export class NadeFx {
   private readonly group = new Group();
   private readonly clinked = new Map<LiveNade, number>();
 
-  constructor(scene: Scene) {
-    const body = new SphereGeometry(0.045, 10, 8).scale(1, 1.2, 1);
-    const top = new CylinderGeometry(0.016, 0.02, 0.03, 8).translate(0, 0.06, 0);
-    const spoon = new CylinderGeometry(0.006, 0.006, 0.08, 4).translate(0.03, 0.03, 0).rotateZ(0.3);
-    this.bodyGeo = mergeGeometries([body.toNonIndexed(), top.toNonIndexed(), spoon.toNonIndexed()])!;
-    [body, top, spoon].forEach((g) => g.dispose());
+  /** `season`: the grenade dresses up (snowball, turkey, egg, firecracker; see throwables.ts). */
+  constructor(scene: Scene, season?: Season) {
+    if (season) {
+      this.bodyGeo = throwableGeometry(season);
+      this.bodyMat = new MeshStandardMaterial({ vertexColors: true, roughness: season === "winter" ? 0.8 : 0.5, metalness: 0.05 });
+    } else {
+      const body = new SphereGeometry(0.045, 10, 8).scale(1, 1.2, 1);
+      const top = new CylinderGeometry(0.016, 0.02, 0.03, 8).translate(0, 0.06, 0);
+      const spoon = new CylinderGeometry(0.006, 0.006, 0.08, 4).translate(0.03, 0.03, 0).rotateZ(0.3);
+      this.bodyGeo = mergeGeometries([body.toNonIndexed(), top.toNonIndexed(), spoon.toNonIndexed()])!;
+      [body, top, spoon].forEach((g) => g.dispose());
+      this.bodyMat = new MeshStandardMaterial({ color: 0x3d4a2c, roughness: 0.55, metalness: 0.35 });
+    }
     for (let i = 0; i < 8; i++) {
       const m = new Mesh(this.bodyGeo, this.bodyMat);
       m.visible = false;

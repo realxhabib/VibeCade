@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_OPTIONS, NO_LIMIT, docOverrides, limitLabel, optionsSummary, parseOptions, resolveSeason, seasonOf, toSettings } from "./options";
+import { DEFAULT_OPTIONS, NO_LIMIT, optionsFrom, docOverrides, limitLabel, optionsSummary, parseOptions, resolveSeason, seasonOf, toSettings } from "./options";
 import { FFA_LIMIT, MATCH_MS, limitReached, newDoc, applyKill, type KillRec } from "./rules";
 
 describe("match options", () => {
@@ -52,5 +52,16 @@ describe("match options", () => {
     expect(seasonOf(new Date(Date.UTC(2026, 6, 1)))).toBe("summer");
     expect(seasonOf(new Date(Date.UTC(2026, 10, 2)))).toBe("autumn");
     expect(resolveSeason("spring", new Date(Date.UTC(2026, 10, 2)))).toBe("spring");
+  });
+});
+
+describe("options in the shared state", () => {
+  it("prefers the host's loadout-screen picks, then the challenge settings", () => {
+    expect(optionsFrom(null, { min: 10 })).toMatchObject({ minutes: 10 });
+    expect(optionsFrom({ pre: { min: 3, kills: 0, season: "winter" } }, { min: 10 })).toEqual({ minutes: 3, kills: 0, season: "winter" });
+  });
+  it("reads a started match from its document (a reconnect keeps the same season)", () => {
+    const doc = newDoc(0, 0, 2, { ...docOverrides(parseOptions({ min: 15, kills: 0 })), s: "spring" });
+    expect(optionsFrom(doc, {})).toEqual({ minutes: 15, kills: 0, season: "spring" });
   });
 });

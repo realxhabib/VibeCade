@@ -238,13 +238,13 @@ export class Engine {
       const meSeat = this.game.me?.seat ?? null;
       if (holder) this.call({ kind: "crown", name: holder.name, me: holder.seat === meSeat });
     };
-    this.vm = new ViewModel(flash, pbr);
+    this.vm = new ViewModel(flash, pbr, this.game.season);
     if (pbr && this.envTarget) this.vm.scene.environment = this.envTarget.texture;
     if (t.post) this.post = new PostFx(this.renderer, this.scene, this.camera, { scene: this.vm.scene, camera: this.vm.camera, visible: () => this.vmVisible });
     this.vfx = new Vfx(this.scene, fxTex, { decals: t.decals, particles: t.particles, lights: t.flashLights, ambience: t.ambience, lite: !pbr });
     if (t.ambience) this.vfx.setAmbient(map.plumes, map.fires);
     this.vfx.onDistant = () => this.audio.distant();
-    this.nadeFx = new NadeFx(this.scene);
+    this.nadeFx = new NadeFx(this.scene, this.game.season);
     this.ammoFx = new AmmoFx(this.scene);
     this.game.fx = this.fx;
     this.input.attach(o.host);
@@ -721,11 +721,13 @@ export class Engine {
       const s = this.game.bySeat.get(n.thrower);
       const mine = !!s?.isMe && !this.spectating();
       if (s) this.audio.throwNade(s.body.x, s.body.z, mine);
+      if (s && (this.game.season === "autumn" || this.game.season === "summer")) this.audio.nadeCall(this.game.season === "autumn" ? "gobble" : "fizz", s.body.x, s.body.z);
       if (mine) this.vm.throwNade(performance.now());
     },
     explosion: (n) => {
       const p = n.flight.end;
       this.vfx.explosion(p.x, p.y, p.z);
+      this.seasonFx.burst(p.x, p.y, p.z);
       this.audio.explosion(p.x, p.z);
       const d = this.camera.position.distanceTo(_v.set(p.x, p.y, p.z));
       this.trauma = Math.min(1, this.trauma + Math.max(0, 1.1 - d / 18));
