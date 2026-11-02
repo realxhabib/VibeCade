@@ -44,6 +44,8 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { patchMaterial } from "./materials";
 import type { WeaponId } from "./weapons";
+import type { Season } from "./options";
+import { throwableParts } from "./throwables";
 
 const _e = new Euler();
 const _m4 = new Matrix4();
@@ -111,6 +113,7 @@ export class ViewModel {
   constructor(
     flashTex: Texture,
     private readonly detail = true,
+    private readonly season: Season | null = null,
   ) {
     this.scene.add(new HemisphereLight(0xdfe9ff, 0x6b5a45, 1.1));
     this.scene.add(new AmbientLight(0xffffff, 0.2));
@@ -372,9 +375,14 @@ export class ViewModel {
   /** The off hand, holding a frag: raised on the left when you hold the grenade button, swung forward on the throw. */
   private buildNadeArm(): void {
     const parts: BufferGeometry[] = [];
-    parts.push(this.place(new SphereGeometry(0.03, 12, 10).scale(1, 1.2, 1), 0x3d4a2c, "polymer", 0, 0.04, -0.02));
-    parts.push(this.place(new CylinderGeometry(0.011, 0.014, 0.02, 8), 0x5a5d60, "steel", 0, 0.08, -0.02));
-    parts.push(this.place(new BoxGeometry(0.006, 0.05, 0.012), 0x5a5d60, "steel", 0.02, 0.05, -0.02, 0, 0, 0.3));
+    if (this.season) {
+      // The season's throwable (snowball, turkey, egg, firecracker), a little smaller than in the world.
+      for (const p of throwableParts(this.season, 1.05)) parts.push(this.place(p.geo, p.color, "polymer", 0, 0.045, -0.02));
+    } else {
+      parts.push(this.place(new SphereGeometry(0.03, 12, 10).scale(1, 1.2, 1), 0x3d4a2c, "polymer", 0, 0.04, -0.02));
+      parts.push(this.place(new CylinderGeometry(0.011, 0.014, 0.02, 8), 0x5a5d60, "steel", 0, 0.08, -0.02));
+      parts.push(this.place(new BoxGeometry(0.006, 0.05, 0.012), 0x5a5d60, "steel", 0.02, 0.05, -0.02, 0, 0, 0.3));
+    }
     parts.push(this.place(new RoundedBoxGeometry(0.06, 0.055, 0.08, 2, 0.014), 0x2a2622, "glove", 0, 0, 0));
     for (let i = 0; i < 4; i++) parts.push(this.place(new RoundedBoxGeometry(0.018, 0.04, 0.018, 1, 0.006), 0x2a2622, "glove", 0.03, 0.02, -0.03 + i * 0.018));
     parts.push(this.place(new CylinderGeometry(0.043, 0.048, 0.34, 10).rotateX(Math.PI / 2), 0x55603f, "sleeve", -0.02, -0.06, 0.2, -0.4));

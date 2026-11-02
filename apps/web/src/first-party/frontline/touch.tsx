@@ -12,7 +12,7 @@
  */
 
 import { useGestureLock } from "vibecade-sdk/react";
-import { ArrowUpFromLine, Bomb, ChevronsDown, Crosshair } from "lucide-react";
+import { ArrowUpFromLine, ChevronsDown, Crosshair } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Engine } from "./engine";
@@ -178,12 +178,12 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
       <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 grid grid-cols-[auto_auto_auto] items-center justify-items-center gap-x-3 gap-y-2 [@media(max-height:480px)]:gap-y-1.5">
         <div />
         <Btn
-          label="Grenade (hold to aim, release to throw)"
+          label={`${hud.nade.name} (hold to aim, release to throw)`}
           size="sm"
           className={me.nades > 0 ? undefined : "opacity-35"}
           {...press((down) => input.setTouch({ grenade: down && me.nades > 0 }), true)}
         >
-          <Bomb className="size-5" />
+          <span className="text-[19px] leading-none">{hud.nade.icon}</span>
         </Btn>
         <Btn label="Jump" size="sm" {...tap(() => input.setTouch({ jump: true }))}>
           <ArrowUpFromLine className="size-5" />

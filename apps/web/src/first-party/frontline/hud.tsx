@@ -11,7 +11,7 @@
  */
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeftRight, Bomb, Package, RotateCw, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeftRight, Bomb, Package, RotateCw, Camera, ChevronRight, Crosshair, Crown, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { isSoundEnabled, onSoundChange, setSoundEnabled } from "@/lib/sfx";
@@ -21,12 +21,14 @@ import { SEAT_COLORS, TEAM_COLORS } from "./avatars";
 import type { Callout, Engine } from "./engine";
 import type { Game, HudState } from "./game";
 import { GRENADE_WEAPON } from "./grenade";
+import type { Throwable } from "./throwables";
 import { GunGlyph, LoadoutPicker } from "./loadout";
 import { TouchControls } from "./touch";
 import { LookSpeed } from "./look-speed";
 import type { PeerLink } from "./net";
 import type { Tier } from "./quality";
 import { RADAR_STREAK, formatClock } from "./rules";
+import { SEASON_ICON, SEASON_LABEL, SEASON_TWIST, isNoLimit } from "./options";
 import type { Settings } from "./settings";
 import { PRIMARIES, WEAPONS, weaponAt, type WeaponId } from "./weapons";
 
@@ -130,7 +132,7 @@ export function Hud({
         if (c.kind === "spawn") return;
         const id = nextId.current++;
         setCallouts((list) => [...list.slice(-2), { id, c }]);
-        setTimeout(() => setCallouts((list) => list.filter((x) => x.id !== id)), c.kind === "radar" ? 3200 : 1800);
+        setTimeout(() => setCallouts((list) => list.filter((x) => x.id !== id)), c.kind === "season" ? 6000 : c.kind === "radar" || c.kind === "crown" ? 3200 : 1800);
       }),
     [engine],
   );
@@ -224,7 +226,7 @@ export function Hud({
                 >
                   <RotateCw className={cn("size-4", me.reloading && "animate-spin")} />
                 </button>
-                <Ammo me={me} touch onSwap={() => engine.input.setTouch({ swap: true })} />
+                <Ammo me={me} nade={hud.nade} touch onSwap={() => engine.input.setTouch({ swap: true })} />
               </>
             )}
             <button type="button" aria-label="Menu" onClick={() => setMenu(true)} className="glass pointer-events-auto flex size-9 items-center justify-center rounded-full">
@@ -255,7 +257,7 @@ export function Hud({
               transition={spring.snappy}
               className={cn("rounded-full px-3 py-1 text-center text-sm font-extrabold uppercase tracking-wider [text-shadow:0_2px_8px_rgb(0_0_0/0.7)]", c.kind === "radar" ? "text-[#7dffa8]" : "text-white")}
             >
-              <CalloutText c={c} />
+              <CalloutText c={c} nade={hud.nade} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -265,7 +267,7 @@ export function Hud({
       {!touch && me && me.alive && live && (
         <div className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] flex items-end justify-between gap-3 px-3">
           <Vitals hp={me.hp} streak={me.streak} />
-          <Ammo me={me} touch={false} />
+          <Ammo me={me} nade={hud.nade} touch={false} />
         </div>
       )}
 
@@ -310,7 +312,7 @@ export function Hud({
                   </>
                 )}
               </button>
-              {!touch && <p className="mt-2 text-center text-[11px] text-ink-400">WASD move · Shift sprint · C crouch · Space jump · Right mouse aim · R reload · 1/2 swap · G grenade (hold, release to throw) · Tab scores · Esc menu</p>}
+              {!touch && <p className="mt-2 text-center text-[11px] text-ink-400">WASD move · Shift sprint · C crouch · Space jump · Right mouse aim · R reload · 1/2 swap · G throw (hold, release) · Tab scores · Esc menu</p>}
               {game.solo && <p className="mt-1 text-center text-[11px] font-semibold text-ink-300">Practice is paused</p>}
               <Connections hud={hud} />
               <SettingsPanel settings={settings} onSettings={onSettings} touch={touch} tier={tier} />
@@ -322,7 +324,7 @@ export function Hud({
   );
 }
 
-function CalloutText({ c }: { c: Callout }) {
+function CalloutText({ c, nade }: { c: Callout; nade: Throwable }) {
   if (c.kind === "kill")
     return (
       <span className="inline-flex items-center gap-1.5">
@@ -341,10 +343,25 @@ function CalloutText({ c }: { c: Callout }) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[#ffd25a]">
         <Package className="size-4" /> {c.rounds > 0 ? `+${c.rounds} ammo` : "Ammo full"}
-        {c.nades > 0 && " · +1 grenade"}
+        {c.nades > 0 && ` · +1 ${nade.noun}`}
       </span>
     );
   if (c.kind === "first_blood") return <span className="text-[#ff6a5a]">First blood</span>;
+  if (c.kind === "crown")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[#ffc83d]">
+        <Crown className="size-4" /> {c.me ? "You're the kill leader. Everyone can see your crown" : `${c.name} is the kill leader`}
+      </span>
+    );
+  if (c.kind === "season")
+    return (
+      <span className="flex max-w-[min(26rem,86vw)] flex-col items-center gap-0.5 text-center">
+        <span>
+          {SEASON_ICON[c.season]} {SEASON_LABEL[c.season]}
+        </span>
+        <span className="text-[11px] font-semibold normal-case tracking-normal text-ink-200">{SEASON_TWIST[c.season]}</span>
+      </span>
+    );
   return null;
 }
 
@@ -409,7 +426,7 @@ function ScoreBar({ hud, onTap, compact }: { hud: HudState; onTap: () => void; c
   return (
     <button type="button" onClick={onTap} className="glass-strong pointer-events-auto flex flex-col items-center rounded-2xl px-3 py-1 shadow-[0_10px_30px_-12px_rgb(0_0_0/0.8)]">
       {middle}
-      {!compact && <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-400">{hud.teams ? `first to ${hud.limit}` : `first to ${hud.limit} kills`}</span>}
+      {!compact && <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-400">{isNoLimit(hud.limit) ? "most kills wins" : hud.teams ? `first to ${hud.limit}` : `first to ${hud.limit} kills`}</span>}
     </button>
   );
 }
@@ -444,7 +461,11 @@ function KillFeed({ hud, compact }: { hud: HudState; compact: boolean }) {
                 {name(f.killer)}
               </span>
               {w && <GunGlyph id={w.id} className="h-3 w-8 shrink-0 text-white/85" />}
-              {f.weapon === GRENADE_WEAPON && <Bomb className="size-3.5 shrink-0 text-white/85" aria-label="grenade" />}
+              {f.weapon === GRENADE_WEAPON && (
+                <span className="shrink-0 text-[12px] leading-none" role="img" aria-label={hud.nade.noun}>
+                  {hud.nade.icon}
+                </span>
+              )}
               {f.headshot && <Crosshair className="size-3 shrink-0 text-[#ffc23d]" aria-label="headshot" />}
               <span className="max-w-20 truncate sm:max-w-28" style={{ color: color(f.victim) }}>
                 {name(f.victim)}
@@ -473,7 +494,7 @@ function Vitals({ hp, streak, compact = false }: { hp: number; streak: number; c
   );
 }
 
-function Ammo({ me, touch, onSwap }: { me: NonNullable<HudState["me"]>; touch: boolean; onSwap?: () => void }) {
+function Ammo({ me, nade, touch, onSwap }: { me: NonNullable<HudState["me"]>; nade: Throwable; touch: boolean; onSwap?: () => void }) {
   const w = WEAPONS[me.weapon];
   const low = me.mag <= Math.ceil(me.magSize * 0.25);
   const canSwap = !!onSwap && me.weapons.length > 1;
@@ -503,8 +524,8 @@ function Ammo({ me, touch, onSwap }: { me: NonNullable<HudState["me"]>; touch: b
             {canSwap && <ArrowLeftRight className="size-3 text-white/60" aria-hidden />}
           </span>
         )}
-        <span className={cn("flex items-center gap-0.5", me.nades > 0 ? "text-white" : "text-white/30")} aria-label={`${me.nades} grenade${me.nades === 1 ? "" : "s"}`}>
-          <Bomb className="size-3.5" />
+        <span className={cn("flex items-center gap-0.5", me.nades > 0 ? "text-white" : "text-white/30")} aria-label={`${me.nades} ${nade.noun}${me.nades === 1 ? "" : "s"}`}>
+          <span className={cn("text-[13px] leading-none", me.nades === 0 && "grayscale")}>{nade.icon}</span>
           {!touch && <span className="text-[9px]">G</span>}
         </span>
         {!touch && (
@@ -553,7 +574,7 @@ function DeathPanel({ hud, game, settings, onSettings, engine, touch }: { hud: H
           <p className="flex items-center gap-1.5 text-xs text-ink-300">
             {w && <GunGlyph id={w.id} className="h-3 w-8 text-ink-200" />}
             {me.killedBy?.weapon === GRENADE_WEAPON && <Bomb className="size-3.5 text-ink-200" />}
-            {w?.name ?? (me.killedBy?.weapon === GRENADE_WEAPON ? "Frag grenade" : null)}
+            {w?.name ?? (me.killedBy?.weapon === GRENADE_WEAPON ? hud.nade.name : null)}
             {me.killedBy?.headshot && <span className="rounded bg-[#ffc23d] px-1 text-[10px] font-bold text-ink-950">Headshot</span>}
           </p>
         </div>

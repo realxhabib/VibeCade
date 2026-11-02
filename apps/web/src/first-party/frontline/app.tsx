@@ -7,7 +7,7 @@
  * so three.js never touches the marketplace bundles.
  */
 
-import { useMatchStarted, usePlayers, useVibeCade } from "vibecade-sdk/react";
+import { useMatchStarted, useMatchState, usePlayers, useVibeCade } from "vibecade-sdk/react";
 import { AnimatePresence, motion } from "motion/react";
 import { Crosshair, Map as MapIcon, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -19,7 +19,9 @@ import { cn } from "@/lib/utils";
 import { LoadoutPicker } from "./loadout";
 import { MAPS, DEFAULT_MAP } from "./map";
 import { MatchView } from "./match";
-import { FFA_LIMIT, newDoc } from "./rules";
+import { newDoc } from "./rules";
+import { DEFAULT_OPTIONS, SEASON_ICON, SEASON_LABEL, SEASON_TWIST, docOverrides, limitLabel, minutesOf, optionsFrom, parseOptions, resolveSeason, type MatchOptions, type SeasonChoice } from "./options";
+import { HostOptions } from "./host-options";
 import { loadAssets } from "./assets";
 import { TIERS, tierFor } from "./quality";
 import { loadLocal, loadRemote, saveSettings, type Settings } from "./settings";
@@ -31,9 +33,20 @@ import { TEAM_COLORS } from "./avatars";
 const AUTO_READY_S = 40;
 const ignore = () => {};
 
-export function modeLabel(teams: number, seats: number): string {
-  if (teams >= 2) return `Team deathmatch · first team to ${newDoc(0, teams, seats).lim}`;
-  return `Free-for-all · first to ${FFA_LIMIT}`;
+/** Dev only: try a season without setting up a challenge (`localStorage["frontline:debug"] = '{"season":"winter"}'`). */
+function debugSeason(): SeasonChoice | null {
+  if (process.env.NODE_ENV === "production") return null;
+  try {
+    const season = parseOptions(JSON.parse(window.localStorage.getItem("frontline:debug") ?? "{}")).season;
+    return season === "auto" ? null : season;
+  } catch {
+    return null;
+  }
+}
+
+export function modeLabel(teams: number, seats: number, options: MatchOptions = DEFAULT_OPTIONS): string {
+  const lim = newDoc(0, teams, seats, docOverrides(options)).lim;
+  return `${teams >= 2 ? "Team deathmatch" : "Free-for-all"} · ${limitLabel(lim, teams >= 2)}`;
 }
 
 export function FrontlineApp() {
@@ -46,6 +59,14 @@ export function FrontlineApp() {
   const readyRef = useRef(false);
   const touchedRef = useRef(false);
   const teams = xapps.match.teams >= 2 ? xapps.match.teams : 0;
+  // The host's choices (challenge setup, or the loadout screen): time and kill limits, and the season.
+  const { state } = useMatchState();
+  const options = optionsFrom(state, xapps.match.settings);
+  const [debug] = useState(debugSeason);
+  const season = resolveSeason(debug ?? options.season);
+  const humans = players.filter((p) => !p.isBot);
+  const hostSeat = humans.length ? Math.min(...humans.map((p) => p.seat)) : -1;
+  const isHost = !isSpectator && me.seat === hostSeat;
 
   // Start downloading this device's textures, sky and soldier while players pick loadouts.
   const level = TIERS[tierFor(settings.quality)].assets;
@@ -123,7 +144,7 @@ export function FrontlineApp() {
       <AnimatePresence mode="wait">
         {started ? (
           <motion.div key="match" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-            <MatchView settings={settings} onSettings={update} />
+            <MatchView settings={settings} onSettings={update} season={season} />
           </motion.div>
         ) : (
           <motion.div
@@ -142,13 +163,19 @@ export function FrontlineApp() {
                     <MapIcon className="size-3.5" /> {map.name}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <Crosshair className="size-3.5" /> {modeLabel(teams, players.length)}
+                    <Crosshair className="size-3.5" /> {modeLabel(teams, players.length, options)}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <Users className="size-3.5" /> {players.length} players · 7 min
+                    <Users className="size-3.5" /> {players.length} players · {minutesOf(options)} min
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>{SEASON_ICON[season]}</span> {SEASON_LABEL[season]}
                   </span>
                 </p>
+                {!small && <p className="max-w-md text-xs text-ink-400">{SEASON_TWIST[season]}</p>}
               </header>
+
+              <HostOptions options={options} host={isHost} standardKills={newDoc(0, teams, players.length).lim} compact={small} />
 
               <Roster teams={teams} />
 

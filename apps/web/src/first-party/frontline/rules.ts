@@ -34,6 +34,8 @@ export interface MatchDoc {
   teams: number;
   k: KillRec[];
   end: { r: EndReason; at: number } | null;
+  /** The season the match is played in (so a player who reconnects gets the same one). */
+  s?: string;
 }
 
 export const MATCH_MS = 7 * 60_000;
@@ -46,7 +48,7 @@ export function teamLimit(teamSize: number): number {
   return teamSize <= 1 ? FFA_LIMIT : teamSize === 2 ? 30 : 40;
 }
 
-export function newDoc(now: number, teams: number, seats: number, overrides: { dur?: number; lim?: number } = {}): MatchDoc {
+export function newDoc(now: number, teams: number, seats: number, overrides: { dur?: number; lim?: number; s?: string } = {}): MatchDoc {
   const teamSize = teams >= 2 ? Math.ceil(seats / teams) : 1;
   return {
     v: 1,
@@ -56,6 +58,7 @@ export function newDoc(now: number, teams: number, seats: number, overrides: { d
     teams: teams >= 2 ? teams : 0,
     k: [],
     end: null,
+    ...(overrides.s ? { s: overrides.s } : {}),
   };
 }
 
@@ -65,7 +68,9 @@ export function parseDoc(raw: unknown): MatchDoc | null {
   if (d.v !== 1 || typeof d.t0 !== "number" || typeof d.dur !== "number" || typeof d.lim !== "number" || !Array.isArray(d.k)) return null;
   const k = d.k.filter((r): r is KillRec => Array.isArray(r) && r.length === 6 && r.every((v) => typeof v === "number" && Number.isFinite(v)));
   const end = d.end && typeof d.end === "object" && (d.end.r === "limit" || d.end.r === "time") && typeof d.end.at === "number" ? d.end : null;
-  return { v: 1, t0: d.t0, dur: d.dur, lim: d.lim, teams: typeof d.teams === "number" ? d.teams : 0, k, end };
+  const doc: MatchDoc = { v: 1, t0: d.t0, dur: d.dur, lim: d.lim, teams: typeof d.teams === "number" ? d.teams : 0, k, end };
+  if (typeof d.s === "string") doc.s = d.s;
+  return doc;
 }
 
 export const killKey = (victimSeat: number, life: number): string => `${victimSeat}:${life}`;

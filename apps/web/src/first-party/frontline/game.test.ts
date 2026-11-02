@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AMMO_DROP_MS, Game, idleIntent, takeAmmo, type GameTransport, type Intent, type SeatInfo } from "./game";
 import { MAPS } from "./map";
+import type { Season } from "./options";
 import { RELAY_HZ, RELAY_INTERP_MS, type Packet } from "./net";
 import { parseDoc, type MatchDoc } from "./rules";
 
@@ -61,6 +62,7 @@ interface TableOptions {
    * Without it the transport reports no links (the old room-only path).
    */
   via?: (a: string, b: string) => Via;
+  season?: Season;
 }
 
 function table(seats: SeatInfo[], opts: TableOptions = {}) {
@@ -113,6 +115,7 @@ function table(seats: SeatInfo[], opts: TableOptions = {}) {
       transport,
       initialState: shared.state,
       docOverrides: { lim: opts.lim, dur: opts.dur },
+      season: opts.season,
     });
     games.set(me.id, g);
     shared.games.push(g);
@@ -498,5 +501,43 @@ describe("takeAmmo", () => {
     expect(s.nades).toBe(1);
     expect(takeAmmo(s)).toEqual({ rounds: 60, nades: 0 });
     expect(s.reserve).toEqual([120, 48]);
+  });
+});
+
+describe("seasons", () => {
+  const solo = async (season: Season) => {
+    const t = table([seat("a", 0), seat("bot", 1, true)], { season });
+    const g = t.games.get("a")!;
+    await t.step(200);
+    Object.assign(g.me!.body, { x: 20, y: 0, z: -27, vx: 0, vy: 0, vz: 0 });
+    g.me!.yaw = Math.PI;
+    return { t, g };
+  };
+
+  it("spring jumps higher", async () => {
+    const peak = async (season: Season) => {
+      const { t, g } = await solo(season);
+      t.intents.set("a", { ...idleIntent(), jump: true });
+      let top = 0;
+      for (let i = 0; i < 60; i++) {
+        await t.step(16);
+        top = Math.max(top, g.me!.body.y);
+      }
+      return top;
+    };
+    expect(await peak("spring")).toBeGreaterThan((await peak("summer")) * 1.5);
+  });
+
+  it("winter ice keeps you sliding after you let go", async () => {
+    const slide = async (season: Season) => {
+      const { t, g } = await solo(season);
+      t.intents.set("a", { ...idleIntent(), forward: 1 });
+      await t.step(800);
+      t.intents.set("a", idleIntent());
+      const z0 = g.me!.body.z;
+      await t.step(500);
+      return Math.abs(g.me!.body.z - z0);
+    };
+    expect(await slide("winter")).toBeGreaterThan((await slide("summer")) * 1.8);
   });
 });
