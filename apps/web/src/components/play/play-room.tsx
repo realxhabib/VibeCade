@@ -31,6 +31,7 @@ import { isOfflineMatch } from "@/platform/health";
 import { applyVersionToApp, isTestBuild } from "@/platform/shipping";
 import type { AppManifest, Json, LogLevel, Match, Profile } from "@/platform/types";
 import { showAchievement } from "./achievement-moment";
+import { ChallengeEnded } from "./challenge-ended";
 import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./hud";
 import { ImmersiveChrome, useImmersive } from "./immersive";
 import { InviteCard, Lobby } from "./lobby";
@@ -246,20 +247,7 @@ export function PlayRoom({ matchId, join = false }: { matchId: string; join?: bo
       />
     );
   } else if (["declined", "cancelled", "expired"].includes(match.status)) {
-    body = (
-      <EmptyState
-        emoji={match.status === "declined" ? "🙅" : match.status === "cancelled" ? "🚫" : "⌛"}
-        title={match.status === "declined" ? "Challenge declined" : match.status === "cancelled" ? "Challenge cancelled" : "Challenge expired"}
-        action={
-          <Button href={appHref} variant="accent">
-            Find another match
-          </Button>
-        }
-        className="mx-auto mt-24 max-w-md"
-      >
-        No hard feelings. There&apos;s always another round.
-      </EmptyState>
-    );
+    body = <ChallengeEnded app={app} match={match} viewer={viewer ?? null} />;
   } else if (match.status === "voting") {
     body = (
       <VotingOverlay
