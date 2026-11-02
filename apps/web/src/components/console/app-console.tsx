@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { BarChart3, ExternalLink, GitBranch, LayoutDashboard, ScrollText, ServerCog, ShieldCheck, Users } from "lucide-react";
+import { BarChart3, ExternalLink, GitBranch, LayoutDashboard, Pencil, ScrollText, ServerCog, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -20,16 +20,19 @@ import { useViewer } from "@/platform/client";
 import { useAdminOverview, useApp, useAppVersions, useIsAdmin } from "@/platform/queries";
 import type { AppManifest } from "@/platform/types";
 import { AnalyticsTab } from "./analytics-tab";
+import { DetailsTab } from "./details-tab";
 import { LogsTab } from "./logs-tab";
 import { OverviewTab } from "./overview-tab";
 import { PlayersTab } from "./players-tab";
+import { SubmitForReviewButton } from "./submit-for-review";
 import { VersionsTab } from "./versions-tab";
 
-export const CONSOLE_TABS = ["overview", "versions", "analytics", "players", "logs", "server"] as const;
+export const CONSOLE_TABS = ["overview", "details", "versions", "analytics", "players", "logs", "server"] as const;
 export type ConsoleTab = (typeof CONSOLE_TABS)[number];
 
 const TAB_ITEMS = [
   { id: "overview" as const, label: "Overview", icon: <LayoutDashboard className="hidden size-3.5 sm:block" aria-hidden /> },
+  { id: "details" as const, label: "Details", icon: <Pencil className="hidden size-3.5 sm:block" aria-hidden /> },
   { id: "versions" as const, label: "Versions", icon: <GitBranch className="hidden size-3.5 sm:block" aria-hidden /> },
   { id: "analytics" as const, label: "Analytics", icon: <BarChart3 className="hidden size-3.5 sm:block" aria-hidden /> },
   { id: "players" as const, label: "Players", icon: <Users className="hidden size-3.5 sm:block" aria-hidden /> },
@@ -159,6 +162,7 @@ function ConsoleBody({ app, adminView }: { app: AppManifest; adminView: boolean 
             Public page
           </Button>
         </div>
+        {!adminView && <SubmitForReviewButton app={app} versions={versions ?? []} className="relative mt-4" />}
       </motion.header>
 
       <div data-console-tabs className="mt-4">
@@ -176,6 +180,7 @@ function ConsoleBody({ app, adminView }: { app: AppManifest; adminView: boolean 
           role="tabpanel"
         >
           {tab === "overview" && <OverviewTab app={app} onTab={setTab} adminView={adminView} />}
+          {tab === "details" && <DetailsTab app={app} onTab={setTab} />}
           {tab === "versions" && <VersionsTab app={app} />}
           {tab === "analytics" && <AnalyticsTab app={app} adminView={adminView} />}
           {tab === "players" && <PlayersTab app={app} />}

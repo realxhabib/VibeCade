@@ -68,3 +68,36 @@ test("a developer ships a new version through review", async ({ page }) => {
   await page.goto(`/apps/${slug}`);
   await expect(page.getByText("Ten seconds. Fastest thumbs win. Now with streaks!").first()).toBeVisible({ timeout: 15_000 });
 });
+
+test("a developer tests first, submits from the console and edits details in place", async ({ page }) => {
+  test.setTimeout(120_000);
+  const suffix = String(Date.now()).slice(-6);
+  const slug = `tap-test-${suffix}`;
+  await signIn(page, `tester${suffix}`);
+
+  // Register without submitting: 1.0.0 stays a draft to test.
+  await page.goto("/developers/new");
+  await page.getByPlaceholder("Tap Race").fill(`Tap Test ${suffix}`);
+  await page.getByPlaceholder("Ten seconds. Fastest thumbs win.").fill("Ten seconds. Fastest thumbs win.");
+  await page.getByPlaceholder("https://tap-race.dev").fill("http://localhost:3000/examples/rps/index.html");
+  await page.getByRole("button", { name: "Test first" }).click();
+  await expect(page.getByText(`Tap Test ${suffix} is ready to test`)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Testing · not submitted yet")).toBeVisible();
+
+  // The console offers to submit it, on any tab.
+  await page.goto(`/developers/apps/${slug}`);
+  await expect(page.getByText(/Testing v1\.0\.0/)).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Submit for review" }).first().click();
+  await page.getByRole("dialog").getByRole("button", { name: "Submit" }).click();
+  await expect(page.getByText(/Testing v1\.0\.0/)).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByText("1 in review")).toBeVisible();
+
+  // Details change without a new version.
+  await page.goto(`/developers/apps/${slug}?tab=details`);
+  await expect(page.getByLabel("App URL")).toHaveCount(0);
+  await page.getByLabel("Name").fill(`Tap Test Deluxe ${suffix}`);
+  await page.getByRole("button", { name: "Save details" }).click();
+  await expect(page.getByRole("heading", { name: `Tap Test Deluxe ${suffix}` })).toBeVisible({ timeout: 10_000 });
+  await page.goto(`/developers/apps/${slug}?tab=versions`);
+  await expect(page.getByText(/^v\d+\.\d+\.\d+$/)).toHaveCount(1);
+});

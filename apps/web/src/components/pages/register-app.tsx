@@ -104,6 +104,7 @@ const input =
 function VersionState({ version, live }: { version: AppVersion | null; live: boolean }) {
   const label = version?.version ?? "1.0.0";
   const published = version ? version.status === "published" : live;
+  const testing = version?.status === "draft";
   return (
     <motion.p
       className={cn(
@@ -116,7 +117,7 @@ function VersionState({ version, live }: { version: AppVersion | null; live: boo
     >
       <span className="font-mono tabular">v{label}</span>
       <span aria-hidden>·</span>
-      <span>{published ? "Live now" : `${label} is in review`}</span>
+      <span>{published ? "Live now" : testing ? "Testing · not submitted yet" : `${label} is in review`}</span>
     </motion.p>
   );
 }
@@ -133,6 +134,8 @@ export function RegisterApp() {
   const [done, setDone] = useState<AppManifest | null>(null);
   /** Version 1.0.0, created with the app (in review; demo mode publishes it right away). */
   const [firstVersion, setFirstVersion] = useState<AppVersion | null>(null);
+  /** Which button registered: send 1.0.0 to review, or keep it a draft to test first. */
+  const [intent, setIntent] = useState<"submit" | "test">("submit");
   const [form, setForm] = useState<Form>({
     name: "",
     slug: "",
@@ -204,7 +207,7 @@ export function RegisterApp() {
     );
   }
 
-  const submit = async () => {
+  const submit = async (submitForReview = true) => {
     const parsed = schema.safeParse(form);
     const stats = stripStatRows(form.stats);
     const achievements = stripAchievementRows(form.achievements);
@@ -229,8 +232,9 @@ export function RegisterApp() {
       play("error");
       return;
     }
+    setIntent(submitForReview ? "submit" : "test");
     try {
-      const app = await register.mutateAsync({ ...parsed.data, howTo: parsed.data.howTo.filter(Boolean), stats, achievements });
+      const app = await register.mutateAsync({ ...parsed.data, howTo: parsed.data.howTo.filter(Boolean), stats, achievements, submit: submitForReview });
       const versions = await backend.listAppVersions(app.slug).catch(() => [] as AppVersion[]);
       setFirstVersion(versions.find((v) => v.version === "1.0.0") ?? versions[0] ?? null);
       setDone(app);
@@ -242,16 +246,19 @@ export function RegisterApp() {
   };
 
   if (done) {
+    const testing = firstVersion?.status === "draft";
     return (
       <motion.div className="mx-auto max-w-xl text-center" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={spring.soft}>
         <motion.div initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={spring.wobbly} className="mx-auto w-fit">
           <CheckCircle2 className="size-16 text-volt" />
         </motion.div>
         <h1 className="mt-5 font-display text-4xl font-extrabold tracking-tight">
-          {done.status === "published" ? `${done.name} is live!` : `${done.name} is in review`}
+          {done.status === "published" ? `${done.name} is live!` : testing ? `${done.name} is ready to test` : `${done.name} is in review`}
         </h1>
         <p className="mt-3 text-ink-300">
-          {done.status === "published"
+          {testing
+            ? "Play it with your testers from the console. When it's ready, submit it for review there, no need to register again."
+            : done.status === "published"
             ? "Demo mode auto-approves your first version so you can try it right away. Later versions go through the review queue."
             : done.kind === "app"
               ? "We'll take a look soon. You can already open it from your console."
@@ -262,10 +269,12 @@ export function RegisterApp() {
           <AppCard app={done} morph={false} upvote={false} />
         </div>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button size="lg" variant="accent" icon={<Rocket className="size-4" />} onClick={() => router.push(`/apps/${done.slug}`)}>
-            View listing
-          </Button>
-          <Button size="lg" variant="glass" icon={<LayoutDashboard className="size-4" />} href={`/developers/apps/${done.slug}`}>
+          {!testing && (
+            <Button size="lg" variant="accent" icon={<Rocket className="size-4" />} onClick={() => router.push(`/apps/${done.slug}`)}>
+              View listing
+            </Button>
+          )}
+          <Button size="lg" variant={testing ? "accent" : "glass"} icon={<LayoutDashboard className="size-4" />} href={`/developers/apps/${done.slug}`}>
             Open app console
           </Button>
           {done.kind === "app" ? (
@@ -530,9 +539,17 @@ export function RegisterApp() {
             </div>
           </div>
 
-          <Button type="submit" size="xl" variant="accent" loading={register.isPending} icon={<Rocket className="size-5" />} magnetic className="w-full sm:w-auto">
-            Submit app
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button type="submit" size="xl" variant="accent" loading={register.isPending && intent === "submit"} disabled={register.isPending} icon={<Rocket className="size-5" />} magnetic className="w-full sm:w-auto">
+              Submit app
+            </Button>
+            <Button type="button" size="xl" variant="glass" loading={register.isPending && intent === "test"} disabled={register.isPending} icon={<FlaskConical className="size-5" />} onClick={() => void submit(false)} className="w-full sm:w-auto">
+              Test first
+            </Button>
+          </div>
+          <p className="text-xs text-ink-400">
+            Test first keeps v1.0.0 private to you and your testers. Submit it for review from the app console when it&apos;s ready.
+          </p>
         </form>
 
         <div className="lg:sticky lg:top-28 lg:h-fit">

@@ -33,3 +33,4 @@ fi
 "${psql_cmd[@]}" -d "$db" -f "$here/drop_no_shows.sql"
 "${psql_cmd[@]}" -d "$db" -f "$here/app_audience.sql"
 "${psql_cmd[@]}" -d "$db" -f "$here/admin_overview.sql"
+"${psql_cmd[@]}" -d "$db" -f "$here/app_details.sql"

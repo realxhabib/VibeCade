@@ -216,18 +216,23 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
 /**
  * Every manifest field a version carries (listing + capabilities), laid out
  * like the registration form. `idPrefix` keeps shared-layout ids unique.
+ * `scope="details"` shows only what can change without a new version
+ * (`APP_DETAIL_FIELDS`): no kind, URL or gameplay fields.
  */
 export function ManifestFields({
   value,
   errors,
   onChange,
   idPrefix = "manifest",
+  scope = "all",
 }: {
   value: ManifestForm;
   errors: ManifestErrors;
   onChange: (patch: Partial<ManifestForm>) => void;
   idPrefix?: string;
+  scope?: "all" | "details";
 }) {
+  const all = scope === "all";
   const setPlayers = (next: { min: number; max: number }) => {
     const lo = Math.min(8, Math.max(2, next.min));
     const hi = Math.min(8, Math.max(lo, next.max));
@@ -235,10 +240,12 @@ export function ManifestFields({
   };
   return (
     <div className="space-y-6">
-      <KindPicker value={value.kind} onChange={(kind) => onChange({ kind })} idPrefix={`${idPrefix}-kind`} />
-      <Field label="App URL" error={errors.url} hint="The build reviewers and testers load. It must allow framing by this site.">
-        <input className={cn(fieldClass, "font-mono")} value={value.url} onChange={(e) => onChange({ url: e.target.value })} placeholder="https://tap-race.dev/v2" inputMode="url" />
-      </Field>
+      {all && <KindPicker value={value.kind} onChange={(kind) => onChange({ kind })} idPrefix={`${idPrefix}-kind`} />}
+      {all && (
+        <Field label="App URL" error={errors.url} hint="The build reviewers and testers load. It must allow framing by this site.">
+          <input className={cn(fieldClass, "font-mono")} value={value.url} onChange={(e) => onChange({ url: e.target.value })} placeholder="https://tap-race.dev/v2" inputMode="url" />
+        </Field>
+      )}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <Field label="Name" error={errors.name}>
           <input className={fieldClass} value={value.name} onChange={(e) => onChange({ name: e.target.value })} maxLength={40} />
@@ -305,7 +312,7 @@ export function ManifestFields({
 
       <CoverField coverImage={value.coverImage} accent={value.accent} onChange={onChange} idPrefix={`${idPrefix}-cover`} />
 
-      {value.kind === "game" && (
+      {all && value.kind === "game" && (
         <>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <Field as="div" label="Modes" error={errors.modes}>
