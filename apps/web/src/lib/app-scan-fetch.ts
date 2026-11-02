@@ -83,7 +83,7 @@ interface Ctx {
 }
 
 /** GET with redirects followed by hand (each hop re-checked) and the body capped. Null on 404 & co. */
-async function get(ctx: Ctx, start: URL, maxBytes: number): Promise<{ url: URL; text: string; type: string } | null> {
+async function get(ctx: Ctx, start: URL, maxBytes: number): Promise<{ url: URL; text: string; type: string; headers: Headers } | null> {
   let url = start;
   for (let hop = 0; hop <= SCAN_LIMITS.redirects; hop++) {
     await assertScannableUrl(url, ctx.lookup);
@@ -107,7 +107,7 @@ async function get(ctx: Ctx, start: URL, maxBytes: number): Promise<{ url: URL; 
     }
     const text = await readText(res, Math.min(maxBytes, SCAN_LIMITS.totalBytes - ctx.total));
     ctx.total += text.length;
-    return { url, text, type: res.headers.get("content-type") ?? "" };
+    return { url, text, type: res.headers.get("content-type") ?? "", headers: res.headers };
   }
   throw new ScanFetchError("Too many redirects");
 }
@@ -180,11 +180,54 @@ export function bundleImports(js: string, scriptUrl: URL, pageUrl: URL): URL[] {
 
 const SKIP_SCRIPT = /\/sdk\/(v\d+|xapps|vibecade)[^/]*\.js$|googletagmanager|google-analytics|gtag\/js|\/cdn-cgi\/|plausible|posthog|sentry|hotjar|clarity\.ms/i;
 
-/** Fetches the page, its scripts and a manifest next to it. */
+/** Whether a frame-ancestors source (`https://x.com`, `*.x.com`, `x.com`, `https:`) lets `host` frame the page. */
+function ancestorAllows(source: string, host: URL, page: URL): boolean {
+  const s = source.toLowerCase();
+  if (s === "*") return true;
+  if (s === "'self'") return host.origin === page.origin;
+  if (s.startsWith("'")) return false;
+  if (/^[a-z][a-z0-9+.-]*:$/.test(s)) return s === host.protocol;
+  const m = s.match(/^(?:([a-z][a-z0-9+.-]*):\/\/)?([^/:]+)(?::(\d+|\*))?/);
+  if (!m) return false;
+  const [, scheme, pattern, port] = m;
+  if (scheme && scheme !== host.protocol.slice(0, -1)) return false;
+  if (port && port !== "*" && port !== (host.port || (host.protocol === "https:" ? "443" : "80"))) return false;
+  if (pattern!.startsWith("*.")) return host.hostname.endsWith(pattern!.slice(1));
+  return host.hostname === pattern;
+}
+
+/**
+ * Why browsers won't show the page in a frame on `hostOrigin`, or null when they will:
+ * a CSP frame-ancestors that leaves the host out, or (without one) X-Frame-Options.
+ */
+export function frameBlocker(headers: Headers, pageUrl: string, hostOrigin: string): string | null {
+  const page = new URL(pageUrl);
+  const host = new URL(hostOrigin);
+  if (host.origin === page.origin) return null;
+  const fix = `Remove it, or allow this site: Content-Security-Policy: frame-ancestors ${host.origin} https://x.com https://*.x.com`;
+  const ancestors = (headers.get("content-security-policy") ?? "")
+    .split(/[;,]/)
+    .map((d) => d.trim().split(/\s+/))
+    .find((d) => d[0]?.toLowerCase() === "frame-ancestors");
+  if (ancestors) {
+    if (ancestors.slice(1).some((src) => ancestorAllows(src, host, page))) return null;
+    return `Your page's Content-Security-Policy (frame-ancestors ${ancestors.slice(1).join(" ") || "'none'"}) stops it from opening inside ${host.host}, so players would see an empty frame. ${fix}`;
+  }
+  const xfo = headers.get("x-frame-options")?.trim().toUpperCase();
+  if (xfo === "DENY" || xfo === "SAMEORIGIN") {
+    return `Your page sends X-Frame-Options: ${xfo}, so browsers won't open it inside ${host.host} and players would see an empty frame. ${fix}`;
+  }
+  return null;
+}
+
+/**
+ * Fetches the page, its scripts and a manifest next to it. With `hostOrigin`, `frame` says why
+ * the page can't be framed there (see frameBlocker).
+ */
 export async function fetchAppSources(
   rawUrl: string,
-  { fetch: fetchImpl = fetch, lookup = defaultLookup }: { fetch?: Fetch; lookup?: Lookup } = {},
-): Promise<{ sources: ScanSource[]; url: string }> {
+  { fetch: fetchImpl = fetch, lookup = defaultLookup, hostOrigin }: { fetch?: Fetch; lookup?: Lookup; hostOrigin?: string } = {},
+): Promise<{ sources: ScanSource[]; url: string; frame: string | null }> {
   let start: URL;
   try {
     start = new URL(rawUrl);
@@ -195,6 +238,7 @@ export async function fetchAppSources(
   const page = await get(ctx, start, SCAN_LIMITS.pageBytes);
   if (!page) throw new ScanFetchError("The app's URL didn't load (it answered with an error)");
   const sources: ScanSource[] = [{ path: page.url.toString(), text: page.text }];
+  const frame = hostOrigin ? frameBlocker(page.headers, page.url.toString(), hostOrigin) : null;
 
   // Manifest next to the page, or at the root.
   for (const candidate of new Set([new URL("vibecade.manifest.json", page.url).toString(), new URL("/vibecade.manifest.json", page.url).toString()])) {
@@ -225,5 +269,5 @@ export async function fetchAppSources(
       if (!seen.has(next.toString()) && !SKIP_SCRIPT.test(next.toString())) queue.push(next);
     }
   }
-  return { sources, url: page.url.toString() };
+  return { sources, url: page.url.toString(), frame };
 }

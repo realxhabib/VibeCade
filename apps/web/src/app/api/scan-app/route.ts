@@ -39,8 +39,9 @@ export async function POST(request: Request) {
   }
   if (typeof url !== "string" || !url.trim() || url.length > 2048) return fail(400, "Enter your app's URL first");
   try {
-    const { sources, url: finalUrl } = await fetchAppSources(url.trim());
+    const { sources, url: finalUrl, frame } = await fetchAppSources(url.trim(), { hostOrigin: new URL(request.url).origin });
     const report = scanSources(sources);
+    if (frame) report.notes.unshift(frame);
     return Response.json({ report, url: finalUrl }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof ScanFetchError) return fail(422, error.message);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scanSources } from "@/platform/app-scan";
-import { assertScannableUrl, bundleImports, fetchAppSources, isPublicAddress, pageScripts } from "./app-scan-fetch";
+import { assertScannableUrl, bundleImports, fetchAppSources, frameBlocker, isPublicAddress, pageScripts } from "./app-scan-fetch";
 
 const publicLookup = async () => ["93.184.216.34"];
 
@@ -78,5 +78,28 @@ describe("fetchAppSources", () => {
   it("refuses redirects to private hosts", async () => {
     const fetchImpl = async () => new Response(null, { status: 302, headers: { location: "https://127.0.0.1/admin" } });
     await expect(fetchAppSources("https://game.example.com/", { fetch: fetchImpl, lookup: publicLookup })).rejects.toThrow(/public/);
+  });
+});
+
+describe("frameBlocker", () => {
+  const page = "https://airplanes.example.com/games/tanks/";
+  const host = "https://www.vibecade.si";
+  const check = (h: Record<string, string>) => frameBlocker(new Headers(h), page, host);
+
+  it("flags X-Frame-Options and frame-ancestors that leave the site out", () => {
+    expect(check({ "x-frame-options": "SAMEORIGIN" })).toMatch(/X-Frame-Options: SAMEORIGIN/);
+    expect(check({ "x-frame-options": "deny" })).toMatch(/DENY/);
+    expect(check({ "content-security-policy": "default-src 'self'; frame-ancestors 'self'" })).toMatch(/frame-ancestors 'self'/);
+    expect(check({ "content-security-policy": "frame-ancestors 'none'" })).toMatch(/empty frame/);
+    expect(check({ "content-security-policy": "frame-ancestors https://vibecade.si" })).toMatch(/frame-ancestors/);
+  });
+
+  it("passes pages that allow the site", () => {
+    expect(check({})).toBeNull();
+    expect(check({ "content-security-policy": "frame-ancestors 'self' https://vibecade.si https://www.vibecade.si" })).toBeNull();
+    expect(check({ "content-security-policy": "frame-ancestors *.vibecade.si", "x-frame-options": "SAMEORIGIN" })).toBeNull();
+    expect(check({ "content-security-policy": "frame-ancestors https:" })).toBeNull();
+    expect(check({ "content-security-policy": "frame-ancestors *" })).toBeNull();
+    expect(frameBlocker(new Headers({ "x-frame-options": "SAMEORIGIN" }), "https://www.vibecade.si/embed/x", host)).toBeNull();
   });
 });
