@@ -1,11 +1,21 @@
 import { ImageResponse } from "next/og";
+import { appBannerPng } from "@/lib/app-banner-image";
 import { brandMarkSrc } from "@/lib/brand-image";
 import type { AppManifest } from "@/platform/types";
 
 export const APP_IMAGE_SIZE = { width: 1200, height: 630 };
 
-/** A game's share card (`og:image` of its app page and its challenge links). */
-export async function appOpengraphImage(app: AppManifest | null): Promise<ImageResponse> {
+/**
+ * A game's share card (`og:image` of its app page and its challenge links):
+ * the game's own banner when it has one, else a generated card with its name.
+ */
+export async function appOpengraphImage(app: AppManifest | null): Promise<Response> {
+  const banner = await appBannerPng(app?.coverImage, APP_IMAGE_SIZE);
+  if (banner) {
+    return new Response(new Uint8Array(banner), {
+      headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600, s-maxage=86400" },
+    });
+  }
   const mark = await brandMarkSrc();
   const [from, to] = app?.accent ?? ["#5b74ff", "#a35cff"];
   return new ImageResponse(
