@@ -23,6 +23,8 @@ import { FFA_LIMIT, newDoc } from "./rules";
 import { loadAssets } from "./assets";
 import { TIERS, tierFor } from "./quality";
 import { loadLocal, loadRemote, saveSettings, type Settings } from "./settings";
+import { LookSpeed } from "./look-speed";
+import { isTouchDevice } from "./input";
 import { TEAM_COLORS } from "./avatars";
 
 /** Nobody holds up the table: the loadout screen locks you in after this long. */
@@ -114,6 +116,7 @@ export function FrontlineApp() {
   const map = MAPS[DEFAULT_MAP];
   // The X post's card (and phones): everything on one screen, Deploy always in view.
   const small = useMediaQuery("(max-height: 600px), (max-width: 480px)");
+  const [touch] = useState(() => isTouchDevice());
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
@@ -157,6 +160,8 @@ export function FrontlineApp() {
               ) : (
                 <>
                   <LoadoutPicker value={settings.loadout} onChange={(l) => update({ ...settings, loadout: l })} disabled={locked} compact={small} summary />
+                  {/* Phones: look speed before the fight (also in the pause menu). */}
+                  {touch && <LookSpeed settings={settings} onSettings={update} touch className="glass w-full max-w-xs rounded-2xl px-3 py-2" />}
                   <div className={cn("flex w-full flex-col items-center gap-2", small ? "sticky bottom-0 mt-auto pb-1 pt-1" : "pb-4")}>
                     <ActionButton onClick={lockIn} disabled={locked} className="w-full max-w-xs">
                       {locked ? (

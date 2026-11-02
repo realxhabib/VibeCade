@@ -287,7 +287,11 @@ export class Input {
     this.mouseAds = false;
     this.keys.clear();
     const t = this.touch;
+    // Toggles too: the touch buttons remount switched off (after a pause or a
+    // death), so a crouch or scope left on here could never be switched off.
     t.fire = false;
+    t.ads = false;
+    t.crouch = false;
     t.grenade = false;
     t.mx = 0;
     t.my = 0;
