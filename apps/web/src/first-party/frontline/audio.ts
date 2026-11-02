@@ -306,16 +306,83 @@ export class FrontAudio {
     if (!spot || spot.gain < 0.04) return;
     const g = spot.gain;
     if (kind === "gobble") {
-      // Quick warbling syllables, falling in pitch.
-      for (let i = 0; i < 8; i++) {
-        const f = 700 - i * 30 + (i % 2) * 180;
-        const at = 0.04 + i * 0.07;
-        this.tone(spot.out, { freq: f, to: f * 0.7, type: "sawtooth", gain: 0.22 * g, decay: 0.065, start: at, attack: 0.008 });
-        this.tone(spot.out, { freq: f * 2, to: f * 1.4, type: "square", gain: 0.06 * g, decay: 0.05, start: at, attack: 0.008 });
-      }
+      this.gobble(spot.out, 1.15 * g);
     } else {
       this.noiseBurst(spot.out, { gain: 0.25 * g, decay: 0.8, freq: 5200, q: 0.8, type: "highpass", attack: 0.05 });
     }
+  }
+
+  /**
+   * A turkey's gobble: a throaty voice with a fast gurgling flutter (the
+   * pitch and the volume both shake about 26 times a second) in a run of
+   * falling "gobble-obble" syllables, shaped by two vowel-like resonances.
+   */
+  private gobble(out: AudioNode, gain: number): void {
+    const ctx = this.ctx;
+    if (!ctx || gain <= 0.001) return;
+    const t0 = ctx.currentTime + 0.03;
+    const syllables = 7;
+    const step = 0.105;
+    const end = t0 + syllables * step + 0.12;
+
+    const voice = ctx.createOscillator();
+    voice.type = "sawtooth";
+    const f = voice.frequency;
+    f.setValueAtTime(560, t0);
+    // Gurgle: wobble the pitch and chop the volume fast.
+    const flutter = ctx.createOscillator();
+    flutter.type = "triangle";
+    flutter.frequency.setValueAtTime(24, t0);
+    flutter.frequency.linearRampToValueAtTime(30, end);
+    const wobble = ctx.createGain();
+    wobble.gain.value = 140;
+    flutter.connect(wobble).connect(f);
+    const chop = ctx.createGain();
+    chop.gain.value = 0.55;
+    const chopDepth = ctx.createGain();
+    chopDepth.gain.value = 0.45;
+    flutter.connect(chopDepth).connect(chop.gain);
+
+    // Syllables: each one jumps up then sags, and the run falls in pitch and loudness.
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    for (let i = 0; i < syllables; i++) {
+      const at = t0 + i * step;
+      const top = 820 - i * 38 + (i % 2 ? -90 : 40);
+      f.setValueAtTime(top * 0.78, at);
+      f.linearRampToValueAtTime(top, at + 0.025);
+      f.exponentialRampToValueAtTime(top * 0.68, at + step * 0.9);
+      const loud = gain * (1 - i * 0.07) * (i % 2 ? 0.75 : 1);
+      env.gain.setValueAtTime(0.0001, at);
+      env.gain.exponentialRampToValueAtTime(Math.max(0.0002, loud), at + 0.012);
+      env.gain.exponentialRampToValueAtTime(Math.max(0.0002, loud * 0.35), at + step * 0.75);
+      env.gain.exponentialRampToValueAtTime(0.0001, at + step * 0.98);
+    }
+
+    // Two resonances give it the open "ob" vowel of a gobble.
+    const mix = ctx.createGain();
+    mix.gain.value = 0.9;
+    for (const [freq, q, level] of [
+      [950, 3.5, 1],
+      [2300, 5, 0.55],
+      [450, 2, 0.35],
+    ] as const) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = freq;
+      bp.Q.value = q;
+      const lv = ctx.createGain();
+      lv.gain.value = level * 2.2;
+      voice.connect(bp).connect(lv).connect(chop);
+    }
+    chop.connect(env).connect(mix).connect(out);
+
+    voice.start(t0);
+    flutter.start(t0);
+    voice.stop(end);
+    flutter.stop(end);
+    // A little breath under the voice.
+    this.noiseBurst(out, { gain: 0.12 * gain, decay: syllables * step, freq: 1500, q: 1.2, start: 0.03, attack: 0.02 });
   }
 
   /** A grenade clinking off the ground or a container. */

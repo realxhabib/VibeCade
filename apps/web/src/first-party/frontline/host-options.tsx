@@ -9,15 +9,18 @@
  * starts.
  */
 
+import { useState } from "react";
 import { useMatchState } from "vibecade-sdk/react";
 import type { Json } from "vibecade-sdk";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
-import { killChoices, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
+import { CustomNumber } from "./custom-number";
+import { KILLS_RANGE, MINUTES_RANGE, killChoices, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
 import { parseDoc } from "./rules";
 
 export function HostOptions({ options, host, standardKills, compact }: { options: MatchOptions; host: boolean; standardKills: number; compact?: boolean }) {
   const { update } = useMatchState();
+  const [editing, setEditing] = useState<"time" | "kills" | null>(null);
 
   const change = (patch: Partial<MatchOptions>) => {
     if (!host) return;
@@ -28,6 +31,9 @@ export function HostOptions({ options, host, standardKills, compact }: { options
   };
 
   const minutes = minutesOf(options);
+  const kills = killChoices(standardKills);
+  const customTime = !(TIME_CHOICES as readonly number[]).includes(minutes);
+  const customKills = !kills.includes(options.kills);
   return (
     <div className={cn("glass flex w-full max-w-md flex-col rounded-2xl px-3", compact ? "gap-1.5 py-2" : "gap-2 py-2.5")}>
       <p className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.16em] text-ink-300">
@@ -40,13 +46,49 @@ export function HostOptions({ options, host, standardKills, compact }: { options
             {m}m
           </Chip>
         ))}
+        {editing === "time" ? (
+          <CustomNumber
+            label="Custom minutes"
+            value={minutes}
+            min={MINUTES_RANGE[0]}
+            max={MINUTES_RANGE[1]}
+            className="h-7 text-xs"
+            onCommit={(m) => {
+              setEditing(null);
+              if (m !== minutes) change({ minutes: m });
+            }}
+            onCancel={() => setEditing(null)}
+          />
+        ) : (
+          <Chip on={customTime} disabled={!host} onClick={() => setEditing("time")} onReselect={host ? () => setEditing("time") : undefined} title="Type any length">
+            {customTime ? `${minutes}m` : "Custom"}
+          </Chip>
+        )}
       </Row>
       <Row label="Kills">
-        {killChoices(standardKills).map((k) => (
+        {kills.map((k) => (
           <Chip key={String(k)} on={k === options.kills} disabled={!host} onClick={() => change({ kills: k })}>
             {k === null ? standardKills : k === 0 ? "∞" : k}
           </Chip>
         ))}
+        {editing === "kills" ? (
+          <CustomNumber
+            label="Custom kill limit"
+            value={options.kills === null ? standardKills : options.kills || null}
+            min={KILLS_RANGE[0]}
+            max={KILLS_RANGE[1]}
+            className="h-7 text-xs"
+            onCommit={(k) => {
+              setEditing(null);
+              if (k !== options.kills) change({ kills: k === standardKills ? null : k });
+            }}
+            onCancel={() => setEditing(null)}
+          />
+        ) : (
+          <Chip on={customKills} disabled={!host} onClick={() => setEditing("kills")} onReselect={host ? () => setEditing("kills") : undefined} title="Type any kill limit">
+            {customKills ? options.kills : "Custom"}
+          </Chip>
+        )}
       </Row>
       <Row label="Season">
         {(["auto", ...SEASONS] as SeasonChoice[]).map((s) => (
@@ -68,19 +110,20 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function Chip({ on, disabled, onClick, title, children }: { on: boolean; disabled: boolean; onClick: () => void; title?: string; children: React.ReactNode }) {
+function Chip({ on, disabled, onClick, onReselect, title, children }: { on: boolean; disabled: boolean; onClick: () => void; onReselect?: () => void; title?: string; children: React.ReactNode }) {
   return (
     <button
       type="button"
       title={title}
       aria-pressed={on}
       disabled={disabled && !on}
-      onClick={on ? undefined : onClick}
+      onClick={on ? onReselect : onClick}
       className={cn(
         "h-7 rounded-lg px-1 text-xs font-bold transition-colors",
         on ? "bg-[linear-gradient(120deg,var(--accent-from),var(--accent-to))] text-ink-950" : "bg-white/[0.06] text-ink-200 hover:bg-white/[0.12]",
         disabled && !on && "opacity-35 hover:bg-white/[0.06]",
         disabled && on && "cursor-default",
+        on && !onReselect && "cursor-default",
       )}
     >
       {children}

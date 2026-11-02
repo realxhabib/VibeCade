@@ -14,7 +14,8 @@ describe("match options", () => {
 
   it("reads and clamps the host's choices", () => {
     expect(parseOptions({ min: 10, kills: 30, season: "winter" })).toEqual({ minutes: 10, kills: 30, season: "winter" });
-    expect(parseOptions({ min: 500, kills: 1 })).toMatchObject({ minutes: 30, kills: 5 });
+    expect(parseOptions({ min: 500, kills: 900 })).toMatchObject({ minutes: 30, kills: 200 });
+    expect(parseOptions({ min: 0.2, kills: -4 })).toMatchObject({ minutes: 1, kills: 1 });
     expect(parseOptions({ kills: 0 }).kills).toBe(0);
   });
 
@@ -68,7 +69,7 @@ describe("options in the shared state", () => {
 
 describe("kill limit buttons", () => {
   it("go lowest to highest, standard in its place, no limit last", () => {
-    expect(killChoices(20)).toEqual([10, null, 30, 50, 0]);
-    expect(killChoices(40)).toEqual([10, 20, 30, null, 50, 0]);
+    expect(killChoices(20)).toEqual([5, 10, null, 30, 50, 0]);
+    expect(killChoices(40)).toEqual([5, 10, 20, 30, null, 50, 0]);
   });
 });

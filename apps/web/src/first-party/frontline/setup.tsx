@@ -13,7 +13,10 @@ import { spring } from "@/lib/motion";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 import { FFA_LIMIT } from "./rules";
+import { CustomNumber } from "./custom-number";
 import {
+  KILLS_RANGE,
+  MINUTES_RANGE,
   killChoices,
   SEASON_ICON,
   SEASON_LABEL,
@@ -46,6 +49,10 @@ export function FrontlineSetup() {
 
   const set = (patch: Partial<MatchOptions>) => setOpts((o) => ({ ...o, ...patch }));
   const minutes = minutesOf(opts);
+  const kills = killChoices(FFA_LIMIT);
+  // "Custom" stays picked while the box is open, even before a number is typed.
+  const [customTime, setCustomTime] = useState(() => !(TIME_CHOICES as readonly number[]).includes(minutes));
+  const [customKills, setCustomKills] = useState(() => !kills.includes(opts.kills));
 
   const send = () => {
     setBusy(true);
@@ -61,27 +68,60 @@ export function FrontlineSetup() {
         </h1>
 
         <Section title="Time limit">
-          <Segmented
+          <Segmented<string>
             id="time"
             label="Time limit"
-            value={minutes}
-            onChange={(m) => set({ minutes: m })}
-            options={TIME_CHOICES.map((m) => ({ value: m, label: `${m} min` }))}
+            value={customTime ? "custom" : String(minutes)}
+            onChange={(v) => {
+              setCustomTime(v === "custom");
+              if (v !== "custom") set({ minutes: Number(v) });
+            }}
+            options={[...TIME_CHOICES.map((m) => ({ value: String(m), label: `${m} min` })), { value: "custom", label: <span className="text-[11.5px] tracking-tight">Custom</span> }]}
           />
+          {customTime && (
+            <CustomNumber
+              key="time"
+              label="Custom minutes"
+              value={minutes}
+              min={MINUTES_RANGE[0]}
+              max={MINUTES_RANGE[1]}
+              suffix={`minutes (${MINUTES_RANGE[0]} to ${MINUTES_RANGE[1]})`}
+              className="h-10 px-1 text-[14px]"
+              onCommit={(m) => set({ minutes: m })}
+            />
+          )}
         </Section>
 
         <Section title="Kill limit" hint={opts.kills === 0 ? "No kill limit: the most kills when the clock runs out wins." : "First to reach it wins. In team play it's the team's total."}>
           <Segmented
             id="kills"
             label="Kill limit"
-            value={opts.kills === null ? "std" : String(opts.kills)}
-            onChange={(v) => set({ kills: v === "std" ? null : Number(v) })}
-            options={killChoices(FFA_LIMIT).map((k) => ({
-              value: k === null ? "std" : String(k),
-              label: k === null ? `${FFA_LIMIT}*` : k === 0 ? "None" : String(k),
-            }))}
+            value={customKills ? "custom" : opts.kills === null ? "std" : String(opts.kills)}
+            onChange={(v) => {
+              setCustomKills(v === "custom");
+              if (v !== "custom") set({ kills: v === "std" ? null : Number(v) });
+            }}
+            options={[
+              ...kills.map((k) => ({
+                value: k === null ? "std" : String(k),
+                label: k === null ? `${FFA_LIMIT}*` : k === 0 ? "∞" : String(k),
+              })),
+              { value: "custom", label: <span className="text-[11.5px] tracking-tight">Custom</span> },
+            ]}
           />
-          {opts.kills === null && <p className="px-1 text-[12px] leading-snug text-ink-400">* Standard: {FFA_LIMIT} each, or 30 to 40 for a team.</p>}
+          {customKills && (
+            <CustomNumber
+              key="kills"
+              label="Custom kill limit"
+              value={opts.kills || (opts.kills === null ? FFA_LIMIT : null)}
+              min={KILLS_RANGE[0]}
+              max={KILLS_RANGE[1]}
+              suffix={`kills (${KILLS_RANGE[0]} to ${KILLS_RANGE[1]})`}
+              className="h-10 px-1 text-[14px]"
+              onCommit={(k) => set({ kills: k })}
+            />
+          )}
+          {opts.kills === null && !customKills && <p className="px-1 text-[12px] leading-snug text-ink-400">* Standard: {FFA_LIMIT} each, or 30 to 40 for a team.</p>}
         </Section>
 
         <Section title="Season" hint={SEASON_TWIST[opts.season === "auto" ? now : opts.season]}>

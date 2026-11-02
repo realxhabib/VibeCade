@@ -22,7 +22,11 @@ export const SEASON_ICON: Record<Season, string> = { spring: "ðŸŒ¸", summer: "â˜
 /** Minutes the host can pick (the default is 7). */
 export const TIME_CHOICES = [3, 5, 7, 10, 15] as const;
 /** Kill limits the host can pick (null = the standard one, 0 = none). */
-export const KILL_CHOICES = [10, 20, 30, 50] as const;
+export const KILL_CHOICES = [5, 10, 20, 30, 50] as const;
+
+/** Ranges for a custom value (the host can type any number in them). */
+export const MINUTES_RANGE = [1, 30] as const;
+export const KILLS_RANGE = [1, 200] as const;
 
 /**
  * Kill limit buttons, lowest first then "no limit" (0): the standard limit
@@ -53,9 +57,9 @@ const int = (v: unknown, lo: number, hi: number): number | null => (typeof v ===
 export function parseOptions(raw: unknown): MatchOptions {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_OPTIONS };
   const o = raw as { min?: unknown; kills?: unknown; season?: unknown };
-  const kills = o.kills === 0 ? 0 : int(o.kills, 5, 200);
+  const kills = o.kills === 0 ? 0 : int(o.kills, KILLS_RANGE[0], KILLS_RANGE[1]);
   const season = typeof o.season === "string" && (SEASONS as readonly string[]).includes(o.season) ? (o.season as Season) : "auto";
-  return { minutes: int(o.min, 1, 30), kills, season };
+  return { minutes: int(o.min, MINUTES_RANGE[0], MINUTES_RANGE[1]), kills, season };
 }
 
 /** The settings blob the setup screen submits (only what differs from the defaults). */
