@@ -6,6 +6,7 @@ import { getOfficialApp } from "./catalog";
 import { useBackend, useViewer } from "./client";
 import { isYourTurn, needsAttention } from "./match-utils";
 import { withUpvote, withUpvoteResult } from "./upvotes";
+import type { AppDetails } from "./shipping";
 import type {
   AppManifest,
   AppAuthority,
@@ -637,6 +638,19 @@ export function useWithdrawVersion(slug: string) {
   return useMutation({
     mutationFn: (versionId: string) => backend.withdrawAppVersion(versionId),
     onSuccess: (version) => refreshVersions(queryClient, slug, version),
+  });
+}
+
+/** Changes the app's details (name, art, stats, achievements…) in place, without a new version. */
+export function useUpdateAppDetails(slug: string) {
+  const backend = useBackend();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (details: AppDetails) => backend.updateAppDetails(slug, details),
+    onSuccess: (app) => {
+      queryClient.setQueryData<AppManifest | null>(["app", slug], (old) => (old ? app : old));
+      refreshVersions(queryClient, slug, undefined, true);
+    },
   });
 }
 

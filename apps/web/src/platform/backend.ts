@@ -30,6 +30,7 @@ import type {
   SubmitInput,
   UpvoteResult,
 } from "./types";
+import type { AppDetails } from "./shipping";
 
 /* ---------------------------------------------------------------------- */
 /* Realtime room                                                          */
@@ -153,6 +154,13 @@ export interface Backend {
    */
   reviseAppVersion(versionId: string, input: { url?: string; manifest?: VersionManifest; notes?: string }): Promise<AppVersion>;
   withdrawAppVersion(versionId: string): Promise<AppVersion>;
+  /**
+   * Changes the app's details (name, tagline, description, category, icon and images, accent,
+   * how-to, stats, achievements) without a new version: the listing and the live version change
+   * right away, and so do the versions not published yet. The URL and gameplay fields still
+   * need a version. Owner only. Resolves with the updated app.
+   */
+  updateAppDetails(appSlug: string, details: AppDetails): Promise<AppManifest>;
   publishAppVersion(versionId: string): Promise<AppVersion>;
   listAppTesters(appSlug: string): Promise<Profile[]>;
   addAppTester(appSlug: string, handle: string): Promise<Profile[]>;

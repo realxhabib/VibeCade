@@ -228,3 +228,47 @@ export function isTestBuild(match: Pick<Match, "versionId"> | null | undefined):
 export function testBuildLabel(match: Pick<Match, "versionId" | "versionLabel">): string {
   return match.versionLabel ? `Test build v${match.versionLabel}` : "Test build";
 }
+
+/* ---------------------------------------------------------------------- */
+/* App details (edited in place, no new version)                          */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * The listing, art and progress fields a developer can change without a new
+ * version, because they don't change the build: the URL and the gameplay
+ * fields (kind, modes, table, scoring…) still need one. Mirrors
+ * `update_app_details` in SQL.
+ */
+export const APP_DETAIL_FIELDS = [
+  "name",
+  "tagline",
+  "description",
+  "category",
+  "icon",
+  "iconImage",
+  "coverImage",
+  "accent",
+  "howTo",
+  "stats",
+  "achievements",
+] as const satisfies readonly (keyof VersionManifest)[];
+
+export type AppDetails = Pick<VersionManifest, (typeof APP_DETAIL_FIELDS)[number]>;
+
+/** Versions that take the new details along: the live one and the ones not published yet (history keeps its own). */
+export const DETAIL_STATUSES: readonly AppVersionStatus[] = ["draft", "in_review", "approved", "rejected", "published"];
+
+export function detailsOf(manifest: VersionManifest): AppDetails {
+  const out = {} as Record<string, unknown>;
+  for (const key of APP_DETAIL_FIELDS) out[key] = structuredClone(manifest[key]);
+  return out as AppDetails;
+}
+
+/** `manifest` with `details` laid over it (only the detail fields). */
+export function withDetails(manifest: VersionManifest, details: AppDetails): VersionManifest {
+  const out: VersionManifest = { ...manifest };
+  for (const key of APP_DETAIL_FIELDS) {
+    if (details[key] !== undefined) (out as Record<string, unknown>)[key] = structuredClone(details[key]);
+  }
+  return out;
+}

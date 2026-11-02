@@ -286,6 +286,11 @@ export interface RegisterAppInput {
   coverImage?: string | null;
   /** `game` (default) or a standalone `app`. */
   kind?: AppKind;
+  /**
+   * Send version 1.0.0 to review right away (default). False keeps it a draft for testing with
+   * your testers; submit it from the console when it's ready.
+   */
+  submit?: boolean;
 }
 
 export interface SubmitInput {

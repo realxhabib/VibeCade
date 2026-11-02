@@ -29,6 +29,8 @@ import {
   VERSION_NOTES_MAX,
   applyVersionToApp,
   cleanManifest,
+  DETAIL_STATUSES,
+  detailsOf,
   isLogLevel,
   isStandaloneApp,
   levelsFrom,
@@ -40,6 +42,8 @@ import {
   versionLabelError,
   versionManifestError,
   versionUrlError,
+  withDetails,
+  type AppDetails,
 } from "../shipping";
 import type {
   AdminOverview,
@@ -818,8 +822,9 @@ export class DemoBackend implements Backend {
         throw new BackendError("That slug is taken", "conflict");
       }
       const now = nowIso();
+      const { submit = true, ...fields } = input;
       const app = withManifestDefaults({
-        ...input,
+        ...fields,
         kind: input.kind ?? "game",
         players: input.players ? { min: input.players.min, max: input.players.max } : { min: 2, max: 2 },
         stats: toStatDefs(input.stats ?? []),
@@ -828,33 +833,33 @@ export class DemoBackend implements Backend {
         durationLabel: "Community",
         official: false,
         developer: { id: viewer.id, handle: viewer.handle, name: viewer.name },
-        // Demo mode auto-approves so you can try your app right away.
-        status: "published",
+        // Demo mode auto-approves so you can try your app right away (unless it's kept for testing).
+        status: submit ? "published" : "pending",
         playCount: 0,
         createdAt: now,
         tags: ["community"],
       });
       db.apps[app.slug] = app;
-      // Like the database, registering creates 1.0.0 in review. Demo mode then
-      // approves and publishes it on the spot; later versions go through the queue.
+      // Like the database, registering creates 1.0.0 in review (or a draft to test first). Demo
+      // mode then approves and publishes a submitted one on the spot; later versions go through the queue.
       const version: VersionRow = {
         id: newVersionId(),
         appSlug: app.slug,
         version: "1.0.0",
         url: app.url,
         manifest: manifestOf(app),
-        status: "published",
+        status: submit ? "published" : "draft",
         notes: "First release",
-        reviewNotes: "Auto-approved in demo mode",
+        reviewNotes: submit ? "Auto-approved in demo mode" : null,
         createdAt: now,
-        submittedAt: now,
-        reviewedAt: now,
-        publishedAt: now,
+        submittedAt: submit ? now : null,
+        reviewedAt: submit ? now : null,
+        publishedAt: submit ? now : null,
         supersededBy: null,
         reviewedBy: null,
       };
       (db.versions ??= {})[version.id] = version;
-      (db.publishedVersions ??= {})[app.slug] = version.id;
+      if (submit) (db.publishedVersions ??= {})[app.slug] = version.id;
       return withUpvotes(db, app, viewer.id);
     });
   }
@@ -1215,6 +1220,24 @@ export class DemoBackend implements Backend {
       version.status = "draft";
       version.submittedAt = null;
       return publicVersion(version);
+    });
+  }
+
+  async updateAppDetails(appSlug: string, details: AppDetails): Promise<AppManifest> {
+    return mutate((db) => {
+      const app = this.requireAppOwner(db, appSlug);
+      this.ensureVersions(db, appSlug);
+      // Like update_app_details: every version that isn't history takes the new details, each checked as a whole.
+      const targets = Object.values(db.versions ?? {}).filter((v) => v.appSlug === appSlug && DETAIL_STATUSES.includes(v.status));
+      const listing = cleanManifest(withDetails(manifestOf(app), details));
+      const problem =
+        versionManifestError(listing) ??
+        targets.map((v) => versionManifestError(withDetails(v.manifest, details))).find((e) => e) ??
+        null;
+      if (problem) throw new BackendError(problem, "invalid");
+      for (const v of targets) v.manifest = cleanManifest(withDetails(v.manifest, details));
+      db.apps[appSlug] = withManifestDefaults({ ...app, ...detailsOf(listing) });
+      return appFor(db, appSlug)!;
     });
   }
 

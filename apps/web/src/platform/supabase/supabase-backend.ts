@@ -8,6 +8,7 @@ import { BackendError, type Backend, type RoomOptions, type RoomTransport } from
 import { OFFICIAL_APPS, getOfficialApp, manifestShapeError, withManifestDefaults } from "../catalog";
 import { OUTAGE_MESSAGE, OutageError, isOfflineMatch, isOutage, noteHealthy, noteOutage } from "../health";
 import { DemoBackend } from "../demo/demo-backend";
+import type { AppDetails } from "../shipping";
 import type {
   AdminOverview,
   AdminPlayers,
@@ -321,6 +322,17 @@ export class SupabaseBackend implements Backend {
       if (error.code === "23505") throw new BackendError("That slug is taken", "conflict");
       fail(error);
     }
+    if (input.submit === false) {
+      // The insert put 1.0.0 in review: take it back out, so it's a draft to test first.
+      const { data: first, error: readError } = await this.sb
+        .from("app_versions")
+        .select("id")
+        .eq("app_slug", input.slug)
+        .eq("status", "in_review")
+        .maybeSingle<{ id: string }>();
+      if (readError) fail(readError);
+      if (first) await this.withdrawAppVersion(first.id);
+    }
     return toApp(data);
   }
 
@@ -441,6 +453,13 @@ export class SupabaseBackend implements Backend {
 
   withdrawAppVersion(versionId: string): Promise<AppVersion> {
     return this.versionRpc("withdraw_app_version", { p_version_id: versionId }, versionId);
+  }
+
+  async updateAppDetails(appSlug: string, details: AppDetails): Promise<AppManifest> {
+    await this.ownerRpc("update_app_details", { p_app: appSlug, p_details: details });
+    const app = await this.getApp(appSlug);
+    if (!app) throw new BackendError("App not found", "not_found");
+    return app;
   }
 
   publishAppVersion(versionId: string): Promise<AppVersion> {
