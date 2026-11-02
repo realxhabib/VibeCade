@@ -18,6 +18,7 @@ import {
   SEASON_ICON,
   SEASON_LABEL,
   SEASONS,
+  SEASON_TWIST,
   TIME_CHOICES,
   minutesOf,
   optionsSummary,
@@ -83,7 +84,7 @@ export function FrontlineSetup() {
           {opts.kills === null && <p className="px-1 text-[12px] leading-snug text-ink-400">* Standard: {FFA_LIMIT} each, or 30 to 40 for a team.</p>}
         </Section>
 
-        <Section title="Season" hint="Snow in winter, falling leaves in autumn, blossom in spring, and the sun-bleached port in summer.">
+        <Section title="Season" hint={SEASON_TWIST[opts.season === "auto" ? now : opts.season]}>
           <Segmented<SeasonChoice>
             id="season"
             label="Season"

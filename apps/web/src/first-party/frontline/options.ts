@@ -64,9 +64,9 @@ export function docOverrides(o: MatchOptions): { dur?: number; lim?: number } {
   return out;
 }
 
-/** Northern-hemisphere meteorological seasons. */
+/** Northern-hemisphere meteorological seasons, by the UTC calendar (so every player in a match agrees). */
 export function seasonOf(date: Date): Season {
-  const m = date.getMonth();
+  const m = date.getUTCMonth();
   if (m === 11 || m <= 1) return "winter";
   if (m <= 4) return "spring";
   if (m <= 7) return "summer";
@@ -96,3 +96,38 @@ export function optionsSummary(o: MatchOptions): string {
   if (o.season !== "auto") parts.push(`${SEASON_ICON[o.season]} ${SEASON_LABEL[o.season]}`);
   return parts.join(" · ");
 }
+
+/**
+ * What each season changes in play (the same for everyone in the match,
+ * bots included). Movement is simulated by each player for themselves, so
+ * these only need every client to agree on the season.
+ */
+export interface SeasonRules {
+  /** Run speed multiplier. */
+  speed: number;
+  /** Ground grip (how fast you reach your new velocity; 11 is normal). Crouching always digs in. */
+  grip: number;
+  /** Jump velocity multiplier. */
+  jump: number;
+  /** Multiplier on the wait before health starts coming back. */
+  regenDelay: number;
+  /** Players leave footprints in the snow that everyone can follow. */
+  tracks: boolean;
+  /** Sprinting through the leaves shows enemies on your minimap. */
+  rustle: boolean;
+}
+
+export const SEASON_RULES: Record<Season, SeasonRules> = {
+  winter: { speed: 1, grip: 4.2, jump: 1, regenDelay: 1, tracks: true, rustle: false },
+  autumn: { speed: 1, grip: 11, jump: 1, regenDelay: 1, tracks: false, rustle: true },
+  spring: { speed: 1, grip: 11, jump: 1.32, regenDelay: 0.65, tracks: false, rustle: false },
+  summer: { speed: 1.1, grip: 11, jump: 1, regenDelay: 1, tracks: false, rustle: false },
+};
+
+/** The season's twist in one line (loadout screen, setup, the callout at the start). */
+export const SEASON_TWIST: Record<Season, string> = {
+  winter: "Icy ground: you slide when you change direction (crouch to dig in), and footprints in the snow give everyone away.",
+  autumn: "Crunchy leaves: sprinting enemies show up on your minimap, and so do you.",
+  spring: "Spring step: higher jumps to reach new perches, and you heal sooner.",
+  summer: "Heat wave: everyone runs 10% faster.",
+};

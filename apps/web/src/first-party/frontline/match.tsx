@@ -77,7 +77,7 @@ function debugAim(game: Game, seat?: number): { seat: number; dist: number } | n
   return { seat: best.seat, dist: best.dist };
 }
 
-function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, settings: Settings, link: PacketLink): Game {
+function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, settings: Settings, link: PacketLink, season: Season): Game {
   const humans = players.filter((p) => !p.isBot);
   const simAll = spectator && humans.length === 0;
   return new Game({
@@ -100,6 +100,7 @@ function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo
       update: (fn) => xapps.state.update((raw) => fn(raw) as unknown as Json | undefined, { retries: 12 }),
     },
     initialState: xapps.state.current,
+    season,
     docOverrides: { ...docOverrides(parseOptions(xapps.match.settings)), ...debugOverrides() },
   });
 }
@@ -141,7 +142,7 @@ export function MatchView({ settings, onSettings, season }: { settings: Settings
   const { players, me, isSpectator } = usePlayers();
   const reduce = useReducedMotion() ?? false;
   const [link] = useState(() => new PacketLink());
-  const [game] = useState(() => createGame(xapps, players, me, isSpectator, settings, link));
+  const [game] = useState(() => createGame(xapps, players, me, isSpectator, settings, link, season));
   const [touch] = useState(() => isTouchDevice());
   const [engine, setEngine] = useState<Engine | null>(null);
   const [failed, setFailed] = useState(false);

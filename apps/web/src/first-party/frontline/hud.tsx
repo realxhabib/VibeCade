@@ -11,7 +11,7 @@
  */
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeftRight, Bomb, Package, RotateCw, Camera, ChevronRight, Crosshair, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeftRight, Bomb, Package, RotateCw, Camera, ChevronRight, Crosshair, Crown, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { isSoundEnabled, onSoundChange, setSoundEnabled } from "@/lib/sfx";
@@ -27,7 +27,7 @@ import { LookSpeed } from "./look-speed";
 import type { PeerLink } from "./net";
 import type { Tier } from "./quality";
 import { RADAR_STREAK, formatClock } from "./rules";
-import { isNoLimit } from "./options";
+import { SEASON_ICON, SEASON_LABEL, SEASON_TWIST, isNoLimit } from "./options";
 import type { Settings } from "./settings";
 import { PRIMARIES, WEAPONS, weaponAt, type WeaponId } from "./weapons";
 
@@ -131,7 +131,7 @@ export function Hud({
         if (c.kind === "spawn") return;
         const id = nextId.current++;
         setCallouts((list) => [...list.slice(-2), { id, c }]);
-        setTimeout(() => setCallouts((list) => list.filter((x) => x.id !== id)), c.kind === "radar" ? 3200 : 1800);
+        setTimeout(() => setCallouts((list) => list.filter((x) => x.id !== id)), c.kind === "season" ? 6000 : c.kind === "radar" || c.kind === "crown" ? 3200 : 1800);
       }),
     [engine],
   );
@@ -346,6 +346,21 @@ function CalloutText({ c }: { c: Callout }) {
       </span>
     );
   if (c.kind === "first_blood") return <span className="text-[#ff6a5a]">First blood</span>;
+  if (c.kind === "crown")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[#ffc83d]">
+        <Crown className="size-4" /> {c.me ? "You're the kill leader. Everyone can see your crown" : `${c.name} is the kill leader`}
+      </span>
+    );
+  if (c.kind === "season")
+    return (
+      <span className="flex max-w-[min(26rem,86vw)] flex-col items-center gap-0.5 text-center">
+        <span>
+          {SEASON_ICON[c.season]} {SEASON_LABEL[c.season]}
+        </span>
+        <span className="text-[11px] font-semibold normal-case tracking-normal text-ink-200">{SEASON_TWIST[c.season]}</span>
+      </span>
+    );
   return null;
 }
 

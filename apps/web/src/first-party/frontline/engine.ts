@@ -33,7 +33,7 @@ import {
 } from "three";
 import type { AssetPack } from "./assets";
 import { FrontAudio } from "./audio";
-import { AvatarKit, SEAT_COLORS, SoldierRig, TEAM_COLORS } from "./avatars";
+import { AvatarKit, SoldierRig } from "./avatars";
 import { PostFx } from "./post";
 import { SkinnedSoldier, SoldierKit } from "./soldier";
 import { RUN_SPEED, idleIntent, type FeedEntry, type Game, type GameFx, type Impact, type Intent, type Soldier } from "./game";
@@ -51,6 +51,7 @@ import { BASE_FOV, spreadDeg, type WeaponDef } from "./weapons";
 import { buildWorld, type WorldView } from "./world";
 import type { Season } from "./options";
 import { SeasonFx, applySeasonLight, seasonalMap } from "./season";
+import { Markers, seatColor } from "./markers";
 
 const DEG = Math.PI / 180;
 
@@ -71,6 +72,8 @@ export type Callout =
   | { kind: "radar" }
   | { kind: "ammo"; rounds: number; nades: number }
   | { kind: "first_blood" }
+  | { kind: "crown"; name: string; me: boolean }
+  | { kind: "season"; season: Season }
   | { kind: "spawn" };
 
 export interface EngineOptions {
@@ -125,6 +128,7 @@ export class Engine {
   private readonly ammoFx: AmmoFx;
   private readonly vfx: Vfx;
   private readonly seasonFx: SeasonFx;
+  private readonly markers: Markers;
   private readonly textures: Texture[];
   private readonly governor: FrameGovernor;
   private readonly opts: EngineOptions;
@@ -162,6 +166,7 @@ export class Engine {
   private free = { x: 0, y: 14, z: 30, yaw: 0, pitch: -0.45 };
   private callouts = new Set<(c: Callout) => void>();
   private startedAt = 0;
+  private seasonTold = false;
 
   constructor(o: EngineOptions) {
     this.opts = o;
@@ -227,6 +232,12 @@ export class Engine {
     this.kit = new AvatarKit(blob, flash);
     this.skinKit = pbr && o.pack.soldier ? new SoldierKit(o.pack.soldier, o.pack.fabric, flash) : null;
     for (const s of this.game.soldiers) this.addRig(s, t.shadows);
+    this.markers = new Markers(this.scene, this.game, o.reduceMotion);
+    this.markers.onCrown = (seat) => {
+      const holder = seat === null ? null : this.game.soldiers.find((x) => x.seat === seat);
+      const meSeat = this.game.me?.seat ?? null;
+      if (holder) this.call({ kind: "crown", name: holder.name, me: holder.seat === meSeat });
+    };
     this.vm = new ViewModel(flash, pbr);
     if (pbr && this.envTarget) this.vm.scene.environment = this.envTarget.texture;
     if (t.post) this.post = new PostFx(this.renderer, this.scene, this.camera, { scene: this.vm.scene, camera: this.vm.camera, visible: () => this.vmVisible });
@@ -262,13 +273,9 @@ export class Engine {
     this.scene.add(rig.rig.group);
   }
 
+  /** Everyone wears their own color (teams still differ by camo, and teammates get a white-ringed marker). */
   private colorOf(s: Soldier): string {
-    const g = this.game;
-    if (g.teams) {
-      const mine = g.me?.team ?? 0;
-      return s.team === mine ? TEAM_COLORS[0]! : TEAM_COLORS[1]!;
-    }
-    return SEAT_COLORS[s.seat % SEAT_COLORS.length]!;
+    return seatColor(s.seat);
   }
 
   /**
@@ -475,6 +482,7 @@ export class Engine {
     this.updateNades(now);
     this.world.update(now / 1000);
     this.seasonFx.update(frozen ? 0 : dt, now / 1000, this.camera.position);
+    this.markers.update(now, this.camera, this.spectating() ? (this.freeCam ? null : this.watch) : (g.me?.id ?? null));
     this.updateViewModel(now, dt);
     if (me && me.alive) this.audio.setListener(me.body.x, me.body.z, me.yaw);
     else this.audio.setListener(this.camera.position.x, this.camera.position.z, this.cameraYaw());
@@ -807,6 +815,11 @@ export class Engine {
         this.deathCam = null;
         this.arrows.length = 0;
         this.call({ kind: "spawn" });
+        // The season's twist, once, on your first spawn.
+        if (!this.seasonTold) {
+          this.seasonTold = true;
+          this.call({ kind: "season", season: this.game.season });
+        }
       }
     },
     landed: (s: Soldier, speed: number) => {
@@ -817,6 +830,10 @@ export class Engine {
       if (speed > 6) this.vfx.dust(s.body.x, s.body.y, s.body.z, 4);
     },
     step: (s: Soldier) => {
+      if (this.game.rules.tracks) {
+        const p = this.game.posOf(s);
+        if (p.y < 0.3) this.seasonFx.footprint(s.id, p.x, p.z, s.yaw);
+      }
       if (!s.isMe && Math.hypot(s.body.x - this.camera.position.x, s.body.z - this.camera.position.z) > 32) return;
       this.audio.footstep(s.body.x, s.body.z, s.isMe && !this.spectating(), s.loadout.perk === "light_step" || s.crouch > 0.5);
     },
@@ -985,13 +1002,21 @@ export class Engine {
       if (!o.alive || o === me) continue;
       const friend = !!me && !g.isEnemy(me, o);
       const loud = now - o.lastShotFx < 1400 && o.loadout.perk !== "light_step";
-      if (me && !friend && !radar && !loud) continue;
+      // Autumn: sprinting through the leaves crunches loud enough to show up.
+      const rustle = g.rules.rustle && o.sprinting && o.loadout.perk !== "light_step";
+      if (me && !friend && !radar && !loud && !rustle) continue;
       const x = (o.body.x - center.x) * ppm;
       const z = (o.body.z - center.z) * ppm;
       ctx.fillStyle = !me ? "#ffd166" : friend ? "#58b7ff" : "#ff4d3d";
       ctx.beginPath();
       ctx.arc(x, z, friend ? 3.2 : 3.6, 0, Math.PI * 2);
       ctx.fill();
+      if (!friend && rustle && !loud && !radar) {
+        ctx.strokeStyle = "rgba(255,160,60,0.8)";
+        ctx.beginPath();
+        ctx.arc(x, z, 6 + Math.sin(now / 90) * 1.2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       if (!friend && loud && !radar) {
         ctx.strokeStyle = `rgba(255,77,61,${(1 - (now - o.lastShotFx) / 1400).toFixed(2)})`;
         ctx.beginPath();
@@ -1054,6 +1079,7 @@ export class Engine {
     this.vm.dispose();
     this.world.dispose();
     this.seasonFx.dispose();
+    this.markers.dispose();
     this.kit.dispose();
     this.rigs.forEach((r) => r.rig.dispose());
     this.skinKit?.dispose();

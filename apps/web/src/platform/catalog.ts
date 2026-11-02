@@ -691,6 +691,8 @@ export const OFFICIAL_APPS: AppManifest[] = [
       "Desktop: click to lock the mouse. WASD moves, Shift sprints, C or Ctrl crouches, Space jumps, right mouse aims, R reloads, 1/2 or the wheel swaps, hold G to aim a frag grenade and release to throw it. Esc opens settings.",
       "Phone: the left stick moves (push to the edge to sprint), drag on the right to look, and use the fire, aim, reload, jump, crouch and grenade buttons (hold the grenade to see its arc, let go to throw).",
       "Headshots hurt more, bullets lose power with distance, and you heal when you stay out of fire. Three kills without dying calls in a radar sweep.",
+      "Every player wears their own color; teammates' markers show through walls. The kill leader wears a gold crown everyone can see.",
+      "Seasons change the fight: icy ground and tell-tale footprints in winter, crunchy leaves that show sprinters on the minimap in autumn, higher jumps and faster healing in spring, and a faster pace in summer.",
       "First to 20 kills wins (team play: the team total), or the most kills when the 7-minute clock runs out. The host can change the time limit, the kill limit and the season when setting up a challenge. Your score is your kills.",
     ],
     official: true,

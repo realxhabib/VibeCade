@@ -16,6 +16,7 @@ import { BotBrain, botLevel, botSkill, botWeapon, type BotEnemy } from "./bots";
 import { GRENADE_WEAPON, NADES_PER_LIFE, NADE_FUSE_MS, aimNade, blastOn, simulateNade, throwStart, validateBlast, type NadeFlight } from "./grenade";
 import type { MapDef } from "./map";
 import { buildNav, type NavGraph } from "./nav";
+import { SEASON_RULES, type Season, type SeasonRules } from "./options";
 import {
   EV_BLAST,
   EV_HIT,
@@ -331,6 +332,8 @@ export interface GameOptions {
   initialState: unknown;
   /** Test overrides for the doc (dev only). */
   docOverrides?: { dur?: number; lim?: number };
+  /** The season's gameplay twist (options.ts); summer when left out. */
+  season?: Season;
 }
 
 export type Phase = "live" | "over";
@@ -360,6 +363,8 @@ export class Game {
   readonly spectator: boolean;
   readonly simAll: boolean;
   readonly teams: number;
+  readonly season: Season;
+  readonly rules: SeasonRules;
   readonly practice: boolean;
   fx: GameFx | null = null;
   phase: Phase = "live";
@@ -406,6 +411,8 @@ export class Game {
     this.spectator = o.spectator;
     this.simAll = o.simAll;
     this.teams = o.teams >= 2 ? o.teams : 0;
+    this.season = o.season ?? "summer";
+    this.rules = SEASON_RULES[this.season];
     this.practice = o.practice;
     this.transport = o.transport;
     this.rand = o.seedRandom(`client:${o.meId ?? "spectator"}`);
@@ -758,7 +765,7 @@ export class Game {
   }
 
   private regen(s: Soldier, now: number, dt: number): void {
-    if (s.hp < MAX_HP && now - s.lastHurtAt > REGEN_DELAY_MS) s.hp = Math.min(MAX_HP, s.hp + REGEN_PER_S * dt);
+    if (s.hp < MAX_HP && now - s.lastHurtAt > REGEN_DELAY_MS * this.rules.regenDelay) s.hp = Math.min(MAX_HP, s.hp + REGEN_PER_S * dt);
   }
 
   /* ---------------------------------------------------------------------- */
@@ -802,7 +809,7 @@ export class Game {
     }
 
     // Speed.
-    let speed = RUN_SPEED * w.mobility * (perk === "light_step" ? 1.07 : 1);
+    let speed = RUN_SPEED * w.mobility * (perk === "light_step" ? 1.07 : 1) * this.rules.speed;
     if (s.sprinting) speed *= 1.42;
     else speed *= 1 - 0.5 * s.crouch;
     speed *= 1 - 0.38 * s.ads;
@@ -818,13 +825,14 @@ export class Game {
     // forward = (−sin, −cos), right = (cos, −sin)
     const wx = (-sin * fz + cos * fx) * speed;
     const wz = (-cos * fz - sin * fx) * speed;
-    const accel = b.grounded ? 11 : 2.2;
+    // Winter ice: less grip unless you crouch and dig in.
+    const accel = b.grounded ? (s.crouch > 0.5 ? 11 : this.rules.grip) : 2.2;
     const k = Math.min(1, dt * accel);
     b.vx += (wx - b.vx) * k;
     b.vz += (wz - b.vz) * k;
     // No jumping from a crouch.
     if (it.jump && b.grounded && s.crouch < 0.5) {
-      b.vy = JUMP_V;
+      b.vy = JUMP_V * this.rules.jump;
       b.grounded = false;
     }
     // Sub-steps keep collisions solid on slow frames.

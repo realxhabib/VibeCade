@@ -20,7 +20,7 @@ import { LoadoutPicker } from "./loadout";
 import { MAPS, DEFAULT_MAP } from "./map";
 import { MatchView } from "./match";
 import { newDoc } from "./rules";
-import { DEFAULT_OPTIONS, SEASON_ICON, SEASON_LABEL, docOverrides, limitLabel, minutesOf, parseOptions, resolveSeason, type MatchOptions, type SeasonChoice } from "./options";
+import { DEFAULT_OPTIONS, SEASON_ICON, SEASON_LABEL, SEASON_TWIST, docOverrides, limitLabel, minutesOf, parseOptions, resolveSeason, type MatchOptions, type SeasonChoice } from "./options";
 import { loadAssets } from "./assets";
 import { TIERS, tierFor } from "./quality";
 import { loadLocal, loadRemote, saveSettings, type Settings } from "./settings";
@@ -166,6 +166,7 @@ export function FrontlineApp() {
                     <span aria-hidden>{SEASON_ICON[season]}</span> {SEASON_LABEL[season]}
                   </span>
                 </p>
+                {!small && <p className="max-w-md text-xs text-ink-400">{SEASON_TWIST[season]}</p>}
               </header>
 
               <Roster teams={teams} />

@@ -46,11 +46,11 @@ describe("match options", () => {
   });
 
   it("follows the calendar when the host leaves the season on auto", () => {
-    expect(seasonOf(new Date(2026, 11, 20))).toBe("winter");
-    expect(seasonOf(new Date(2026, 1, 1))).toBe("winter");
-    expect(seasonOf(new Date(2026, 3, 1))).toBe("spring");
-    expect(seasonOf(new Date(2026, 6, 1))).toBe("summer");
-    expect(seasonOf(new Date(2026, 10, 2))).toBe("autumn");
-    expect(resolveSeason("spring", new Date(2026, 10, 2))).toBe("spring");
+    expect(seasonOf(new Date(Date.UTC(2026, 11, 20)))).toBe("winter");
+    expect(seasonOf(new Date(Date.UTC(2026, 1, 1)))).toBe("winter");
+    expect(seasonOf(new Date(Date.UTC(2026, 3, 1)))).toBe("spring");
+    expect(seasonOf(new Date(Date.UTC(2026, 6, 1)))).toBe("summer");
+    expect(seasonOf(new Date(Date.UTC(2026, 10, 2)))).toBe("autumn");
+    expect(resolveSeason("spring", new Date(Date.UTC(2026, 10, 2)))).toBe("spring");
   });
 });

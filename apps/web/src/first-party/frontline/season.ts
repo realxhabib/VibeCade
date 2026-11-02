@@ -32,6 +32,7 @@ import {
   InstancedMesh,
   LinearMipmapLinearFilter,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   MeshStandardMaterial,
   Object3D,
@@ -274,6 +275,23 @@ function leafTexture(): Texture {
   return canvasTexture(c);
 }
 
+/** One boot print (dark, soft edged), toe up. */
+function bootTexture(): Texture {
+  const c = document.createElement("canvas");
+  c.width = 32;
+  c.height = 64;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "rgba(70,82,96,0.75)";
+  ctx.filter = "blur(1px)";
+  ctx.beginPath();
+  ctx.ellipse(16, 20, 10, 16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(16, 49, 8, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  return canvasTexture(c);
+}
+
 /** A blossom petal: rounded with a notch at the tip and a blush at the base. */
 function petalTexture(): Texture {
   const c = document.createElement("canvas");
@@ -382,12 +400,14 @@ const FALL: Record<Season, { kind: FallKind; max: number; speed: [number, number
 };
 
 const LEAF_COLORS = [0xd8641e, 0xc0391b, 0xe9a12a, 0x8f4a1c, 0xb8761f, 0x9b2f17, 0xd9b33a];
-const PETAL_COLORS = [0xffffff, 0xffe8ef, 0xffd3e1, 0xf9c2d4];
+const PETAL_COLORS = [0xffd6e4, 0xffb3cc, 0xff9cbe, 0xfff0f5];
 
 /** Half-width of the box of falling things around the camera, and its height. */
 const R = 17;
 const TOP = 17;
 const WIND = { x: 0.55, z: 0.3 };
+/** Boot prints kept in the snow (about 15 seconds of a full table running around). */
+const PRINTS = 480;
 
 export class SeasonFx {
   readonly group = new Group();
@@ -408,6 +428,10 @@ export class SeasonFx {
   private points: Points | null = null;
   private quads: InstancedMesh | null = null;
   private litter: InstancedMesh | null = null;
+  /** Winter: a ring of boot prints (the oldest are reused). */
+  private prints: InstancedMesh | null = null;
+  private printNext = 0;
+  private readonly printSide = new Map<string, number>();
   private readonly dummy = new Object3D();
   private seed = 1;
 
@@ -443,7 +467,15 @@ export class SeasonFx {
       this.p[i * 3 + 2] = cz + (this.rand() * 2 - 1) * R;
     }
 
-    if (season === "winter") this.buildSnowCover(map);
+    if (season === "winter") {
+      this.buildSnowCover(map);
+      const mat = this.mat(new MeshBasicMaterial({ map: this.tex(bootTexture()), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+      this.prints = new InstancedMesh(this.geo(new PlaneGeometry(0.13, 0.28).rotateX(-Math.PI / 2)), mat, PRINTS);
+      this.prints.count = 0;
+      this.prints.frustumCulled = false;
+      this.prints.renderOrder = 2;
+      this.group.add(this.prints);
+    }
     if (season === "autumn") this.buildLitter(map, "leaves");
     if (season === "spring") this.buildLitter(map, "petals");
 
@@ -588,6 +620,25 @@ export class SeasonFx {
     });
   }
 
+  /** Winter: a boot print where `id` just stepped (alternating feet, facing `yaw`). */
+  footprint(id: string, x: number, z: number, yaw: number): void {
+    const prints = this.prints;
+    if (!prints || this.shelter.isRoofed(x, z) || this.shelter.blocked(x, z, 0)) return;
+    const side = (this.printSide.get(id) ?? 0) ^ 1;
+    this.printSide.set(id, side);
+    const off = side ? 0.12 : -0.12;
+    const d = this.dummy;
+    // right = (cos, −sin) for this yaw convention.
+    d.position.set(x + Math.cos(yaw) * off, 0.03, z - Math.sin(yaw) * off);
+    d.rotation.set(0, yaw, 0);
+    d.scale.setScalar(1);
+    d.updateMatrix();
+    prints.setMatrixAt(this.printNext, d.matrix);
+    this.printNext = (this.printNext + 1) % PRINTS;
+    prints.count = Math.max(prints.count, this.printNext === 0 ? PRINTS : this.printNext);
+    prints.instanceMatrix.needsUpdate = true;
+  }
+
   /** Moves the falling things (`dt` seconds; 0 while paused) around the camera. */
   update(dt: number, t: number, cam: Vector3): void {
     if (this.count === 0) return;
@@ -638,6 +689,7 @@ export class SeasonFx {
 
   dispose(): void {
     this.quads?.dispose();
+    this.prints?.dispose();
     this.litter?.dispose();
     this.owned.geometries.forEach((g) => g.dispose());
     this.owned.materials.forEach((m) => m.dispose());
