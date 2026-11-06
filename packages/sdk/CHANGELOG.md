@@ -4,6 +4,16 @@ All notable changes to `vibecade-sdk`. The wire protocol is still version 1:
 every release is additive, and apps built against an older SDK keep working on
 newer hosts (and the other way round, minus the new features).
 
+## 0.9.1
+
+- The mock host's URL switches are `?vibecade-players`, `?vibecade-teams`,
+  `?vibecade-turns`, `?vibecade-role`, `?vibecade-purpose`, `?vibecade-settings`,
+  `?vibecade-stats` and `?vibecade-achievements`; the `?xapps-*` spellings still
+  work (the new one wins when both are set). Its console lines read
+  `[vibecade mock]` / `[vibecade log]`, and its bots are `@vibecade_bot`.
+- Released with `vibecade-mcp`, an MCP server for building VibeCade games with
+  an agent, and `create-vibecade` 0.9.1, whose starters include an `AGENTS.md`.
+
 ## 0.9.0
 
 - **Renamed to `vibecade-sdk`** (was `@xapps/sdk`), with the platform's

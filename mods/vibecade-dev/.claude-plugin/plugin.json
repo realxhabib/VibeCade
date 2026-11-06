@@ -1,0 +1,11 @@
+{
+  "name": "vibecade-dev",
+  "version": "0.1.0",
+  "description": "Build VibeCade games with Claude: a skill with the workflow and rules for vibecade-sdk, and the vibecade MCP server (docs search, scaffolding, manifest checks, stats and achievements, app review)",
+  "author": {
+    "name": "VibeCade",
+    "url": "https://github.com/realxhabib/VibeCade"
+  },
+  "homepage": "https://github.com/realxhabib/VibeCade/tree/HEAD/mods/vibecade-dev",
+  "keywords": ["vibecade", "game", "sdk", "mcp", "multiplayer"]
+}

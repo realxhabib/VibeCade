@@ -224,7 +224,7 @@ describe("mock host ui.resize", () => {
       const client = await connect({ transport: mock.transport, timeoutMs: 1000, captureErrors: false });
       vi.spyOn(console, "info").mockImplementation(() => {});
       await expect(client.ui.resize(333)).resolves.toBeNull();
-      expect(debug).toHaveBeenCalledWith(expect.stringContaining("[xapps mock]"), expect.any(String), "resize", 333);
+      expect(debug).toHaveBeenCalledWith(expect.stringContaining("[vibecade mock]"), expect.any(String), "resize", 333);
       resetConnection();
       debug.mockClear();
       const quiet = createMockHost({ readUrl: false, quiet: true });

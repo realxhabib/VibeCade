@@ -17,6 +17,13 @@ The steps, in short:
 8. [Share it on X](#8-share-it-on-x) as a playable post
 9. [Ship updates](#9-ship-updates)
 
+**Building with an AI agent?** Give it the VibeCade MCP server (`claude mcp add vibecade -- npx -y vibecade-mcp`,
+or `npx -y vibecade-mcp` in any MCP client) or, in Claude Code, the `vibecade-dev` plugin
+(`/plugin marketplace add realxhabib/VibeCade`, then `/plugin install vibecade-dev@vibecade`). It can
+scaffold the project, search these docs, write and validate your manifest, declare stats and
+achievements, and check the project for the mistakes in [When something's wrong](#when-somethings-wrong).
+Every starter also has an `AGENTS.md` with the rules.
+
 **What you need:** [Node.js](https://nodejs.org) 22 or 24 (the LTS download), an X account to sign
 in to VibeCade with, and somewhere to host a static site over HTTPS (Vercel, Netlify, Cloudflare
 Pages and GitHub Pages all work and have free plans).
@@ -49,17 +56,17 @@ npm run dev
 
 Open the address it prints. Outside VibeCade, the SDK starts a **mock host**: you're signed in as
 a test player against a practice bot, and the game plays exactly as it would on VibeCade. The
-browser console shows what the host sees (`[xapps mock]` lines) and your logs.
+browser console shows what the host sees (`[vibecade mock]` lines) and your logs.
 
 Add these to the address to try other tables:
 
 | Add | To get |
 | --- | --- |
-| `?xapps-players=4` | You and 3 bots |
-| `?xapps-teams=2` | Team play |
-| `?xapps-turns=1` | Turn-based, seat 0 first |
-| `?xapps-role=spectator` | Watching a table of bots |
-| `?xapps-purpose=setup` | Your challenge setup screen, if you have one |
+| `?vibecade-players=4` | You and 3 bots |
+| `?vibecade-teams=2` | Team play |
+| `?vibecade-turns=1` | Turn-based, seat 0 first |
+| `?vibecade-role=spectator` | Watching a table of bots |
+| `?vibecade-purpose=setup` | Your challenge setup screen, if you have one |
 
 More in [Testing multiplayer locally](../packages/sdk/README.md#testing-multiplayer-locally).
 

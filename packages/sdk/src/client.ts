@@ -59,7 +59,7 @@ import {
 export interface ConnectOptions {
   /** How long to wait for the host to answer. Default: 8 s. */
   timeoutMs?: number;
-  /** Only trust these host origins (recommended in production), e.g. `["https://xapps.gg"]`. */
+  /** Only trust these host origins (recommended in production), e.g. `["https://vibecade.si"]`. */
   hostOrigins?: string[];
   /**
    * What to do when the page is opened directly instead of inside VibeCade.
@@ -79,7 +79,7 @@ export interface ConnectOptions {
   /**
    * Inside VibeCade, stop your page from bouncing or pull-to-refreshing when
    * people drag (`overscroll-behavior: none`; scrolling still works). Default
-   * true. For drag surfaces also call `xapps.ui.lockGestures(element)`.
+   * true. For drag surfaces also call `vibecade.ui.lockGestures(element)`.
    */
   gestures?: boolean;
 }
@@ -275,10 +275,10 @@ const UPLOAD_TIMEOUT_MS = 120_000;
  * A connected app. Everything you need is on this object:
  *
  * ```ts
- * const xapps = await connect();
- * xapps.room.on("move", (move, from) => apply(move));
- * xapps.onStart(() => startClock());
- * await xapps.ready();
+ * const vibecade = await connect();
+ * vibecade.room.on("move", (move, from) => apply(move));
+ * vibecade.onStart(() => startClock());
+ * await vibecade.ready();
  * ```
  */
 export class VibeCadeClient {
@@ -491,8 +491,8 @@ export class VibeCadeClient {
    * compare-and-set, and every change reaches all players and spectators.
    *
    * ```ts
-   * await xapps.state.update((s) => ({ ...s, board: play(s?.board, move) }));
-   * xapps.state.onChange((s) => render(s));
+   * await vibecade.state.update((s) => ({ ...s, board: play(s?.board, move) }));
+   * vibecade.state.onChange((s) => render(s));
    * ```
    */
   readonly state: StateApi = this.createStateApi();
@@ -552,7 +552,7 @@ export class VibeCadeClient {
      * peer when a direct path can't be made. One per page; `close()` it when done.
      *
      * ```ts
-     * const net = xapps.room.direct({ relayHz: 8 });
+     * const net = vibecade.room.direct({ relayHz: 8 });
      * net.onMessage((data, from) => apply(data, from));
      * net.send(myState);                      // fast: unordered, may drop
      * net.send(hit, { reliable: true });      // ordered, retransmitted
@@ -626,7 +626,7 @@ export class VibeCadeClient {
   /** Achievements from your manifest. */
   readonly achievements: AchievementsApi = this.createAchievementsApi();
 
-  /** Your app's log (`xapps.log.info("round over", { round })`). Never throws. */
+  /** Your app's log (`vibecade.log.info("round over", { round })`). Never throws. */
   readonly log: LogApi = this.createLogApi();
 
   /* ---------------------------------------------------------------- */
@@ -994,7 +994,7 @@ export class VibeCadeClient {
       try {
         handler(this.unlockedAchievements);
       } catch (error) {
-        console.error("[xapps] achievements.onChange handler threw", error);
+        console.error("[vibecade] achievements.onChange handler threw", error);
       }
     }
   }
@@ -1141,7 +1141,7 @@ export class VibeCadeClient {
       try {
         (handler as Handler<unknown>)(data);
       } catch (error) {
-        console.error(`[xapps] ${event} handler threw`, error);
+        console.error(`[vibecade] ${event} handler threw`, error);
       }
     }
   }

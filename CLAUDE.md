@@ -1,7 +1,8 @@
 # VibeCade (formerly XApps) — notes for coding agents
 
 Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind v4, `motion/react`),
-`packages/sdk` (`vibecade-sdk`), `supabase/` (migrations + SQL tests), `examples/rps`.
+`packages/sdk` (`vibecade-sdk`), `packages/create-vibecade`, `packages/mcp` (`vibecade-mcp`), `supabase/` (migrations + SQL tests),
+`examples/rps`, `mods/` (Claude Code plugins).
 
 - Next.js 16 differs from older versions: read `apps/web/AGENTS.md` and the bundled docs in
   `node_modules/next/dist/docs/` (e.g. `proxy.ts` replaced middleware; `params` are Promises).
@@ -24,6 +25,9 @@ Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind
   Claude Arcade server (`NEXT_PUBLIC_LIVE_SERVER_URL`, `platform/supabase/live-room.ts`; the server side is
   `server/rooms.mjs` in realxhabib/ClaudeArcade) instead of Supabase Realtime. The room also holds the match state
   in memory (seeded from the hosts' copies, `rebase_match_state` when falling back; docs/platform-v2.md); results stay in Supabase.
+- Agent tooling: `packages/mcp` bundles `apps/web/src/platform` validators + app scanner (esbuild, `@/` paths) and serves
+  docs copied at build from the SDK README, `docs/build-a-game.md`, the create-vibecade README and the skill in
+  `mods/vibecade-dev/skills/vibecade-game/`. When the SDK API or manifest rules change, update that skill and its references too.
 - Lint uses the React Compiler rules: no setState in effect bodies, no ref access during render.
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e` (demo mode),

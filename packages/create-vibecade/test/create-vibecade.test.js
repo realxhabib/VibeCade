@@ -99,9 +99,10 @@ describe("scaffold", () => {
       expect(read(target, "README.md")).toContain("/developers/apps/tap-race");
       expect(read(target, "README.md")).toMatch(/developers\/new[\s\S]*Sandbox[\s\S]*Versions[\s\S]*Review/);
       expect(read(target, "index.html")).toContain("<title>Tap Race</title>");
+      expect(read(target, "AGENTS.md")).toMatch(/^# Tap Race: notes for coding agents/);
 
       if (template === "vanilla") {
-        expect(files).toEqual(["README.md", "index.html", "vibecade.manifest.json"]);
+        expect(files).toEqual(["AGENTS.md", "README.md", "index.html", "vibecade.manifest.json"]);
         const html = read(target, "index.html");
         expect(html).toContain('from "https://vibecade.si/sdk/v1.js"');
         expect(html).toMatch(/submitFor/);
@@ -203,7 +204,7 @@ describe("cli", () => {
     expect(out.text()).toMatch(/Project name[\s\S]*Template[\s\S]*Display name/);
     const manifest = JSON.parse(read(tmp, "quiz-night", "vibecade.manifest.json"));
     expect(manifest.name).toBe("Quiz Night!");
-    expect(listAll(join(tmp, "quiz-night"))).toEqual(["README.md", "index.html", "vibecade.manifest.json"]);
+    expect(listAll(join(tmp, "quiz-night"))).toEqual(["AGENTS.md", "README.md", "index.html", "vibecade.manifest.json"]);
   });
 
   it("fails without a name when not interactive, and on a non-empty folder", async () => {

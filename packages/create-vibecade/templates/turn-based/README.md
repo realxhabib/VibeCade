@@ -11,8 +11,8 @@ npm run dev        # http://localhost:5173
 ```
 
 Opened directly, the SDK starts a **mock host** with turns on: you play X against a practice bot
-that this app plays itself. The browser console shows what the host sees (`[xapps mock]`) and your
-logs (`[xapps log]`). Add `?xapps-role=spectator` to see the read-only spectator view.
+that this app plays itself. The browser console shows what the host sees (`[vibecade mock]`) and your
+logs (`[vibecade log]`). Add `?vibecade-role=spectator` to see the read-only spectator view.
 
 How it works:
 
