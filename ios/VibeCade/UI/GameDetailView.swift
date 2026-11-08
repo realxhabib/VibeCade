@@ -7,6 +7,49 @@ struct GameDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        FoldAware { layout in
+            if layout.folded {
+                FoldSplit(layout: layout) { foldedTop } second: {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 22) { howTo; achievements; about }
+                            .padding(16)
+                    }
+                    .contentMargins(.bottom, 20, for: .scrollContent)
+                }
+            } else {
+                unfolded
+            }
+        }
+        .background(Brand.void)
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    /// Half folded: the game and the way in on the top half, the reading below.
+    private var foldedTop: some View {
+        ZStack(alignment: .bottomLeading) {
+            GameArt(game: game, emojiSize: 80)
+            LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    GameBadge(game: game, size: 48)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(game.name).font(.title2.weight(.heavy))
+                        Text(game.tagline).font(.subheadline).foregroundStyle(.white.opacity(0.85)).lineLimit(2)
+                    }
+                }
+                FlowChips(chips: chips, tint: game.colors.first ?? Brand.cyan)
+                playBar(wide: true).padding(.horizontal, -16).padding(.bottom, -10)
+            }
+            .padding(16)
+        }
+        .foregroundStyle(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(alignment: .topLeading) { BackButton { dismiss() }.padding(10) }
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+    }
+
+    private var unfolded: some View {
         GeometryReader { geo in
             let wide = geo.size.width >= 600
             ScrollView {
@@ -32,8 +75,6 @@ struct GameDetailView: View {
                 BackButton { dismiss() }.padding(.leading, 12).padding(.top, 6)
             }
         }
-        .background(Brand.void)
-        .toolbar(.hidden, for: .navigationBar)
     }
 
     private func hero(height: CGFloat) -> some View {

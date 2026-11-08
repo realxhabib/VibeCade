@@ -87,3 +87,48 @@ enum WindowInsets {
         return EdgeInsets(top: i.top, leading: i.left, bottom: i.bottom, trailing: i.right)
     }
 }
+
+/// Two views either side of the Duo's crease: `first` on the top (or left) half,
+/// `second` on the bottom (or right) half, each padded clear of the screen's edges.
+struct FoldSplit<First: View, Second: View>: View {
+    let layout: ScreenLayout
+    @ViewBuilder var first: First
+    @ViewBuilder var second: Second
+
+    var body: some View {
+        GeometryReader { geo in
+            let insets = geo.safeAreaInsets
+            let full = CGSize(width: geo.size.width + insets.leading + insets.trailing,
+                              height: geo.size.height + insets.top + insets.bottom)
+            let halves = ScreenLayout.halves(of: full, layout: layout)
+            let sideways = layout == .foldedSideBySide
+            ZStack(alignment: .topLeading) {
+                Brand.void
+                first
+                    .padding(EdgeInsets(top: insets.top, leading: insets.leading, bottom: sideways ? insets.bottom : 0, trailing: 0))
+                    .frame(width: halves.game.width, height: halves.game.height)
+                    .offset(x: halves.game.minX, y: halves.game.minY)
+                second
+                    .padding(EdgeInsets(top: sideways ? insets.top : 0, leading: sideways ? 0 : insets.leading, bottom: insets.bottom, trailing: insets.trailing))
+                    .frame(width: halves.controls.width, height: halves.controls.height)
+                    .offset(x: halves.controls.minX, y: halves.controls.minY)
+            }
+            .ignoresSafeArea()
+        }
+    }
+}
+
+/// The current fold layout for a view's size, read from the hinge.
+struct FoldAware<Content: View>: View {
+    @State private var hinge = Hinge.shared
+    @ViewBuilder var content: (ScreenLayout) -> Content
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = CGSize(width: geo.size.width + geo.safeAreaInsets.leading + geo.safeAreaInsets.trailing,
+                              height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom)
+            content(ScreenLayout.of(size, halfOpen: hinge.halfOpen))
+        }
+        .background(HingeReader().allowsHitTesting(false))
+    }
+}

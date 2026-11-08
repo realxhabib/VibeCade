@@ -5,6 +5,8 @@ struct GamesView: View {
     private let catalog = Catalog.shared
     @State private var search = ""
     @State private var path: [Route] = []
+    /// The game on show on the top half when the Duo is half folded.
+    @State private var picked: Game? = Catalog.shared.featuredGames.first ?? Catalog.shared.games.first
 
     enum Route: Hashable {
         case game(Game)
@@ -14,8 +16,63 @@ struct GamesView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            GeometryReader { geo in
-                let wide = geo.size.width >= 600
+            FoldAware { layout in
+                if layout.folded {
+                    FoldSplit(layout: layout) {
+                        if let picked { FoldShowcase(game: picked, open: { path.append(.game(picked)) }, play: { path.append(.play(picked)) }) }
+                    } second: {
+                        foldedList(layout: layout)
+                    }
+                } else {
+                    shelf(wide: layout == .wide)
+                }
+            }
+            .background(Brand.void)
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .game(let game):
+                    GameDetailView(game: game) { path.append(.play(game)) }
+                case .play(let game):
+                    PushedSite(url: Site.game(game.slug))
+                case .site(let url):
+                    PushedSite(url: url)
+                }
+            }
+        }
+    }
+
+    /// Half folded: search and every game on the bottom half; a tap shows it up top.
+    private func foldedList(layout: ScreenLayout) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                searchField
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)], spacing: 12) {
+                    ForEach(catalog.search(search)) { game in
+                        Button {
+                            Haptics.tap()
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { picked = game }
+                        } label: {
+                            VStack(spacing: 6) {
+                                GameBadge(game: game, size: 56)
+                                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .strokeBorder(.white, lineWidth: picked == game ? 2.5 : 0))
+                                Text(game.name).font(.caption2.bold()).lineLimit(1).foregroundStyle(picked == game ? .white : Brand.dim)
+                            }
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityLabel(game.name)
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+        }
+        .scrollDismissesKeyboard(.immediately)
+        .contentMargins(.bottom, 70, for: .scrollContent)
+    }
+
+    private func shelf(wide: Bool) -> some View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
                         header
@@ -51,20 +108,6 @@ struct GamesView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .scrollDismissesKeyboard(.immediately)
-            }
-            .background(Brand.void)
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: Route.self) { route in
-                switch route {
-                case .game(let game):
-                    GameDetailView(game: game) { path.append(.play(game)) }
-                case .play(let game):
-                    PushedSite(url: Site.game(game.slug))
-                case .site(let url):
-                    PushedSite(url: url)
-                }
-            }
-        }
     }
 
     private var header: some View {
@@ -76,18 +119,22 @@ struct GamesView: View {
                 Spacer()
             }
             .padding(.top, 8)
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(Brand.dim)
-                TextField("Search games", text: $search)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                if !search.isEmpty {
-                    Button { search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Brand.dim) }
-                }
-            }
-            .padding(12)
-            .background(Brand.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            searchField
         }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Brand.dim)
+            TextField("Search games", text: $search)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            if !search.isEmpty {
+                Button { search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Brand.dim) }
+            }
+        }
+        .padding(12)
+        .background(Brand.panel, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func featured(wide: Bool) -> some View {
@@ -116,6 +163,45 @@ struct GamesView: View {
                 .contentMargins(.horizontal, 16, for: .scrollContent)
             }
         }
+    }
+}
+
+/// Half folded: the picked game fills the top half, with ways in.
+struct FoldShowcase: View {
+    let game: Game
+    let open: () -> Void
+    let play: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            GameArt(game: game, emojiSize: 80)
+            LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(game.name).font(.title.weight(.heavy))
+                Text(game.tagline).font(.subheadline).foregroundStyle(.white.opacity(0.85)).lineLimit(2)
+                HStack(spacing: 10) {
+                    Button(action: play) {
+                        Label("Play", systemImage: "play.fill").font(.headline).foregroundStyle(.black)
+                            .padding(.horizontal, 22).frame(height: 44).background(game.gradient, in: Capsule())
+                    }
+                    Button(action: open) {
+                        Label("Details", systemImage: "info.circle").font(.headline)
+                            .padding(.horizontal, 18).frame(height: 44).background(.ultraThinMaterial, in: Capsule())
+                    }
+                    Spacer(minLength: 0)
+                    Label(game.playersLabel, systemImage: "person.2.fill").font(.caption.bold())
+                        .foregroundStyle(game.colors.first ?? Brand.cyan)
+                }
+                .buttonStyle(PressStyle())
+            }
+            .padding(16)
+        }
+        .foregroundStyle(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+        .id(game.slug)
+        .transition(.opacity)
     }
 }
 
@@ -151,16 +237,18 @@ struct GameArt: View {
     var emojiSize: CGFloat = 54
 
     var body: some View {
-        ZStack {
-            game.gradient.opacity(0.85)
-            if let cover = game.cover {
-                Image(uiImage: cover).resizable().scaledToFill()
-            } else {
-                Text(game.icon).font(.system(size: emojiSize))
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 6)
+        // The art is an overlay so a wide cover never makes the view wider than its slot.
+        Rectangle()
+            .fill(game.gradient.opacity(0.85))
+            .overlay {
+                if let cover = game.cover {
+                    Image(uiImage: cover).resizable().scaledToFill()
+                } else {
+                    Text(game.icon).font(.system(size: emojiSize))
+                        .shadow(color: .black.opacity(0.35), radius: 12, y: 6)
+                }
             }
-        }
-        .clipped()
+            .clipped()
     }
 }
 

@@ -185,7 +185,7 @@ final class SitePage: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     nonisolated func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping @MainActor (WKPermissionDecision) -> Void) {
-        decisionHandler(.prompt)
+        MainActor.assumeIsolated { decisionHandler(.prompt) }
     }
 
     nonisolated func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor () -> Void) {

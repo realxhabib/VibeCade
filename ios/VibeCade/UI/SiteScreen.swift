@@ -18,11 +18,11 @@ struct SiteScreen: View {
             let full = CGSize(width: geo.size.width + insets.leading + insets.trailing,
                               height: geo.size.height + insets.top + insets.bottom)
             let layout = ScreenLayout.of(full, halfOpen: hinge.halfOpen)
-            let split = page.playing && layout.folded && !wholeScreen
+            let split = layout.folded && !(page.playing && wholeScreen)
             let halves = ScreenLayout.halves(of: full, layout: layout)
             // Browsing: inside the safe area. Playing: edge to edge (the site pads its
             // HUD by the web view's own safe area).
-            let web = split ? halves.game
+            let web = split ? (page.playing ? halves.game : halves.game.inset(by: UIEdgeInsets(top: insets.top, left: insets.leading, bottom: layout == .foldedSideBySide ? insets.bottom : 0, right: 0)))
                 : page.playing ? CGRect(origin: .zero, size: full)
                 : CGRect(x: insets.leading, y: insets.top, width: geo.size.width, height: geo.size.height)
 
@@ -32,7 +32,13 @@ struct SiteScreen: View {
                     .frame(width: web.width, height: web.height)
                     .offset(x: web.minX, y: web.minY)
                 if split {
-                    MatchControls(page: page, layout: layout, wholeScreen: $wholeScreen)
+                    Group {
+                        if page.playing {
+                            MatchControls(page: page, layout: layout, wholeScreen: $wholeScreen)
+                        } else {
+                            BrowseControls(page: page)
+                        }
+                    }
                         .padding(EdgeInsets(
                             top: layout == .foldedSideBySide ? max(insets.top, 10) : 10,
                             leading: layout == .foldedSideBySide ? 10 : max(insets.leading, 12),
@@ -75,6 +81,44 @@ struct SiteScreen: View {
         .statusBarHidden(page.playing)
         .persistentSystemOverlays(page.playing ? .hidden : .automatic)
         .onChange(of: page.playing) { _, now in if !now { wholeScreen = false } }
+    }
+}
+
+/// The folded half beside a site page: getting around, and a quick way into any game.
+struct BrowseControls: View {
+    let page: SitePage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                PanelButton(title: "Back", icon: "chevron.left", tint: .white) { page.back() }
+                PanelButton(title: "Top", icon: "house.fill", tint: Brand.cyan) { page.goHome() }
+                PanelButton(title: "Reload", icon: "arrow.clockwise", tint: Brand.dim) { page.reload() }
+            }
+            Text("Jump into a game").font(.subheadline.bold()).foregroundStyle(Brand.dim)
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 10)], spacing: 12) {
+                    ForEach(Catalog.shared.games) { game in
+                        Button {
+                            Haptics.tap()
+                            page.load(Site.game(game.slug))
+                        } label: {
+                            VStack(spacing: 5) {
+                                GameBadge(game: game, size: 48)
+                                Text(game.name).font(.caption2.bold()).lineLimit(1).foregroundStyle(Brand.dim)
+                            }
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityLabel("Open \(game.name)")
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Brand.panel, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Brand.line.opacity(0.6)))
     }
 }
 
