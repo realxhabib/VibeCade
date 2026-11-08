@@ -5,6 +5,7 @@ struct GameDetailView: View {
     let game: Game
     let play: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.tabBarRoom) private var barRoom
 
     var body: some View {
         FoldAware { layout in
@@ -67,7 +68,7 @@ struct GameDetailView: View {
                             .padding(16)
                     }
                 }
-                .padding(.bottom, 100)
+                .padding(.bottom, 100 + barRoom)
             }
             .ignoresSafeArea(edges: .top)
             .overlay(alignment: .bottom) { playBar(wide: wide) }
@@ -176,7 +177,7 @@ struct GameDetailView: View {
         }
         .buttonStyle(PressStyle())
         .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        .padding(.bottom, 10 + barRoom)
         .background(LinearGradient(colors: [.clear, Brand.void.opacity(0.95)], startPoint: .top, endPoint: .center).allowsHitTesting(false))
     }
 }

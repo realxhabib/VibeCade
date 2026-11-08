@@ -4,6 +4,7 @@ import SwiftUI
 struct GamesView: View {
     private let catalog = Catalog.shared
     @State private var search = ""
+    @Environment(\.tabBarRoom) private var barRoom
     @State private var path: [Route] = []
     /// The game on show on the top half when the Duo is half folded.
     @State private var picked: Game? = Catalog.shared.featuredGames.first ?? Catalog.shared.games.first
@@ -103,7 +104,7 @@ struct GamesView: View {
                         .buttonStyle(PressStyle())
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 24 + barRoom)
                     .frame(maxWidth: 1100)
                     .frame(maxWidth: .infinity)
                 }

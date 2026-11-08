@@ -10,6 +10,7 @@ struct SiteScreen: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hinge = Hinge.shared
     @State private var wholeScreen = false
+    @Environment(\.tabBarRoom) private var barRoom
 
     var body: some View {
         GeometryReader { geo in
@@ -24,7 +25,7 @@ struct SiteScreen: View {
             // HUD by the web view's own safe area).
             let web = split ? (page.playing ? halves.game : halves.game.inset(by: UIEdgeInsets(top: insets.top, left: insets.leading, bottom: layout == .foldedSideBySide ? insets.bottom : 0, right: 0)))
                 : page.playing ? CGRect(origin: .zero, size: full)
-                : CGRect(x: insets.leading, y: insets.top, width: geo.size.width, height: geo.size.height)
+                : CGRect(x: insets.leading, y: insets.top, width: geo.size.width, height: max(0, geo.size.height - barRoom))
 
             ZStack(alignment: .topLeading) {
                 Brand.void
@@ -56,10 +57,11 @@ struct SiteScreen: View {
                     Offline(message: failed) { page.reload() }
                         .frame(width: full.width, height: full.height)
                 }
-                if pushed, !page.playing {
+                if pushed, !page.playing, !split {
+                    // Bottom left, clear of the site's own header and logo.
                     BackButton { dismiss() }
                         .padding(.leading, max(insets.leading, 12))
-                        .offset(y: insets.top + 10)
+                        .offset(y: full.height - insets.bottom - barRoom - 38 - 14)
                 }
                 if page.playing, !split, layout.folded, wholeScreen {
                     // Whole screen while folded: a way back to the split.

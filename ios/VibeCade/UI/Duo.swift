@@ -178,3 +178,8 @@ struct FoldTabBar<Tab: Hashable>: View {
         .overlay(Capsule().strokeBorder(.white.opacity(0.08)))
     }
 }
+
+extension EnvironmentValues {
+    /// Room the app's tab bar takes at the foot of the screen (0 in a match or half folded).
+    @Entry var tabBarRoom: CGFloat = 0
+}

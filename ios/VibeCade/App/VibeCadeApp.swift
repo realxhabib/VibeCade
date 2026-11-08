@@ -50,9 +50,8 @@ struct RootView: View {
             page(.arena) { NavigationStack { SiteScreen(page: arena) } }
             page(.ranks) { NavigationStack { SiteScreen(page: ranks) } }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if barRoom { Color.clear.frame(height: FoldTabBarHeight.value + 6) }
-        }
+        // Screens keep their bottom controls clear of the tab bar by this much.
+        .environment(\.tabBarRoom, barRoom ? FoldTabBarHeight.value + 8 : 0)
         .overlay { tabBar }
         .background(HingeReader().allowsHitTesting(false))
         .animation(.easeInOut(duration: 0.25), value: playing)
