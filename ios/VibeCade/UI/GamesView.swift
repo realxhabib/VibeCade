@@ -69,7 +69,7 @@ struct GamesView: View {
             .padding(.top, 12)
         }
         .scrollDismissesKeyboard(.immediately)
-        .contentMargins(.bottom, 70, for: .scrollContent)
+        .contentMargins(.bottom, FoldTabBar.height + 16, for: .scrollContent)
     }
 
     private func shelf(wide: Bool) -> some View {
@@ -179,18 +179,19 @@ struct FoldShowcase: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(game.name).font(.title.weight(.heavy))
                 Text(game.tagline).font(.subheadline).foregroundStyle(.white.opacity(0.85)).lineLimit(2)
+                Label(game.playersLabel, systemImage: "person.2.fill").font(.caption.bold())
+                    .foregroundStyle(game.colors.first ?? Brand.cyan)
                 HStack(spacing: 10) {
                     Button(action: play) {
                         Label("Play", systemImage: "play.fill").font(.headline).foregroundStyle(.black)
-                            .padding(.horizontal, 22).frame(height: 44).background(game.gradient, in: Capsule())
+                            .lineLimit(1).fixedSize()
+                            .padding(.horizontal, 20).frame(height: 44).background(game.gradient, in: Capsule())
                     }
                     Button(action: open) {
                         Label("Details", systemImage: "info.circle").font(.headline)
-                            .padding(.horizontal, 18).frame(height: 44).background(.ultraThinMaterial, in: Capsule())
+                            .lineLimit(1).fixedSize()
+                            .padding(.horizontal, 16).frame(height: 44).background(.ultraThinMaterial, in: Capsule())
                     }
-                    Spacer(minLength: 0)
-                    Label(game.playersLabel, systemImage: "person.2.fill").font(.caption.bold())
-                        .foregroundStyle(game.colors.first ?? Brand.cyan)
                 }
                 .buttonStyle(PressStyle())
             }

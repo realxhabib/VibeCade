@@ -130,5 +130,49 @@ struct FoldAware<Content: View>: View {
             content(ScreenLayout.of(size, halfOpen: hinge.halfOpen))
         }
         .background(HingeReader().allowsHitTesting(false))
+        // Half folded, the app's own tab strip sits on the lower half instead (RootView).
+        .toolbar(hinge.halfOpen ? .hidden : .visible, for: .tabBar)
+    }
+}
+
+/// What the whole app needs to know about the screen on show.
+@MainActor
+@Observable
+final class Chrome {
+    static let shared = Chrome()
+    /// A match is on screen: no tab bar of any kind.
+    var playing = false
+}
+
+/// Half folded, the system tab bar would straddle the crease (sideways) or crowd the
+/// controls half. This strip takes its place at the bottom of the lower (or right) half.
+struct FoldTabBar<Tab: Hashable>: View {
+    static var height: CGFloat { 56 }
+    let tabs: [(tab: Tab, title: String, icon: String)]
+    @Binding var selection: Tab
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(tabs, id: \.tab) { item in
+                Button {
+                    Haptics.tap()
+                    selection = item.tab
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: item.icon).font(.system(size: 17, weight: .semibold))
+                        Text(item.title).font(.system(size: 10, weight: .semibold)).lineLimit(1)
+                    }
+                    .foregroundStyle(selection == item.tab ? Brand.cyan : Brand.dim)
+                    .frame(maxWidth: .infinity, minHeight: Self.height - 8)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selection == item.tab ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 6)
+        .frame(height: Self.height)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.08)))
     }
 }

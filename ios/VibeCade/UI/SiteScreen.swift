@@ -77,10 +77,16 @@ struct SiteScreen: View {
         }
         .background(HingeReader().allowsHitTesting(false))
         .toolbar(.hidden, for: .navigationBar)
-        .toolbar(page.playing ? .hidden : .visible, for: .tabBar)
+        // Half folded, the app's own tab strip sits on the lower half instead (RootView).
+        .toolbar(page.playing || hinge.halfOpen ? .hidden : .visible, for: .tabBar)
         .statusBarHidden(page.playing)
         .persistentSystemOverlays(page.playing ? .hidden : .automatic)
-        .onChange(of: page.playing) { _, now in if !now { wholeScreen = false } }
+        .onChange(of: page.playing) { _, now in
+            if !now { wholeScreen = false }
+            Chrome.shared.playing = now
+        }
+        .onAppear { Chrome.shared.playing = page.playing }
+        .onDisappear { Chrome.shared.playing = false }
     }
 }
 
@@ -114,11 +120,13 @@ struct BrowseControls: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .contentMargins(.bottom, 8, for: .scrollContent)
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Brand.panel, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Brand.line.opacity(0.6)))
+        .padding(.bottom, FoldTabBar.height + 6)
     }
 }
 
