@@ -13,11 +13,14 @@ struct SiteScreen: View {
     @Environment(\.tabBarRoom) private var barRoom
 
     var body: some View {
+        // Two readers: the outer one keeps the safe area and reports its insets; the inner
+        // one ignores it, so its size is the whole screen and a match can reach every edge
+        // (the Duo's inner screen has insets on the right and bottom in landscape).
+        // Don't read WindowInsets.current here: doing so inside this reader left the
+        // site's web view undrawn (blank site tabs).
+        GeometryReader { outer in
         GeometryReader { geo in
-            // The reader itself ignores the safe area, so its size is the whole screen and
-            // a match can reach every edge (the Duo's inner screen has insets on the right
-            // and bottom in landscape). The window's insets place everything else.
-            let insets = WindowInsets.current
+            let insets = outer.safeAreaInsets
             let full = geo.size
             let layout = ScreenLayout.of(full, halfOpen: hinge.halfOpen)
             let split = layout.folded && !(page.playing && wholeScreen)
@@ -80,6 +83,7 @@ struct SiteScreen: View {
             .animation(.easeInOut(duration: 0.25), value: page.playing)
         }
         .ignoresSafeArea()
+        }
         .background(HingeReader().allowsHitTesting(false))
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: page.playing) { _, now in
