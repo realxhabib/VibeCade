@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Twin-stick phone controls: a floating stick on the left (appears under
- * your thumb; push it to the edge to sprint), drag anywhere on the right to
- * look, and four buttons in the right thumb's reach: fire, which aims down
- * sights while held (drag it to keep aiming while you shoot; the sniper
- * scopes in while held and fires on release), jump, crouch and grenade. Reloading is
+ * Twin-stick phone controls: a floating stick on the left half (it appears
+ * wherever your thumb lands and follows it if you slide past the edge; push
+ * it to the edge to sprint), drag anywhere on the right to look, and buttons
+ * in the right thumb's reach: a big fire button, which aims down sights while
+ * held (drag it to keep aiming while you shoot; the sniper scopes in while
+ * held and fires on release), jump, crouch and grenade. A second fire button
+ * sits up on the left so one thumb can shoot while the other aims. Reloading is
  * automatic when the magazine runs dry, and the ammo readout at the top
  * swaps weapons (hud.tsx). Every touch surface is gesture-locked so the page
  * never scrolls or zooms mid-fight.
@@ -19,6 +21,8 @@ import type { Engine } from "./engine";
 import type { HudState } from "./game";
 
 const RADIUS = 52;
+/** How far a resting thumb can slide before the stick is pushed (dead zone, px). */
+const DEAD = 6;
 
 export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }) {
   const root = useRef<HTMLDivElement>(null);
@@ -28,6 +32,8 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
   /** The sniper's scope toggle: stay scoped in and look around, then fire. */
   const [scoped, setScoped] = useState(false);
   const stickId = useRef<number | null>(null);
+  /** Fingers on a fire button. */
+  const [firing] = useState(() => new Set<number>());
 
   const me = hud.me;
   const active = !!me && me.alive && hud.phase === "live";
@@ -39,14 +45,16 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
   useEffect(() => {
     if (active) return;
     stickId.current = null;
+    firing.clear();
     input.release();
-  }, [active, input]);
+  }, [active, input, firing]);
   useEffect(
     () => () => {
       stickId.current = null;
+      firing.clear();
       input.release();
     },
-    [input],
+    [input, firing],
   );
   // Out of rounds: reload on its own (no reload button to find mid-fight).
   const empty = !!me && me.alive && me.mag === 0 && me.reserve > 0 && !me.reloading;
@@ -118,16 +126,44 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
     },
   });
 
+  // The stick follows a thumb that slides past its edge, so turning around never
+  // means lifting it and putting it back down.
   const stickMove = (e: ReactPointerEvent, origin: { ox: number; oy: number }) => {
-    let dx = e.clientX - origin.ox;
-    let dy = e.clientY - origin.oy;
+    let ox = origin.ox;
+    let oy = origin.oy;
+    let dx = e.clientX - ox;
+    let dy = e.clientY - oy;
     const d = Math.hypot(dx, dy);
     if (d > RADIUS) {
+      ox += (dx / d) * (d - RADIUS);
+      oy += (dy / d) * (d - RADIUS);
       dx = (dx / d) * RADIUS;
       dy = (dy / d) * RADIUS;
     }
-    setStick({ ...origin, x: dx, y: dy });
-    input.setTouch({ mx: dx / RADIUS, my: -dy / RADIUS });
+    setStick({ ox, oy, x: dx, y: dy });
+    const k = d < DEAD ? 0 : 1 / RADIUS;
+    input.setTouch({ mx: dx * k, my: -dy * k });
+  };
+
+  // Either fire button (or both at once): shooting stops when the last finger lifts.
+  const fireBtn = (look: boolean) => ({
+    onPointerDown: (e: ReactPointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      capture(e);
+      if (firing.size === 0) aimFire(true);
+      firing.add(e.pointerId);
+      if (look) input.lookStart(e.pointerId, e.clientX, e.clientY);
+      engine.audio.resume();
+    },
+    onPointerMove: look ? lookMove : undefined,
+    onPointerUp: (e: ReactPointerEvent) => fireEnd(e),
+    onPointerCancel: (e: ReactPointerEvent) => fireEnd(e),
+  });
+  const fireEnd = (e: ReactPointerEvent) => {
+    lookEnd(e);
+    if (!firing.delete(e.pointerId)) return;
+    if (firing.size === 0) aimFire(false);
   };
 
   return (
@@ -135,10 +171,10 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
       {me && active && (
         <>
       {/* Look: the right side. */}
-      <div className="absolute inset-y-0 right-0 w-[58%]" onPointerDown={lookStart} onPointerMove={lookMove} onPointerUp={lookEnd} onPointerCancel={lookEnd} />
-      {/* Move: a floating stick on the left. */}
+      <div className="absolute inset-y-0 right-0 w-1/2" onPointerDown={lookStart} onPointerMove={lookMove} onPointerUp={lookEnd} onPointerCancel={lookEnd} />
+      {/* Move: the whole left half; the stick appears wherever the thumb lands. */}
       <div
-        className="absolute inset-y-0 left-0 w-[42%]"
+        className="absolute inset-y-0 left-0 w-1/2"
         onPointerDown={(e) => {
           // A new thumb always takes the stick (never locked out by a lost touch).
           stickId.current = e.pointerId;
@@ -169,10 +205,23 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
           />
         </div>
       ) : (
-        <div className="pointer-events-none absolute bottom-[max(2.5rem,env(safe-area-inset-bottom))] left-8 flex size-28 items-center justify-center rounded-full border-2 border-dashed border-white/15">
-          <div className="size-12 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-6 flex flex-col items-center gap-1.5 text-white/35">
+          <div className="flex size-28 items-center justify-center rounded-full border-2 border-dashed border-white/15 [@media(max-height:480px)]:size-20">
+            <div className="size-12 rounded-full bg-white/10 [@media(max-height:480px)]:size-9" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider">Touch anywhere to move</span>
         </div>
       )}
+
+      {/* Left fire: shoot with the left thumb while the right one aims. */}
+      <Btn
+        label="Fire (left hand)"
+        size="md"
+        {...fireBtn(false)}
+        className="absolute left-[max(1rem,env(safe-area-inset-left))] top-[12%] bg-[color-mix(in_oklab,var(--accent-to)_30%,transparent)]"
+      >
+        <Crosshair className="size-7" />
+      </Btn>
 
       {/* Buttons: fire under the thumb with jump above it, crouch and the grenade beside them (and the sniper's scope). */}
       <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 grid grid-cols-[auto_auto_auto] items-center justify-items-center gap-x-3 gap-y-2 [@media(max-height:480px)]:gap-y-1.5">
@@ -218,10 +267,10 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
         <Btn
           label={sniper ? (scopedIn ? "Fire" : "Fire: hold to scope in, release to fire") : "Fire: hold to aim down sights and shoot"}
           size="lg"
-          {...press((down) => aimFire(down), true)}
+          {...fireBtn(true)}
           className="bg-[color-mix(in_oklab,var(--accent-to)_40%,transparent)]"
         >
-          <Crosshair className="size-9" />
+          <Crosshair className="size-10" />
         </Btn>
       </div>
         </>
@@ -253,7 +302,7 @@ function Btn({
       className={cn(
         "flex items-center justify-center rounded-full border border-white/25 bg-ink-900/55 text-white backdrop-blur active:scale-95",
         // Short screens (a phone on its side, the post's card) get smaller buttons.
-        size === "sm" ? "size-12 [@media(max-height:480px)]:size-10" : size === "md" ? "size-16 [@media(max-height:480px)]:size-13" : "size-24 [@media(max-height:480px)]:size-19",
+        size === "sm" ? "size-12 [@media(max-height:480px)]:size-10" : size === "md" ? "size-16 [@media(max-height:480px)]:size-13" : "size-28 [@media(max-height:480px)]:size-22",
         on && "border-[var(--accent-from)] bg-[color-mix(in_oklab,var(--accent-from)_35%,transparent)]",
         className,
       )}
