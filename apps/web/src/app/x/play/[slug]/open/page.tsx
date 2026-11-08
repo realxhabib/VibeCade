@@ -9,5 +9,5 @@ export default async function XPlayerOpenAppPage({ params }: PageProps<"/x/play/
   const { slug } = await params;
   const app = getOfficialApp(slug);
   if (app && app.kind !== "app") redirect(xPlayerPath(slug));
-  return <AppRoom slug={slug} versionId={null} signIn={<XSignInButton size="lg" />} immersive={false} />;
+  return <AppRoom slug={slug} versionId={null} signIn={<XSignInButton size="lg" />} immersive={false} initialApp={app} />;
 }

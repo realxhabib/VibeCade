@@ -8,13 +8,11 @@ import { Eye, Home, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/components/chrome/toasts";
-import { AppGlyph } from "@/components/marketplace/app-glyph";
 import { celebrate } from "@/components/motion/confetti";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Spinner } from "@/components/ui/spinner";
 import { haptic } from "@/lib/haptics";
 import { play } from "@/lib/sfx";
 import { spring } from "@/lib/motion";
@@ -34,6 +32,7 @@ import { applyVersionToApp, isTestBuild } from "@/platform/shipping";
 import type { AppManifest, Json, LogLevel, Match, Profile } from "@/platform/types";
 import { showAchievement } from "./achievement-moment";
 import { ChallengeEnded } from "./challenge-ended";
+import { GameLoading } from "./game-loading";
 import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./hud";
 import { ImmersiveChrome, useImmersive } from "./immersive";
 import { acquireRoom } from "./shared-room";
@@ -83,21 +82,6 @@ function Backdrop({ app }: { app?: AppManifest }) {
   );
 }
 
-function FullscreenLoader({ app }: { app?: AppManifest }) {
-  return (
-    <div className="flex min-h-dvh items-center justify-center">
-      <Backdrop app={app} />
-      {app ? (
-        <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>
-          <AppGlyph app={app} size={72} />
-        </motion.div>
-      ) : (
-        <Spinner className="size-8 text-ink-300" />
-      )}
-    </div>
-  );
-}
-
 function shareText(app: AppManifest, match: Match, viewerId: string | undefined): string {
   if (isMultiplayer(match)) {
     const outcome = viewerOutcome(match, viewerId);
@@ -128,7 +112,7 @@ function shareText(app: AppManifest, match: Match, viewerId: string | undefined)
  * `join` (a shared match link) takes the open seat, or accepts the viewer's
  * invite, on arrival instead of asking first.
  */
-export function PlayRoom({ matchId, join = false }: { matchId: string; join?: boolean }) {
+export function PlayRoom({ matchId, join = false, initialApp = null }: { matchId: string; join?: boolean; initialApp?: AppManifest | null }) {
   const router = useRouter();
   const routes = useHostRoutes();
   const backend = useBackend();
@@ -209,7 +193,8 @@ export function PlayRoom({ matchId, join = false }: { matchId: string; join?: bo
   };
 
   if (matchLoading || viewerLoading || (match && !app) || (testBuild && ownsApp && versionsLoading)) {
-    return <FullscreenLoader app={app ?? undefined} />;
+    // The server's copy of the game paints its art straight away, before the match loads here.
+    return <GameLoading step="joining" app={app ?? initialApp} />;
   }
 
   if (!match || !app) {
@@ -777,6 +762,12 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     emitRef.current = emit;
   }, [emit]);
 
+  /** The loader's Reload: navigates the frame again (the bridge picks the new page up). */
+  const reloadFrame = () => {
+    const frame = iframeRef.current;
+    if (frame && appUrl) frame.src = appUrl.href;
+  };
+
   // A reloaded iframe must say ready() again.
   const [seenConnections, setSeenConnections] = useState(connections);
   if (connections !== seenConnections) {
@@ -1145,15 +1136,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
           <AnimatePresence>
             {!connected && (
-              <motion.div
-                key="loading"
-                className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-ink-900"
-                exit={{ opacity: 0, transition: { duration: 0.3 } }}
-              >
-                <motion.div animate={{ scale: [1, 1.08, 1], rotate: [0, -3, 3, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
-                  <AppGlyph app={app} size={76} />
-                </motion.div>
-                <p className="text-sm text-ink-300">Loading {app.name}…</p>
+              <motion.div key="loading" className="absolute inset-0 z-10" exit={{ opacity: 0, transition: { duration: 0.3 } }}>
+                <GameLoading app={app} step="loading" overlay onRetry={reloadFrame} />
               </motion.div>
             )}
             {waitingForPeer && (notReady.length > 0 || spectating) && (

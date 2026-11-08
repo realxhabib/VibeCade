@@ -1,5 +1,5 @@
-import { HostLoading } from "@/components/play/host-loading";
+import { GameLoading } from "@/components/play/game-loading";
 
 export default function Loading() {
-  return <HostLoading label="Joining the match…" />;
+  return <GameLoading step="joining" />;
 }

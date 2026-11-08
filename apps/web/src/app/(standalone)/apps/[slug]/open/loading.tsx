@@ -1,5 +1,5 @@
-import { HostLoading } from "@/components/play/host-loading";
+import { GameLoading } from "@/components/play/game-loading";
 
 export default function Loading() {
-  return <HostLoading label="Opening app…" />;
+  return <GameLoading step="opening" />;
 }
