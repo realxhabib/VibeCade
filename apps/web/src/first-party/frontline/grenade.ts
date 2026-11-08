@@ -15,8 +15,10 @@
 
 import { GRAVITY, lineOfSight, raycastMap, viewDir, type CollisionWorld, type Vec3 } from "./physics";
 
-/** Kill-feed / ledger weapon index for grenade kills (after the five guns). */
-export const GRENADE_WEAPON = 5;
+/** Kill-feed / ledger weapon index for grenade kills: outside the gun indices (`WEAPON_IDS`), which only grow. */
+export const GRENADE_WEAPON = 31;
+/** Rockets fly straight at this speed (m/s) and go off where they hit. */
+export const ROCKET_SPEED = 40;
 export const NADES_PER_LIFE = 1;
 /** From release to detonation (no cooking). */
 export const NADE_FUSE_MS = 2300;
@@ -127,6 +129,23 @@ export function blastDamage(dist: number): number {
   if (dist <= 2.4) return NADE_MAX_DAMAGE;
   const k = 1 - (dist - 2.4) / (NADE_RADIUS - 2.4);
   return Math.round(12 + (NADE_MAX_DAMAGE - 12) * k * k);
+}
+
+/** A rocket's flight: a straight line from `origin` to `end`, sampled like a grenade's (every 1/30 s). */
+export function rocketFlight(origin: Vec3, end: Vec3): NadeFlight {
+  const dist = Math.hypot(end.x - origin.x, end.y - origin.y, end.z - origin.z);
+  const steps = Math.max(1, Math.ceil((dist / ROCKET_SPEED) * 30));
+  const path: Vec3[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const k = i / steps;
+    path.push({ x: origin.x + (end.x - origin.x) * k, y: origin.y + (end.y - origin.y) * k, z: origin.z + (end.z - origin.z) * k });
+  }
+  return { path, end: { ...end }, bounces: [] };
+}
+
+/** Milliseconds a rocket takes from `origin` to `end`. */
+export function rocketMs(origin: Vec3, end: Vec3): number {
+  return (Math.hypot(end.x - origin.x, end.y - origin.y, end.z - origin.z) / ROCKET_SPEED) * 1000;
 }
 
 /** Distance from the blast to a standing/crouched body at `feet` (closest point on its axis). */

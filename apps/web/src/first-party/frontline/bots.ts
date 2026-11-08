@@ -56,6 +56,18 @@ const BOT_WEAPONS: [WeaponId, number][] = [
   ["sniper", 0.16],
 ];
 
+/** How a bot fights with a weapon: how far it shoots from, the distance it keeps, and whether it scopes in. */
+export function botStyle(w: WeaponDef): { reach: number; want: number; long: boolean } {
+  if (w.melee) return { reach: w.maxRange - 0.2, want: 0, long: false };
+  if (w.rocket) return { reach: 50, want: 18, long: false };
+  if (w.pellets > 1) return { reach: 16, want: 4, long: false };
+  if (w.id === "smg" || w.id === "mp") return { reach: 40, want: 9, long: false };
+  if (w.id === "sniper") return { reach: 80, want: 30, long: true };
+  if (w.id === "dmr") return { reach: 80, want: 22, long: true };
+  if (w.id === "pistol" || w.id === "magnum") return { reach: 35, want: 14, long: false };
+  return { reach: 80, want: 16, long: false };
+}
+
 export function botWeapon(rand: () => number): WeaponId {
   let r = rand();
   for (const [id, w] of BOT_WEAPONS) {
@@ -291,7 +303,7 @@ export class BotBrain {
     this.errPitch = Math.sin(t * 1.7 + this.errSeed * 3) * 0.6 + Math.sin(t * 3.7 + this.errSeed) * 0.4;
     let aimed = false;
     if (this.mode === "engage" && target) {
-      const aimY = self.weapon.id === "sniper" || this.rand() < 0.02 ? target.pos.y + target.chestY : target.pos.y + (settled > 0.9 && this.skill.aimErr < 2 ? (target.chestY + target.headY) / 2 : target.chestY);
+      const aimY = botStyle(self.weapon).long || this.rand() < 0.02 ? target.pos.y + target.chestY : target.pos.y + (settled > 0.9 && this.skill.aimErr < 2 ? (target.chestY + target.headY) / 2 : target.chestY);
       const dx = target.pos.x - eye.x;
       const dy = aimY - eye.y;
       const dz = target.pos.z - eye.z;
@@ -318,8 +330,9 @@ export class BotBrain {
     if (this.mode === "engage" && target) {
       const dist = Math.hypot(target.pos.x - self.pos.x, target.pos.z - self.pos.z);
       const w = self.weapon;
-      const inRange = dist < (w.id === "shotgun" ? 16 : w.id === "smg" ? 40 : w.id === "pistol" ? 35 : 80);
-      it.ads = w.id === "sniper" || (dist > 11 && w.id !== "shotgun");
+      const style = botStyle(w);
+      const inRange = dist < style.reach;
+      it.ads = !w.melee && (style.long || (dist > 11 && w.pellets === 1));
       if (t >= this.reactAt && aimed && inRange && self.mag > 0 && !self.reloading) {
         if (w.auto) {
           // Bursts: longer up close, short taps far away.
@@ -327,7 +340,7 @@ export class BotBrain {
           it.fire = t < this.burstUntil;
           if (it.fire && t + 0.02 >= this.burstUntil) this.pauseUntil = t + 0.12 + this.rand() * (dist > 20 ? 0.35 : 0.15);
         } else {
-          this.triggerDown = !this.triggerDown && this.rand() < (w.id === "sniper" ? 0.35 : 0.6);
+          this.triggerDown = !this.triggerDown && this.rand() < (style.long ? 0.35 : 0.6);
           it.fire = this.triggerDown;
         }
       }
@@ -335,19 +348,21 @@ export class BotBrain {
       if (t > this.strafeUntil) {
         this.strafeDir = this.rand() < 0.5 ? -1 : 1;
         this.strafeUntil = t + 0.5 + this.rand() * 1.1;
-        this.crouching = w.id !== "shotgun" && dist > 10 && this.rand() < this.skill.crouch;
+        this.crouching = w.pellets === 1 && !w.melee && dist > 10 && this.rand() < this.skill.crouch;
       }
       const toX = (target.pos.x - self.pos.x) / Math.max(0.01, dist);
       const toZ = (target.pos.z - self.pos.z) / Math.max(0.01, dist);
-      const want = w.id === "shotgun" ? 4 : w.id === "smg" ? 9 : w.id === "sniper" ? 30 : 16;
-      const push = w.id === "sniper" ? 0 : dist > want + 4 ? 0.8 : dist < want - 4 ? -0.6 : 0;
+      const want = style.want;
+      // Blades charge straight in; snipers hold their ground.
+      const push = w.melee ? (dist > 1.2 ? 1 : 0) : w.id === "sniper" ? 0 : dist > want + 4 ? 0.8 : dist < want - 4 ? -0.6 : 0;
       // Strafe perpendicular to the target.
       const sx = -toZ * this.strafeDir;
       const sz = toX * this.strafeDir;
-      const strafeAmt = w.id === "sniper" && it.ads ? 0.15 : 0.85;
+      const strafeAmt = w.melee ? 0.25 : w.id === "sniper" && it.ads ? 0.15 : 0.85;
       moveX = toX * push + sx * strafeAmt;
       moveZ = toZ * push + sz * strafeAmt;
       if (self.mag === 0 && !self.reloading) it.reload = true;
+      if (w.melee && dist > 6) it.sprint = true;
     } else {
       this.crouching = false;
       if (self.mag < self.weapon.mag * 0.4 && !self.reloading && this.mode !== "chase") it.reload = true;

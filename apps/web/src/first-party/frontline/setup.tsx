@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Challenge setup (purpose "setup"): the host picks the match length, the
- * kill limit and the season. Light on purpose: no three.js here (the embed
+ * Challenge setup (purpose "setup"): the host picks the mode (standard or
+ * gun game), the match length, the kill limit and the season. Light on purpose: no three.js here (the embed
  * page loads this instead of the game when the host opens it to set up).
  */
 
@@ -17,6 +17,9 @@ import { CustomNumber } from "./custom-number";
 import {
   KILLS_RANGE,
   MINUTES_RANGE,
+  MODES,
+  MODE_BLURB,
+  MODE_LABEL,
   killChoices,
   SEASON_ICON,
   SEASON_LABEL,
@@ -29,6 +32,7 @@ import {
   seasonOf,
   toSettings,
   type MatchOptions,
+  type Mode,
   type SeasonChoice,
 } from "./options";
 
@@ -67,6 +71,10 @@ export function FrontlineSetup() {
           Set up the <span className="bg-[linear-gradient(100deg,var(--accent-from),var(--accent-to))] bg-clip-text pr-1 text-transparent">fight</span>
         </h1>
 
+        <Section title="Mode" hint={MODE_BLURB[opts.mode]}>
+          <Segmented<Mode> id="mode" label="Mode" value={opts.mode} onChange={(mode) => set({ mode })} options={MODES.map((m) => ({ value: m, label: MODE_LABEL[m] }))} />
+        </Section>
+
         <Section title="Time limit">
           <Segmented<string>
             id="time"
@@ -92,37 +100,39 @@ export function FrontlineSetup() {
           )}
         </Section>
 
-        <Section title="Kill limit" hint={opts.kills === 0 ? "No kill limit: the most kills when the clock runs out wins." : "First to reach it wins. In team play it's the team's total."}>
-          <Segmented
-            id="kills"
-            label="Kill limit"
-            value={customKills ? "custom" : opts.kills === null ? "std" : String(opts.kills)}
-            onChange={(v) => {
-              setCustomKills(v === "custom");
-              if (v !== "custom") set({ kills: v === "std" ? null : Number(v) });
-            }}
-            options={[
-              ...kills.map((k) => ({
-                value: k === null ? "std" : String(k),
-                label: k === null ? `${FFA_LIMIT}*` : k === 0 ? "∞" : String(k),
-              })),
-              { value: "custom", label: <span className="text-[11.5px] tracking-tight">Custom</span> },
-            ]}
-          />
-          {customKills && (
-            <CustomNumber
-              key="kills"
-              label="Custom kill limit"
-              value={opts.kills || (opts.kills === null ? FFA_LIMIT : null)}
-              min={KILLS_RANGE[0]}
-              max={KILLS_RANGE[1]}
-              suffix={`kills (${KILLS_RANGE[0]} to ${KILLS_RANGE[1]})`}
-              className="h-10 px-1 text-[14px]"
-              onCommit={(k) => set({ kills: k })}
+        {opts.mode === "standard" && (
+          <Section title="Kill limit" hint={opts.kills === 0 ? "No kill limit: the most kills when the clock runs out wins." : "First to reach it wins. In team play it's the team's total."}>
+            <Segmented
+              id="kills"
+              label="Kill limit"
+              value={customKills ? "custom" : opts.kills === null ? "std" : String(opts.kills)}
+              onChange={(v) => {
+                setCustomKills(v === "custom");
+                if (v !== "custom") set({ kills: v === "std" ? null : Number(v) });
+              }}
+              options={[
+                ...kills.map((k) => ({
+                  value: k === null ? "std" : String(k),
+                  label: k === null ? `${FFA_LIMIT}*` : k === 0 ? "∞" : String(k),
+                })),
+                { value: "custom", label: <span className="text-[11.5px] tracking-tight">Custom</span> },
+              ]}
             />
-          )}
-          {opts.kills === null && !customKills && <p className="px-1 text-[12px] leading-snug text-ink-400">* Standard: {FFA_LIMIT} each, or 30 to 40 for a team.</p>}
-        </Section>
+            {customKills && (
+              <CustomNumber
+                key="kills"
+                label="Custom kill limit"
+                value={opts.kills || (opts.kills === null ? FFA_LIMIT : null)}
+                min={KILLS_RANGE[0]}
+                max={KILLS_RANGE[1]}
+                suffix={`kills (${KILLS_RANGE[0]} to ${KILLS_RANGE[1]})`}
+                className="h-10 px-1 text-[14px]"
+                onCommit={(k) => set({ kills: k })}
+              />
+            )}
+            {opts.kills === null && !customKills && <p className="px-1 text-[12px] leading-snug text-ink-400">* Standard: {FFA_LIMIT} each, or 30 to 40 for a team.</p>}
+          </Section>
+        )}
 
         <Section title="Season" hint={SEASON_TWIST[opts.season === "auto" ? now : opts.season]}>
           <Segmented<SeasonChoice>

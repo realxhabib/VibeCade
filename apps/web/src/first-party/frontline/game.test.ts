@@ -4,6 +4,8 @@ import { MAPS } from "./map";
 import type { Season } from "./options";
 import { RELAY_HZ, RELAY_INTERP_MS, type Packet } from "./net";
 import { parseDoc, type MatchDoc } from "./rules";
+import { GRENADE_WEAPON } from "./grenade";
+import { weaponIndex } from "./weapons";
 
 /** A deterministic stand-in for `xapps.random.fork(label)`. */
 function seeded(label: string) {
@@ -63,6 +65,8 @@ interface TableOptions {
    */
   via?: (a: string, b: string) => Via;
   season?: Season;
+  /** Gun game. */
+  gg?: boolean;
 }
 
 function table(seats: SeatInfo[], opts: TableOptions = {}) {
@@ -114,7 +118,7 @@ function table(seats: SeatInfo[], opts: TableOptions = {}) {
       seedRandom: seeded,
       transport,
       initialState: shared.state,
-      docOverrides: { lim: opts.lim, dur: opts.dur },
+      docOverrides: { lim: opts.lim, dur: opts.dur, gg: opts.gg },
       season: opts.season,
     });
     games.set(me.id, g);
@@ -539,5 +543,89 @@ describe("seasons", () => {
       return Math.abs(g.me!.body.z - z0);
     };
     expect(await slide("winter")).toBeGreaterThan((await slide("summer")) * 1.8);
+  });
+});
+
+describe("gun game", () => {
+  it("starts everyone on the first weapon with no sidearm or grenades, and a kill hands the killer the next one", async () => {
+    const { games, step, intents } = table([seat("alice", 0), seat("bob", 1)], { gg: true });
+    const alice = games.get("alice")!;
+    const bob = games.get("bob")!;
+    await step(200);
+    expect(alice.gunGame).toBe(1);
+    expect(alice.me!.weapons).toEqual(["ar", "ar"]);
+    expect(alice.me!.nades).toBe(0);
+    // Swapping does nothing: there's only the one gun.
+    intents.set("alice", { ...idleIntent(), slot: 1 });
+    await step(100);
+    expect(alice.me!.slot).toBe(0);
+    faceOff(alice, bob);
+    await step(400);
+    intents.set("alice", AIM_FIRE);
+    await step(1200);
+    intents.set("alice", idleIntent());
+    await step(400);
+    expect(alice.kills.has("1:0")).toBe(true);
+    expect(alice.me!.weapons).toEqual(["smg", "smg"]);
+    expect(alice.me!.reserve[0]).toBe(128);
+    expect(alice.hud().me!.ladder).toMatchObject({ rung: 1, of: 13, next: "lmg" });
+    // Bob comes back on the first weapon still.
+    await step(3200);
+    expect(bob.me!.alive).toBe(true);
+    expect(bob.me!.weapons[0]).toBe("ar");
+  });
+
+  it("the burst rifle fires three rounds a pull and the knife never runs dry", async () => {
+    const { games, step, intents } = table([seat("alice", 0), seat("bob", 1)], { gg: true });
+    const alice = games.get("alice")!;
+    await step(200);
+    const me = alice.me!;
+    // Point away from everyone.
+    Object.assign(me.body, { x: 20, y: 0, z: -27 });
+    me.yaw = 0;
+    me.weapons = ["burst", "burst"];
+    me.mag = [30, 30];
+    me.swapUntil = me.nextFireAt = 0;
+    intents.set("alice", { ...idleIntent(), fire: true });
+    await step(32);
+    intents.set("alice", idleIntent());
+    await step(400);
+    expect(me.mag[0]).toBe(27);
+    me.weapons = ["knife", "knife"];
+    me.mag = [1, 1];
+    intents.set("alice", { ...idleIntent(), fire: true });
+    await step(2000);
+    expect(me.shotSeq).toBeGreaterThan(4);
+    expect(me.mag[0]).toBe(1);
+    expect(me.reloadUntil).toBe(0);
+  });
+
+  it("a rocket flies to its target and its blast kills, recorded as the launcher (not a grenade)", async () => {
+    const { games, step, intents } = table([seat("alice", 0), seat("bob", 1)], { gg: true });
+    const alice = games.get("alice")!;
+    const bob = games.get("bob")!;
+    await step(200);
+    faceOff(alice, bob);
+    await step(400);
+    const me = alice.me!;
+    me.weapons = ["rpg", "rpg"];
+    me.mag = [1, 1];
+    me.reserve = [4, 4];
+    me.swapUntil = me.nextFireAt = me.reloadUntil = 0;
+    me.ads = 1;
+    intents.set("alice", { ...AIM_FIRE });
+    await step(48);
+    intents.set("alice", idleIntent());
+    // In flight: 12 m at 40 m/s is ~0.3 s.
+    expect(alice.nades.some((n) => n.rocket)).toBe(true);
+    await step(120);
+    // Bob hears about it (over the room) while it's still flying.
+    expect(bob.nades.some((n) => n.rocket)).toBe(true);
+    await step(1200);
+    const rec = bob.kills.get("1:0");
+    expect(rec).toBeDefined();
+    expect(rec![3]).toBe(weaponIndex("rpg"));
+    expect(rec![3]).not.toBe(GRENADE_WEAPON);
+    expect(alice.kills.has("1:0")).toBe(true);
   });
 });

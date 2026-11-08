@@ -90,6 +90,8 @@ export const EV_KILL = 1;
 export const EV_NADE = 2;
 /** A grenade blast claim: thrower → the victim's owner (like EV_HIT). */
 export const EV_BLAST = 3;
+/** A rocket left someone's launcher (a straight flight to where it will hit; blasts go out as EV_BLAST). */
+export const EV_ROCKET = 4;
 
 /** A hit claim: shooter → the victim's owner. */
 export interface HitEvent {
@@ -130,7 +132,19 @@ export interface BlastEvent {
   point: [number, number, number];
 }
 
-export type NetEvent = HitEvent | KillEvent | NadeEvent | BlastEvent;
+export interface RocketEvent {
+  kind: typeof EV_ROCKET;
+  shooter: number;
+  /** Shooter's throw/launch number (shared with grenades). */
+  n: number;
+  weapon: number;
+  origin: [number, number, number];
+  end: [number, number, number];
+  /** Shooter's clock at launch (ms). */
+  t: number;
+}
+
+export type NetEvent = HitEvent | KillEvent | NadeEvent | BlastEvent | RocketEvent;
 
 const cm = (v: number) => Math.round(v * 100);
 
@@ -140,6 +154,7 @@ export function encodeEvent(id: number, ev: NetEvent): number[] {
   }
   if (ev.kind === EV_NADE) return [id, EV_NADE, ev.thrower, ev.n, ...ev.origin.map(cm), ...ev.vel.map(cm), Math.round(ev.t)];
   if (ev.kind === EV_BLAST) return [id, EV_BLAST, ev.thrower, ev.n, ev.victim, ev.life, ...ev.point.map(cm)];
+  if (ev.kind === EV_ROCKET) return [id, EV_ROCKET, ev.shooter, ev.n, ev.weapon, ...ev.origin.map(cm), ...ev.end.map(cm), Math.round(ev.t)];
   return [id, EV_KILL, ...ev.rec];
 }
 
@@ -169,6 +184,9 @@ export function decodeEvent(row: unknown): { id: number; ev: NetEvent } | null {
   }
   if (r[1] === EV_BLAST && r.length === 9) {
     return { id, ev: { kind: EV_BLAST, thrower: r[2]!, n: r[3]!, victim: r[4]!, life: r[5]!, point: [r[6]! / 100, r[7]! / 100, r[8]! / 100] } };
+  }
+  if (r[1] === EV_ROCKET && r.length === 12) {
+    return { id, ev: { kind: EV_ROCKET, shooter: r[2]!, n: r[3]!, weapon: r[4]!, origin: [r[5]! / 100, r[6]! / 100, r[7]! / 100], end: [r[8]! / 100, r[9]! / 100, r[10]! / 100], t: r[11]! } };
   }
   if (r[1] === EV_KILL && r.length === 8) {
     return { id, ev: { kind: EV_KILL, rec: [r[2]!, r[3]!, r[4]!, r[5]!, r[6]!, r[7]!] } };

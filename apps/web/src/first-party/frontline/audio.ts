@@ -28,6 +28,15 @@ const GUNS: Record<WeaponId, GunVoice> = {
   sniper: { crack: 0.9, crackF: 2600, body: 1, bodyF: 700, bodyDecay: 0.24, thump: 1, thumpF: 55, tail: 0.55, tailDecay: 1.1 },
   shotgun: { crack: 0.6, crackF: 2200, body: 1, bodyF: 600, bodyDecay: 0.26, thump: 1, thumpF: 50, tail: 0.45, tailDecay: 0.7 },
   pistol: { crack: 0.7, crackF: 4200, body: 0.55, bodyF: 1500, bodyDecay: 0.08, thump: 0.35, thumpF: 130, tail: 0.18, tailDecay: 0.35 },
+  lmg: { crack: 0.6, crackF: 2900, body: 0.9, bodyF: 820, bodyDecay: 0.15, thump: 0.75, thumpF: 80, tail: 0.34, tailDecay: 0.55 },
+  burst: { crack: 0.55, crackF: 3500, body: 0.75, bodyF: 1050, bodyDecay: 0.11, thump: 0.55, thumpF: 100, tail: 0.25, tailDecay: 0.4 },
+  dmr: { crack: 0.8, crackF: 2800, body: 0.95, bodyF: 780, bodyDecay: 0.19, thump: 0.85, thumpF: 70, tail: 0.45, tailDecay: 0.8 },
+  autoshot: { crack: 0.55, crackF: 2400, body: 0.95, bodyF: 650, bodyDecay: 0.2, thump: 0.9, thumpF: 60, tail: 0.38, tailDecay: 0.55 },
+  mp: { crack: 0.55, crackF: 4400, body: 0.5, bodyF: 1600, bodyDecay: 0.06, thump: 0.3, thumpF: 140, tail: 0.14, tailDecay: 0.25 },
+  magnum: { crack: 0.85, crackF: 3000, body: 1, bodyF: 720, bodyDecay: 0.22, thump: 0.95, thumpF: 60, tail: 0.5, tailDecay: 0.9 },
+  rpg: { crack: 0.35, crackF: 1800, body: 1, bodyF: 420, bodyDecay: 0.35, thump: 1, thumpF: 45, tail: 0.5, tailDecay: 0.9 },
+  // Never fired (the knife has its own swish), here so every weapon has a voice.
+  knife: { crack: 0, crackF: 4000, body: 0, bodyF: 1000, bodyDecay: 0.05, thump: 0, thumpF: 100, tail: 0, tailDecay: 0.1 },
 };
 
 export class FrontAudio {
@@ -191,6 +200,29 @@ export class FrontAudio {
       this.noiseBurst(spot.out, { gain: 0.12, decay: 0.07, freq: 1800, q: 1.5, start: 0.3 });
       this.noiseBurst(spot.out, { gain: 0.14, decay: 0.07, freq: 1300, q: 1.5, start: 0.48 });
     }
+  }
+
+  /** A knife swing: a swish of air, and a dull thud when it lands on someone. */
+  slash(x: number, z: number, mine: boolean, hit: boolean): void {
+    if (!this.enabled || !this.ensure() || !this.budget(mine ? "slash-mine" : "slash", 2, 120)) return;
+    const spot = mine ? this.spot(null, null) : this.spot(x, z, 4);
+    if (!spot || spot.gain < 0.04) return;
+    const g = spot.gain * (mine ? 0.5 : 0.6);
+    this.noiseBurst(spot.out, { gain: g * 0.5, decay: 0.16, freq: 2600 + Math.random() * 600, q: 1.4, attack: 0.05 });
+    this.noiseBurst(spot.out, { gain: g * 0.25, decay: 0.12, freq: 5200, q: 2, type: "highpass", start: 0.04, attack: 0.03 });
+    if (hit) {
+      this.tone(spot.out, { freq: 140, to: 70, gain: g * 0.6, decay: 0.12, start: 0.07 });
+      this.noiseBurst(spot.out, { gain: g * 0.4, decay: 0.08, freq: 600, q: 0.8, type: "lowpass", start: 0.07 });
+    }
+  }
+
+  /** Gun game: a new weapon (a rising chime; the knife's is brighter, with a third note). */
+  climb(last: boolean): void {
+    if (!this.enabled || !this.ensure()) return;
+    const out = this.spot(null, null)!.out;
+    this.tone(out, { freq: 660, type: "triangle", gain: 0.16, decay: 0.12, start: 0.18 });
+    this.tone(out, { freq: 990, type: "triangle", gain: 0.16, decay: 0.18, start: 0.26 });
+    if (last) this.tone(out, { freq: 1320, type: "triangle", gain: 0.18, decay: 0.3, start: 0.34 });
   }
 
   /** A bullet hitting something near you. */

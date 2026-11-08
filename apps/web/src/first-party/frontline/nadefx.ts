@@ -34,6 +34,12 @@ export class NadeFx {
   private readonly bodyGeo: BufferGeometry;
   private readonly bodyMat: MeshStandardMaterial;
   private readonly meshes: Mesh[] = [];
+  /** Rockets in flight: a finned body with a glowing motor. */
+  private readonly rocketGeo: BufferGeometry;
+  private readonly rocketMat = new MeshStandardMaterial({ color: 0x5f6352, roughness: 0.5, metalness: 0.4 });
+  private readonly flameGeo = new SphereGeometry(0.06, 8, 6).scale(1, 1, 2.4);
+  private readonly flameMat = new MeshBasicMaterial({ color: new Color(3, 1.6, 0.6), transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false });
+  private readonly rockets: Mesh[] = [];
   private readonly arc: Points;
   private readonly arcGeo = new BufferGeometry();
   private readonly arcPos = new Float32Array(ARC_POINTS * 3);
@@ -54,6 +60,21 @@ export class NadeFx {
       this.bodyGeo = mergeGeometries([body.toNonIndexed(), top.toNonIndexed(), spoon.toNonIndexed()])!;
       [body, top, spoon].forEach((g) => g.dispose());
       this.bodyMat = new MeshStandardMaterial({ color: 0x3d4a2c, roughness: 0.55, metalness: 0.35 });
+    }
+    // Built along +z (lookAt points +z at the target): nose cone first, fins at the back.
+    const tube = new CylinderGeometry(0.035, 0.035, 0.32, 10).rotateX(Math.PI / 2);
+    const nose = new CylinderGeometry(0.004, 0.045, 0.16, 10).rotateX(Math.PI / 2).translate(0, 0, 0.24);
+    const fins = new CylinderGeometry(0.07, 0.07, 0.06, 4).scale(1, 0.12, 1).rotateX(Math.PI / 2).translate(0, 0, -0.15);
+    this.rocketGeo = mergeGeometries([tube.toNonIndexed(), nose.toNonIndexed(), fins.toNonIndexed()])!;
+    [tube, nose, fins].forEach((g) => g.dispose());
+    for (let i = 0; i < 6; i++) {
+      const m = new Mesh(this.rocketGeo, this.rocketMat);
+      const flame = new Mesh(this.flameGeo, this.flameMat);
+      flame.position.z = -0.24;
+      m.add(flame);
+      m.visible = false;
+      this.rockets.push(m);
+      this.group.add(m);
     }
     for (let i = 0; i < 8; i++) {
       const m = new Mesh(this.bodyGeo, this.bodyMat);
@@ -77,7 +98,17 @@ export class NadeFx {
   }
 
   update(game: Game, now: number, preview: NadeFlight | null, clink: (x: number, z: number) => void): void {
-    const live = game.nades;
+    const live = game.nades.filter((n) => !n.rocket);
+    const rockets = game.nades.filter((n) => n.rocket && now >= n.releasedAt);
+    this.rockets.forEach((m, i) => {
+      const n = rockets[i];
+      m.visible = !!n;
+      if (!n) return;
+      const p = game.nadePos(n, now);
+      m.position.set(p.x, p.y, p.z);
+      const e = n.flight.end;
+      m.lookAt(e.x, e.y, e.z);
+    });
     this.meshes.forEach((m, i) => {
       const n = live[i];
       m.visible = !!n;
@@ -95,7 +126,7 @@ export class NadeFx {
         this.clinked.set(n, due);
       }
     });
-    for (const n of this.clinked.keys()) if (!live.includes(n)) this.clinked.delete(n);
+    for (const n of this.clinked.keys()) if (!game.nades.includes(n)) this.clinked.delete(n);
     if (preview) {
       const path = preview.path;
       for (let i = 0; i < ARC_POINTS; i++) {
@@ -118,6 +149,10 @@ export class NadeFx {
   dispose(): void {
     this.bodyGeo.dispose();
     this.bodyMat.dispose();
+    this.rocketGeo.dispose();
+    this.rocketMat.dispose();
+    this.flameGeo.dispose();
+    this.flameMat.dispose();
     this.arcGeo.dispose();
     (this.arc.material as PointsMaterial).dispose();
     this.ring.geometry.dispose();

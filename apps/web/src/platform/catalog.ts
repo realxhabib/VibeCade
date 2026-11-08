@@ -670,7 +670,7 @@ export const OFFICIAL_APPS: AppManifest[] = [
     name: "Frontline",
     tagline: "Fast first-person firefights in a sun-bleached container port.",
     description:
-      "A real-time first-person shooter for 2–8 players. Pick a primary (assault rifle, SMG, sniper or shotgun), a sidearm and a perk, then fight through Saltyard: a covered warehouse, a stack of containers with perches up the stairs, and three tight container lanes. Aim down sights, learn each gun's recoil, land headshots, and chain three kills for a radar sweep. First to 20 kills or the most when the clock runs out wins (the host can change the time and kill limits). The yard changes with the seasons: snow in winter, falling leaves in autumn, blossom in spring. Team up when the table plays in teams, or practice against bots.",
+      "A real-time first-person shooter for 2–8 players. Pick a primary (assault rifle, SMG, sniper or shotgun), a sidearm and a perk, then fight through Saltyard: a covered warehouse, a stack of containers with perches up the stairs, and three tight container lanes. Aim down sights, learn each gun's recoil, land headshots, and chain three kills for a radar sweep. First to 20 kills or the most when the clock runs out wins (the host can change the time and kill limits), or the host can pick gun game: every kill hands you the next of thirteen weapons, and the first knife kill wins. The yard changes with the seasons: snow in winter, falling leaves in autumn, blossom in spring. Team up when the table plays in teams, or practice against bots.",
     category: "games",
     icon: "🪖",
     coverImage: "/showcase/frontline-cover.webp",
@@ -692,7 +692,7 @@ export const OFFICIAL_APPS: AppManifest[] = [
       "Phone: the left stick moves (push to the edge to sprint), drag on the right to look, and use the fire, aim, reload, jump, crouch and grenade buttons (hold the grenade to see its arc, let go to throw).",
       "Headshots hurt more, bullets lose power with distance, and you heal when you stay out of fire. Three kills without dying calls in a radar sweep.",
       "Every player wears their own color, teammates' markers show through walls, and the kill leader wears a gold crown everyone can see. Seasons change the fight: icy ground and footprints in winter, crunchy leaves that put sprinters on the minimap in autumn, higher jumps in spring, a faster pace in summer.",
-      "First to 20 kills wins (team play: the team total), or the most kills when the 7-minute clock runs out. The host can change the time limit, the kill limit and the season when setting up a challenge. Your score is your kills.",
+      "First to 20 kills wins (team play: the team total), or the most kills when the 7-minute clock runs out. The host can change the time limit, the kill limit and the season, or pick gun game: every kill hands you the next of thirteen weapons (LMG, burst rifle, RPG, revolver and more) and the first knife kill wins. Your score is your kills.",
     ],
     official: true,
     developer: OFFICIAL_DEV,

@@ -2,10 +2,11 @@
  * Host match options: the challenger picks them in the setup screen
  * (purpose "setup", `setup.tsx`) and they arrive as `match.settings`:
  *
- *   { min?: number, kills?: number, season?: "auto" | Season }
+ *   { min?: number, kills?: number, season?: "auto" | Season, mode?: "gungame" }
  *
  * Missing keys keep the defaults (7 minutes, the standard kill limit, the
- * season of the calendar). `kills: 0` means no kill limit (time only).
+ * season of the calendar, the standard mode). `kills: 0` means no kill limit
+ * (time only). Gun game has no kill limit to pick: the ladder is the limit.
  * Everything is clamped, so a hand-made settings blob can't break a match.
  */
 
@@ -42,24 +43,34 @@ export function killChoices(standard: number): (number | null)[] {
 /** "No limit" is stored as a limit nobody reaches in a 30 minute match. */
 export const NO_LIMIT = 999;
 
+/** Standard (pick your loadout) or gun game (every kill hands you the next weapon on the ladder). */
+export type Mode = "standard" | "gungame";
+export const MODES: readonly Mode[] = ["standard", "gungame"];
+export const MODE_LABEL: Record<Mode, string> = { standard: "Standard", gungame: "Gun game" };
+export const MODE_BLURB: Record<Mode, string> = {
+  standard: "Pick your loadout. The kill limit or the clock decides it.",
+  gungame: "Every kill hands you the next weapon, thirteen in all. The first kill with the knife wins.",
+};
+
 export interface MatchOptions {
   /** Match length in minutes, or null for the default. */
   minutes: number | null;
   /** Kill limit (per player free for all, per team in team play): null = standard, 0 = no limit. */
   kills: number | null;
   season: SeasonChoice;
+  mode: Mode;
 }
 
-export const DEFAULT_OPTIONS: MatchOptions = { minutes: null, kills: null, season: "auto" };
+export const DEFAULT_OPTIONS: MatchOptions = { minutes: null, kills: null, season: "auto", mode: "standard" };
 
 const int = (v: unknown, lo: number, hi: number): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : null);
 
 export function parseOptions(raw: unknown): MatchOptions {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_OPTIONS };
-  const o = raw as { min?: unknown; kills?: unknown; season?: unknown };
+  const o = raw as { min?: unknown; kills?: unknown; season?: unknown; mode?: unknown };
   const kills = o.kills === 0 ? 0 : int(o.kills, KILLS_RANGE[0], KILLS_RANGE[1]);
   const season = typeof o.season === "string" && (SEASONS as readonly string[]).includes(o.season) ? (o.season as Season) : "auto";
-  return { minutes: int(o.min, MINUTES_RANGE[0], MINUTES_RANGE[1]), kills, season };
+  return { minutes: int(o.min, MINUTES_RANGE[0], MINUTES_RANGE[1]), kills, season, mode: o.mode === "gungame" ? "gungame" : "standard" };
 }
 
 /** The settings blob the setup screen submits (only what differs from the defaults). */
@@ -68,14 +79,16 @@ export function toSettings(o: MatchOptions): { [key: string]: string | number } 
   if (o.minutes !== null && o.minutes * 60_000 !== MATCH_MS) out.min = o.minutes;
   if (o.kills !== null) out.kills = o.kills;
   if (o.season !== "auto") out.season = o.season;
+  if (o.mode === "gungame") out.mode = "gungame";
   return out;
 }
 
 /** Overrides for the match document (`newDoc`). */
-export function docOverrides(o: MatchOptions): { dur?: number; lim?: number } {
-  const out: { dur?: number; lim?: number } = {};
+export function docOverrides(o: MatchOptions): { dur?: number; lim?: number; gg?: boolean } {
+  const out: { dur?: number; lim?: number; gg?: boolean } = {};
   if (o.minutes !== null) out.dur = o.minutes * 60_000;
-  if (o.kills !== null) out.lim = o.kills === 0 ? NO_LIMIT : o.kills;
+  if (o.mode === "gungame") out.gg = true;
+  else if (o.kills !== null) out.lim = o.kills === 0 ? NO_LIMIT : o.kills;
   return out;
 }
 
@@ -88,13 +101,15 @@ export function docOverrides(o: MatchOptions): { dur?: number; lim?: number } {
 export function optionsFrom(state: unknown, settings: unknown): MatchOptions {
   const base = parseOptions(settings);
   if (!state || typeof state !== "object") return base;
-  const s = state as { pre?: unknown; v?: unknown; dur?: unknown; lim?: unknown; s?: unknown };
+  const s = state as { pre?: unknown; v?: unknown; dur?: unknown; lim?: unknown; s?: unknown; gg?: unknown };
   if (s.pre && typeof s.pre === "object") return parseOptions(s.pre);
   if (s.v === 1) {
+    const gg = typeof s.gg === "number" && s.gg >= 1;
     return {
       minutes: typeof s.dur === "number" ? Math.round(s.dur / 60_000) : base.minutes,
-      kills: typeof s.lim === "number" ? (s.lim >= NO_LIMIT ? 0 : s.lim) : base.kills,
+      kills: gg ? null : typeof s.lim === "number" ? (s.lim >= NO_LIMIT ? 0 : s.lim) : base.kills,
       season: typeof s.s === "string" && (SEASONS as readonly string[]).includes(s.s) ? (s.s as Season) : base.season,
+      mode: gg ? "gungame" : "standard",
     };
   }
   return base;
@@ -119,16 +134,18 @@ export function minutesOf(o: MatchOptions): number {
   return o.minutes ?? MATCH_MS / 60_000;
 }
 
-/** "first to 20", "first team to 40", "no kill limit". */
-export function limitLabel(lim: number, teams: boolean): string {
+/** "first to 20", "first team to 40", "no kill limit"; gun game: "first knife kill wins". */
+export function limitLabel(lim: number, teams: boolean, gunGame = false): string {
+  if (gunGame) return teams ? "first team through the ladder" : "first knife kill wins";
   if (isNoLimit(lim)) return "no kill limit";
   return teams ? `first team to ${lim}` : `first to ${lim}`;
 }
 
-/** One line for the challenge card: "10 min · first to 30 · ❄️ Winter". */
+/** One line for the challenge card: "10 min · first to 30 · ❄️ Winter" (gun game: "Gun game · 7 min"). */
 export function optionsSummary(o: MatchOptions): string {
   const parts = [`${minutesOf(o)} min`];
-  if (o.kills !== null) parts.push(o.kills === 0 ? "no kill limit" : `first to ${o.kills}`);
+  if (o.mode === "gungame") parts.unshift(MODE_LABEL.gungame);
+  else if (o.kills !== null) parts.push(o.kills === 0 ? "no kill limit" : `first to ${o.kills}`);
   if (o.season !== "auto") parts.push(`${SEASON_ICON[o.season]} ${SEASON_LABEL[o.season]}`);
   return parts.join(" · ");
 }

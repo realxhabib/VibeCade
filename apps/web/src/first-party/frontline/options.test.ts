@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS, NO_LIMIT, killChoices, optionsFrom, docOverrides, limitLabel, optionsSummary, parseOptions, resolveSeason, seasonOf, toSettings } from "./options";
-import { FFA_LIMIT, MATCH_MS, limitReached, newDoc, applyKill, type KillRec } from "./rules";
+import { FFA_LIMIT, MATCH_MS, gunGameWeapon, limitReached, newDoc, applyKill, parseDoc, type KillRec } from "./rules";
+import { GUN_GAME_LADDER, weaponIndex } from "./weapons";
 
 describe("match options", () => {
   it("falls back to the defaults", () => {
@@ -13,14 +14,14 @@ describe("match options", () => {
   });
 
   it("reads and clamps the host's choices", () => {
-    expect(parseOptions({ min: 10, kills: 30, season: "winter" })).toEqual({ minutes: 10, kills: 30, season: "winter" });
+    expect(parseOptions({ min: 10, kills: 30, season: "winter" })).toEqual({ minutes: 10, kills: 30, season: "winter", mode: "standard" });
     expect(parseOptions({ min: 500, kills: 900 })).toMatchObject({ minutes: 30, kills: 200 });
     expect(parseOptions({ min: 0.2, kills: -4 })).toMatchObject({ minutes: 1, kills: 1 });
     expect(parseOptions({ kills: 0 }).kills).toBe(0);
   });
 
   it("round-trips through the settings blob", () => {
-    const o = { minutes: 15, kills: 0, season: "autumn" as const };
+    const o = { minutes: 15, kills: 0, season: "autumn" as const, mode: "standard" as const };
     expect(parseOptions(toSettings(o))).toEqual(o);
     expect(toSettings(DEFAULT_OPTIONS)).toEqual({});
     expect(toSettings({ ...DEFAULT_OPTIONS, minutes: 7 })).toEqual({});
@@ -43,7 +44,8 @@ describe("match options", () => {
 
   it("summarizes for the challenge card", () => {
     expect(optionsSummary(DEFAULT_OPTIONS)).toBe("7 min");
-    expect(optionsSummary({ minutes: 10, kills: 30, season: "winter" })).toBe("10 min · first to 30 · ❄️ Winter");
+    expect(optionsSummary({ minutes: 10, kills: 30, season: "winter", mode: "standard" })).toBe("10 min · first to 30 · ❄️ Winter");
+    expect(optionsSummary({ minutes: 5, kills: 30, season: "auto", mode: "gungame" })).toBe("Gun game · 5 min");
   });
 
   it("follows the calendar when the host leaves the season on auto", () => {
@@ -59,11 +61,15 @@ describe("match options", () => {
 describe("options in the shared state", () => {
   it("prefers the host's loadout-screen picks, then the challenge settings", () => {
     expect(optionsFrom(null, { min: 10 })).toMatchObject({ minutes: 10 });
-    expect(optionsFrom({ pre: { min: 3, kills: 0, season: "winter" } }, { min: 10 })).toEqual({ minutes: 3, kills: 0, season: "winter" });
+    expect(optionsFrom({ pre: { min: 3, kills: 0, season: "winter" } }, { min: 10 })).toEqual({ minutes: 3, kills: 0, season: "winter", mode: "standard" });
   });
   it("reads a started match from its document (a reconnect keeps the same season)", () => {
     const doc = newDoc(0, 0, 2, { ...docOverrides(parseOptions({ min: 15, kills: 0 })), s: "spring" });
-    expect(optionsFrom(doc, {})).toEqual({ minutes: 15, kills: 0, season: "spring" });
+    expect(optionsFrom(doc, {})).toEqual({ minutes: 15, kills: 0, season: "spring", mode: "standard" });
+  });
+  it("a started gun game reads back as gun game", () => {
+    const doc = newDoc(0, 0, 4, docOverrides(parseOptions({ mode: "gungame", kills: 5 })));
+    expect(optionsFrom(doc, {})).toMatchObject({ mode: "gungame", kills: null });
   });
 });
 
@@ -71,5 +77,43 @@ describe("kill limit buttons", () => {
   it("go lowest to highest, standard in its place, no limit last", () => {
     expect(killChoices(20)).toEqual([5, 10, null, 30, 50, 0]);
     expect(killChoices(40)).toEqual([5, 10, 20, 30, null, 50, 0]);
+  });
+});
+
+describe("gun game", () => {
+  it("is a host option that round-trips through the settings blob", () => {
+    expect(parseOptions({ mode: "gungame" }).mode).toBe("gungame");
+    expect(parseOptions({ mode: "zombies" }).mode).toBe("standard");
+    expect(toSettings({ ...DEFAULT_OPTIONS, mode: "gungame" })).toEqual({ mode: "gungame" });
+    expect(parseOptions(toSettings({ ...DEFAULT_OPTIONS, mode: "gungame", minutes: 10 }))).toEqual({ ...DEFAULT_OPTIONS, mode: "gungame", minutes: 10 });
+  });
+
+  it("the ladder is the kill limit: one kill per weapon alone, a team's size per weapon in team play", () => {
+    const ffa = newDoc(0, 0, 6, docOverrides(parseOptions({ mode: "gungame", kills: 50 })));
+    expect(ffa.gg).toBe(1);
+    expect(ffa.lim).toBe(GUN_GAME_LADDER.length);
+    const teams = newDoc(0, 2, 6, docOverrides(parseOptions({ mode: "gungame" })));
+    expect(teams.gg).toBe(3);
+    expect(teams.lim).toBe(GUN_GAME_LADDER.length * 3);
+    expect(newDoc(0, 0, 4).gg).toBeUndefined();
+  });
+
+  it("ends on the kill made with the last weapon", () => {
+    let doc = newDoc(0, 0, 2, docOverrides(parseOptions({ mode: "gungame" })));
+    for (let life = 0; life < GUN_GAME_LADDER.length - 1; life++) doc = applyKill(doc, [1, life, 0, 0, 0, 10] as KillRec, 1)!;
+    expect(doc.end).toBeNull();
+    expect(gunGameWeapon(GUN_GAME_LADDER.length - 1, 1)).toBe("knife");
+    doc = applyKill(doc, [1, GUN_GAME_LADDER.length - 1, 0, weaponIndex("knife"), 0, 10] as KillRec, 2)!;
+    expect(doc.end).toEqual({ r: "limit", at: 2 });
+    expect(parseDoc(JSON.parse(JSON.stringify(doc)))?.gg).toBe(1);
+  });
+
+  it("hands out the ladder in order, a team's size of kills per rung in team play", () => {
+    expect(gunGameWeapon(0, 1)).toBe("ar");
+    expect(gunGameWeapon(1, 1)).toBe("smg");
+    expect(gunGameWeapon(99, 1)).toBe("knife");
+    expect(gunGameWeapon(2, 3)).toBe("ar");
+    expect(gunGameWeapon(3, 3)).toBe("smg");
+    expect(limitLabel(12, false, true)).toBe("first knife kill wins");
   });
 });
