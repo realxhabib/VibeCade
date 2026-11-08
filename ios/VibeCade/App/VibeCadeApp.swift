@@ -29,39 +29,59 @@ struct RootView: View {
         (.ranks, "Ranks", "trophy.fill"),
     ]
 
-    var body: some View {
-        TabView(selection: $tab) {
-            SwiftUI.Tab("Games", systemImage: "gamecontroller.fill", value: Tab.games) { GamesView() }
-            SwiftUI.Tab("Challenges", systemImage: "bolt.fill", value: Tab.challenges) {
-                NavigationStack { SiteScreen(page: challenges) }
-            }
-            SwiftUI.Tab("Arena", systemImage: "hammer.fill", value: Tab.arena) {
-                NavigationStack { SiteScreen(page: arena) }
-            }
-            SwiftUI.Tab("Ranks", systemImage: "trophy.fill", value: Tab.ranks) {
-                NavigationStack { SiteScreen(page: ranks) }
-            }
+    /// A match is on screen in the tab on show: no tab bar at all.
+    private var playing: Bool {
+        switch tab {
+        case .games: chrome.playing
+        case .challenges: challenges.playing
+        case .arena: arena.playing
+        case .ranks: ranks.playing
         }
-        .background(Brand.void)
-        .overlay { foldTabBar }
+    }
+
+    /// The app draws its own tab bar (not TabView's): the system one turns into a
+    /// side pill on the Duo's inner screen that can't be hidden for a match.
+    var body: some View {
+        let barRoom = !playing && !hinge.halfOpen
+        ZStack {
+            Brand.void.ignoresSafeArea()
+            page(.games) { GamesView() }
+            page(.challenges) { NavigationStack { SiteScreen(page: challenges) } }
+            page(.arena) { NavigationStack { SiteScreen(page: arena) } }
+            page(.ranks) { NavigationStack { SiteScreen(page: ranks) } }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if barRoom { Color.clear.frame(height: FoldTabBarHeight.value + 6) }
+        }
+        .overlay { tabBar }
         .background(HingeReader().allowsHitTesting(false))
+        .animation(.easeInOut(duration: 0.25), value: playing)
         .onOpenURL(perform: open)
     }
 
-    /// Half folded: the tab strip at the foot of the lower (or right) half.
-    @ViewBuilder private var foldTabBar: some View {
-        if hinge.halfOpen, !chrome.playing {
+    /// Every tab stays alive (and keeps its place); only the selected one shows.
+    private func page<Content: View>(_ which: Tab, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .opacity(tab == which ? 1 : 0)
+            .allowsHitTesting(tab == which)
+            .accessibilityHidden(tab != which)
+    }
+
+    /// The tab bar: centered at the foot of the screen, or of the lower (right) half
+    /// when the Duo is half folded. Hidden in a match.
+    @ViewBuilder private var tabBar: some View {
+        if !playing {
             GeometryReader { geo in
-                let sideways = geo.size.width > geo.size.height
                 // This reader ignores the safe area: its size is the whole screen.
                 let insets = WindowInsets.current
                 let full = geo.size.width
+                let sideways = hinge.halfOpen && geo.size.width > geo.size.height
                 VStack {
                     Spacer()
                     FoldTabBar(tabs: tabs, selection: $tab)
-                        .frame(maxWidth: 420)
+                        .frame(maxWidth: 440)
                         .padding(.horizontal, 16)
-                        .padding(.bottom, max(insets.bottom - 14, 6))
+                        .padding(.bottom, max(insets.bottom - 12, 8))
                 }
                 .frame(width: sideways ? full / 2 - 6 : full)
                 .offset(x: sideways ? full / 2 + 6 : 0)

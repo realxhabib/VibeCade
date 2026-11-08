@@ -77,16 +77,14 @@ struct SiteScreen: View {
         }
         .background(HingeReader().allowsHitTesting(false))
         .toolbar(.hidden, for: .navigationBar)
-        // Half folded, the app's own tab strip sits on the lower half instead (RootView).
-        .toolbar(page.playing || hinge.halfOpen ? .hidden : .visible, for: .tabBar)
         .statusBarHidden(page.playing)
         .persistentSystemOverlays(page.playing ? .hidden : .automatic)
         .onChange(of: page.playing) { _, now in
             if !now { wholeScreen = false }
-            Chrome.shared.playing = now
+            if pushed { Chrome.shared.playing = now }
         }
-        .onAppear { Chrome.shared.playing = page.playing }
-        .onDisappear { Chrome.shared.playing = false }
+        .onAppear { if pushed { Chrome.shared.playing = page.playing } }
+        .onDisappear { if pushed { Chrome.shared.playing = false } }
     }
 }
 

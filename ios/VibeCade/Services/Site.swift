@@ -69,7 +69,14 @@ enum Site {
 
     /// Runs before the site's own scripts on every page.
     static let earlyScript = """
-    try { localStorage.setItem('xapps:immersive', '1'); } catch (e) {}
+    // The first build forced the site's full-screen mode, which hides the match's top
+    // bar (players, reactions, leave). Clear that once; the site's own toggle decides now.
+    try {
+      if (!localStorage.getItem('vibecade-ios:immersive-reset')) {
+        localStorage.removeItem('xapps:immersive');
+        localStorage.setItem('vibecade-ios:immersive-reset', '1');
+      }
+    } catch (e) {}
     window.vibecadeApp = { platform: 'ios', version: 1 };
     """
 

@@ -130,8 +130,6 @@ struct FoldAware<Content: View>: View {
             content(ScreenLayout.of(size, halfOpen: hinge.halfOpen))
         }
         .background(HingeReader().allowsHitTesting(false))
-        // Half folded, the app's own tab strip sits on the lower half instead (RootView).
-        .toolbar(hinge.halfOpen ? .hidden : .visible, for: .tabBar)
     }
 }
 
@@ -140,7 +138,7 @@ struct FoldAware<Content: View>: View {
 @Observable
 final class Chrome {
     static let shared = Chrome()
-    /// A match is on screen: no tab bar of any kind.
+    /// A match is on screen in the Games tab (a game page pushed from the shelf).
     var playing = false
 }
 
