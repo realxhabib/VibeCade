@@ -1,6 +1,6 @@
 /**
- * The armory: twelve original weapons (four primaries and a sidearm for the
- * standard loadout, seven more that only the gun game ladder hands out) and
+ * The armory: thirteen original weapons (four primaries and a sidearm for the
+ * standard loadout, eight more that only the gun game ladder hands out) and
  * the pure math every client runs the
  * same way. Damage falls off linearly between two ranges and is scaled by
  * the body zone hit; spread and recoil are deterministic functions of a
@@ -9,7 +9,7 @@
  */
 
 /** The order is the wire format (weapon indices in snapshots, hits and kills): only ever append. */
-export const WEAPON_IDS = ["ar", "smg", "sniper", "shotgun", "pistol", "lmg", "burst", "dmr", "autoshot", "mp", "magnum", "knife"] as const;
+export const WEAPON_IDS = ["ar", "smg", "sniper", "shotgun", "pistol", "lmg", "burst", "dmr", "autoshot", "mp", "magnum", "knife", "rpg"] as const;
 export type WeaponId = (typeof WEAPON_IDS)[number];
 export const PRIMARIES: readonly WeaponId[] = ["ar", "smg", "sniper", "shotgun"];
 
@@ -18,7 +18,7 @@ export const PRIMARIES: readonly WeaponId[] = ["ar", "smg", "sniper", "shotgun"]
  * together in team play), and a kill with the last one, the knife, wins.
  * Long guns first, then the close-range ones, then the sidearms.
  */
-export const GUN_GAME_LADDER: readonly WeaponId[] = ["ar", "smg", "lmg", "burst", "shotgun", "autoshot", "dmr", "sniper", "mp", "magnum", "pistol", "knife"];
+export const GUN_GAME_LADDER: readonly WeaponId[] = ["ar", "smg", "lmg", "burst", "rpg", "shotgun", "autoshot", "dmr", "sniper", "mp", "magnum", "pistol", "knife"];
 
 /** Hit zones: head, upper body (chest, arms), lower body (hips, legs). */
 export const ZONE_HEAD = 0;
@@ -71,6 +71,8 @@ export interface WeaponDef {
   /** Rounds per trigger pull (burst rifle); they cycle at `rpm`, then `burstDelayS` before the next pull. */
   burst?: number;
   burstDelayS?: number;
+  /** Fires a rocket (grenade.ts: straight flight, a frag's blast where it hits) instead of bullets. */
+  rocket?: boolean;
   /** A blade: no ammo, no muzzle flash or tracer, it only reaches `maxRange`. */
   melee?: boolean;
   /** Big kick (camera shake, view model punch, a thicker smoke puff). */
@@ -474,6 +476,41 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     melee: true,
     card: { damage: 1, range: 0, rate: 0.3, mobility: 1 },
     blurb: "One slash drops anyone, if you can get close enough.",
+  },
+  rpg: {
+    id: "rpg",
+    name: "Hammerhead RL",
+    kind: "Rocket launcher",
+    // The blast does the damage (grenade.ts); these only describe the rocket for the card.
+    damage: [160, 160],
+    range: [10, 120],
+    maxRange: 120,
+    rpm: 50,
+    auto: false,
+    mag: 1,
+    reserve: 4,
+    reloadS: 2.4,
+    drawS: 0.7,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 2.5,
+    adsSpread: 0.4,
+    moveSpread: 2,
+    bloomPerShot: 0,
+    bloomMax: 0,
+    bloomRecover: 1,
+    recoilPitch: 3,
+    recoilYaw: 0.6,
+    adsRecoil: 0.8,
+    adsFov: 58,
+    adsS: 0.3,
+    mobility: 0.88,
+    zones: [1.5, 1, 0.85],
+    scope: false,
+    rocket: true,
+    heavy: true,
+    card: { damage: 1, range: 0.7, rate: 0.05, mobility: 0.35 },
+    blurb: "One rocket at a time. Aim at their feet: the blast does the rest.",
   },
 };
 

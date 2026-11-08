@@ -158,7 +158,16 @@ function gunGeometry(id: WeaponId): { geo: BufferGeometry; fore: Vector3; muzzle
   const od = 0x4a5238;
   let fore = new Vector3(0, -0.02, -0.3);
   let muzzle = new Vector3(0, 0.02, -0.62);
-  if (id === "knife") {
+  if (id === "rpg") {
+    // A launch tube on the shoulder, warhead out front.
+    box(0, 0.05, -0.12, 0.07, 0.07, 0.8, od);
+    box(0, 0.05, -0.58, 0.05, 0.05, 0.14, 0x5a5d52);
+    box(0, -0.04, 0.0, 0.03, 0.08, 0.04, black, 0.3); // grip
+    box(0, -0.03, -0.2, 0.03, 0.07, 0.04, black, 0.2); // front grip
+    box(0.05, 0.1, -0.08, 0.03, 0.04, 0.08, black); // sight
+    fore = new Vector3(0, -0.02, -0.2);
+    muzzle = new Vector3(0, 0.05, -0.66);
+  } else if (id === "knife") {
     box(0, -0.01, 0, 0.026, 0.03, 0.1, black);
     box(0, 0.0, -0.06, 0.05, 0.012, 0.012, steel);
     box(0, 0.006, -0.15, 0.008, 0.035, 0.17, 0xb9bec4);

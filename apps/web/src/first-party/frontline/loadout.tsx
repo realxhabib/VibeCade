@@ -121,6 +121,16 @@ export function GunGlyph({ id, className }: { id: WeaponId; className?: string }
         <rect x="96" y="11" width="2.6" height="3.5" fill={body} />
       </>
     ),
+    rpg: (
+      <>
+        <rect x="18" y="15" width="78" height="9" rx="2.5" fill={body} />
+        <path d="M96 13 L112 16 Q118 19.5 112 23 L96 26 Z" fill={body} />
+        <rect x="10" y="14" width="10" height="11" rx="1.5" fill={body} opacity="0.85" />
+        <path d="M44 24 L51 24 L49 34 L43 34 Z" fill={body} />
+        <path d="M60 24 L66 24 L65 31 L60 31 Z" fill={body} opacity="0.9" />
+        <rect x="40" y="10" width="12" height="5" rx="1" fill={body} />
+      </>
+    ),
     knife: (
       <>
         <path d="M52 17 L104 15 Q114 16 116 20 L52 23 Z" fill={body} />
@@ -275,7 +285,7 @@ export function PerkPicker({ value, onChange, compact = false, disabled = false 
   );
 }
 
-/** Gun game: the twelve weapons in the order each kill hands them out. */
+/** Gun game: the thirteen weapons in the order each kill hands them out. */
 export function GunGameLadder({ compact = false, rung = -1 }: { compact?: boolean; rung?: number }) {
   return (
     <div className={cn("glass flex w-full flex-col rounded-2xl px-3", compact ? "gap-1.5 py-2" : "gap-2 py-3")}>
@@ -283,7 +293,7 @@ export function GunGameLadder({ compact = false, rung = -1 }: { compact?: boolea
         <span>Gun game ladder</span>
         <span className="normal-case tracking-normal text-ink-400">Every kill: the next weapon</span>
       </p>
-      <ol className={cn("grid gap-1.5", compact ? "grid-cols-6" : "grid-cols-4 sm:grid-cols-6")}>
+      <ol className={cn("grid gap-1.5", compact ? "grid-cols-7" : "grid-cols-4 sm:grid-cols-7")}>
         {GUN_GAME_LADDER.map((id, i) => {
           const w = WEAPONS[id];
           const last = i === GUN_GAME_LADDER.length - 1;

@@ -715,12 +715,25 @@ export class Engine {
     const me = g.me;
     const aiming = !!me && me.alive && me.nadeHeld && me.nades > 0 && g.phase === "live";
     this.nadeFx.update(g, now, aiming && me ? g.previewNade(me) : null, (x, z) => this.audio.clink(x, z));
+    // Rockets leave a smoke trail.
+    if (now - this.trailAt > 40) {
+      this.trailAt = now;
+      for (const n of g.nades) {
+        if (!n.rocket || now < n.releasedAt) continue;
+        const p = g.nadePos(n, now);
+        this.vfx.muzzleSmoke(p.x, p.y, p.z, true);
+      }
+    }
     // Your kills' ammo drops (only yours: only you can take them).
     this.ammoFx.update(g, now, me && !this.spectating() ? me.seat : null);
   }
 
+  private trailAt = 0;
+
   private readonly fx: GameFx = {
     nade: (n) => {
+      // A rocket's launch already sounded with the shot.
+      if (n.rocket) return;
       const s = this.game.bySeat.get(n.thrower);
       const mine = !!s?.isMe && !this.spectating();
       if (s) this.audio.throwNade(s.body.x, s.body.z, mine);
@@ -730,9 +743,11 @@ export class Engine {
     explosion: (n) => {
       const p = n.flight.end;
       this.vfx.explosion(p.x, p.y, p.z);
-      this.seasonFx.burst(p.x, p.y, p.z);
-      // The turkey's last word.
-      if (this.game.season === "autumn") this.audio.nadeCall("gobble", p.x, p.z);
+      if (!n.rocket) {
+        this.seasonFx.burst(p.x, p.y, p.z);
+        // The turkey's last word.
+        if (this.game.season === "autumn") this.audio.nadeCall("gobble", p.x, p.z);
+      }
       this.audio.explosion(p.x, p.z);
       const d = this.camera.position.distanceTo(_v.set(p.x, p.y, p.z));
       this.trauma = Math.min(1, this.trauma + Math.max(0, 1.1 - d / 18));
@@ -755,7 +770,7 @@ export class Engine {
           this.vfx.muzzleSmoke(mx, my, mz, !!w.heavy);
         }
         // Spent cases: not from the pump guns or the revolver (or a blade), every other one from the fast guns.
-        if (!w.melee && w.pellets === 1 && w.id !== "magnum" && (w.rpm < 800 || s.shotSeq % 2 === 0)) {
+        if (!w.melee && !w.rocket && w.pellets === 1 && w.id !== "magnum" && (w.rpm < 800 || s.shotSeq % 2 === 0)) {
           const rx = Math.cos(s.yaw);
           const rz = -Math.sin(s.yaw);
           const f = viewDir(s.yaw, s.pitch);
@@ -766,7 +781,7 @@ export class Engine {
         }
       }
       const every = mine ? (w.pellets > 1 ? 3 : 2) : w.pellets > 1 ? 3 : 1;
-      if (!w.melee)
+      if (!w.melee && !w.rocket)
         ends.forEach((e, i) => {
           if (i % every === 0 && (!mine || s.shotSeq % 2 === 0 || w.pellets > 1)) this.vfx.tracer(muzzle, e, w.id === "sniper" || w.id === "dmr" ? 0.06 : 0.035);
         });

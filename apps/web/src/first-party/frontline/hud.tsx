@@ -571,7 +571,7 @@ function Ammo({ me, nade, touch, onSwap }: { me: NonNullable<HudState["me"]>; na
   );
 }
 
-/** Gun game: weapon N of 12 (pips for a team's kills on this rung) and what comes next. */
+/** Gun game: weapon N of 13 (pips for a team's kills on this rung) and what comes next. */
 function LadderMeter({ ladder, touch }: { ladder: NonNullable<NonNullable<HudState["me"]>["ladder"]>; touch: boolean }) {
   const next = ladder.next ? WEAPONS[ladder.next] : null;
   return (

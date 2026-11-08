@@ -20,6 +20,7 @@ import {
   spreadDeg,
   spreadOffset,
 } from "./weapons";
+import { GRENADE_WEAPON } from "./grenade";
 
 const still = { ads: 0, speed: 0, airborne: false, crouched: false, bloom: 0, steadyAim: false };
 
@@ -92,6 +93,8 @@ describe("gun game ladder", () => {
     expect([...GUN_GAME_LADDER].sort()).toEqual([...WEAPON_IDS].sort());
     expect(GUN_GAME_LADDER[0]).toBe("ar");
     expect(GUN_GAME_LADDER.at(-1)).toBe("knife");
+    // The grenade's ledger index sits outside the weapons'.
+    expect(WEAPON_IDS.length).toBeLessThan(GRENADE_WEAPON);
     expect(gunGameRung(0, 1)).toBe(0);
     expect(gunGameRung(5, 2)).toBe(2);
     expect(gunGameRung(500, 1)).toBe(GUN_GAME_LADDER.length - 1);

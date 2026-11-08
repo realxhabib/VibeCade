@@ -59,6 +59,7 @@ const BOT_WEAPONS: [WeaponId, number][] = [
 /** How a bot fights with a weapon: how far it shoots from, the distance it keeps, and whether it scopes in. */
 export function botStyle(w: WeaponDef): { reach: number; want: number; long: boolean } {
   if (w.melee) return { reach: w.maxRange - 0.2, want: 0, long: false };
+  if (w.rocket) return { reach: 50, want: 18, long: false };
   if (w.pellets > 1) return { reach: 16, want: 4, long: false };
   if (w.id === "smg" || w.id === "mp") return { reach: 40, want: 9, long: false };
   if (w.id === "sniper") return { reach: 80, want: 30, long: true };

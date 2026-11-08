@@ -49,7 +49,7 @@ export const MODES: readonly Mode[] = ["standard", "gungame"];
 export const MODE_LABEL: Record<Mode, string> = { standard: "Standard", gungame: "Gun game" };
 export const MODE_BLURB: Record<Mode, string> = {
   standard: "Pick your loadout. The kill limit or the clock decides it.",
-  gungame: "Every kill hands you the next weapon, twelve in all. The first kill with the knife wins.",
+  gungame: "Every kill hands you the next weapon, thirteen in all. The first kill with the knife wins.",
 };
 
 export interface MatchOptions {

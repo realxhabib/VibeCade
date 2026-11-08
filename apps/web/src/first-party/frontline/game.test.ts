@@ -4,6 +4,8 @@ import { MAPS } from "./map";
 import type { Season } from "./options";
 import { RELAY_HZ, RELAY_INTERP_MS, type Packet } from "./net";
 import { parseDoc, type MatchDoc } from "./rules";
+import { GRENADE_WEAPON } from "./grenade";
+import { weaponIndex } from "./weapons";
 
 /** A deterministic stand-in for `xapps.random.fork(label)`. */
 function seeded(label: string) {
@@ -566,7 +568,7 @@ describe("gun game", () => {
     expect(alice.kills.has("1:0")).toBe(true);
     expect(alice.me!.weapons).toEqual(["smg", "smg"]);
     expect(alice.me!.reserve[0]).toBe(128);
-    expect(alice.hud().me!.ladder).toMatchObject({ rung: 1, of: 12, next: "lmg" });
+    expect(alice.hud().me!.ladder).toMatchObject({ rung: 1, of: 13, next: "lmg" });
     // Bob comes back on the first weapon still.
     await step(3200);
     expect(bob.me!.alive).toBe(true);
@@ -596,5 +598,34 @@ describe("gun game", () => {
     expect(me.shotSeq).toBeGreaterThan(4);
     expect(me.mag[0]).toBe(1);
     expect(me.reloadUntil).toBe(0);
+  });
+
+  it("a rocket flies to its target and its blast kills, recorded as the launcher (not a grenade)", async () => {
+    const { games, step, intents } = table([seat("alice", 0), seat("bob", 1)], { gg: true });
+    const alice = games.get("alice")!;
+    const bob = games.get("bob")!;
+    await step(200);
+    faceOff(alice, bob);
+    await step(400);
+    const me = alice.me!;
+    me.weapons = ["rpg", "rpg"];
+    me.mag = [1, 1];
+    me.reserve = [4, 4];
+    me.swapUntil = me.nextFireAt = me.reloadUntil = 0;
+    me.ads = 1;
+    intents.set("alice", { ...AIM_FIRE });
+    await step(48);
+    intents.set("alice", idleIntent());
+    // In flight: 12 m at 40 m/s is ~0.3 s.
+    expect(alice.nades.some((n) => n.rocket)).toBe(true);
+    await step(120);
+    // Bob hears about it (over the room) while it's still flying.
+    expect(bob.nades.some((n) => n.rocket)).toBe(true);
+    await step(1200);
+    const rec = bob.kills.get("1:0");
+    expect(rec).toBeDefined();
+    expect(rec![3]).toBe(weaponIndex("rpg"));
+    expect(rec![3]).not.toBe(GRENADE_WEAPON);
+    expect(alice.kills.has("1:0")).toBe(true);
   });
 });

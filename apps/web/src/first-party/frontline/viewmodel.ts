@@ -419,6 +419,31 @@ export class ViewModel {
       muzzle = [0, 0.032, -0.27];
       sightY = 0.064;
       adsZ = -0.34;
+    } else if (id === "rpg") {
+      // A launch tube over the shoulder; the warhead out front comes off during a reload.
+      cyl(0.042, 0.78, 0, 0.03, -0.12, 0x4f5640, "polymer", 16);
+      cyl(0.05, 0.06, 0, 0.03, 0.27, black, "parkerized", 16, 0.044); // rear flare
+      cyl(0.046, 0.04, 0, 0.03, -0.5, black, "parkerized", 16); // muzzle ring
+      rbox(0.034, 0.08, 0.045, 0, -0.045, 0.03, black, "polymer", 0.28, 0.008); // grip
+      rbox(0.03, 0.07, 0.04, 0, -0.04, -0.2, black, "polymer", 0.15, 0.008); // front grip
+      box(0.006, 0.02, 0.05, 0, -0.03, -0.02, black, "parkerized"); // trigger guard
+      // Iron sights on top of the tube.
+      rear(0.07, 0.1, -0.02, 0.012);
+      front(0.07, 0.1, -0.4);
+      const warhead: BufferGeometry[] = [
+        this.place(new CylinderGeometry(0.02, 0.045, 0.1, 14).rotateX(-Math.PI / 2), 0x6b6d5c, "parkerized", 0, 0, 0),
+        this.place(new CylinderGeometry(0.003, 0.02, 0.08, 14).rotateX(-Math.PI / 2), 0x6b6d5c, "parkerized", 0, 0, -0.09),
+      ];
+      const wg = mergeGeometries(warhead)!;
+      warhead.forEach((p) => p.dispose());
+      this.geometries.push(wg);
+      mag = new Mesh(wg, this.shared);
+      mag.position.set(0, 0.03, -0.57);
+      g.add(mag);
+      magY = 0.03;
+      muzzle = [0, 0.03, -0.66];
+      sightY = 0.1;
+      adsZ = -0.2;
     } else if (id === "knife") {
       // Handle in the fist, blade forward and a little up.
       rbox(0.026, 0.032, 0.1, 0, -0.03, 0.0, 0x2a2622, "polymer", 0.35, 0.008);
@@ -469,7 +494,7 @@ export class ViewModel {
       hand(-0.03, -0.07, id === "magnum" ? 0.05 : 0.02, 0.25, 0.4, true);
     } else {
       hand(0.005, -0.07, id === "burst" ? -0.11 : 0.03, 0.25, 0, true);
-      const support = id === "smg" ? -0.2 : id === "shotgun" ? -0.36 : id === "burst" ? -0.3 : id === "lmg" ? -0.38 : id === "dmr" ? -0.36 : id === "autoshot" ? -0.3 : -0.32;
+      const support = id === "rpg" ? -0.2 : id === "smg" ? -0.2 : id === "shotgun" ? -0.36 : id === "burst" ? -0.3 : id === "lmg" ? -0.38 : id === "dmr" ? -0.36 : id === "autoshot" ? -0.3 : -0.32;
       hand(-0.015, -0.035, support, 0.1, 0.35, true);
     }
     // Low detail: the red dot is just a bright bead in the one mesh (no glass, no extra draws).

@@ -13,7 +13,7 @@
  */
 
 import { BotBrain, botLevel, botSkill, botWeapon, type BotEnemy } from "./bots";
-import { GRENADE_WEAPON, NADES_PER_LIFE, NADE_FUSE_MS, aimNade, blastOn, simulateNade, throwStart, validateBlast, type NadeFlight } from "./grenade";
+import { GRENADE_WEAPON, NADES_PER_LIFE, NADE_FUSE_MS, aimNade, blastOn, rocketFlight, rocketMs, simulateNade, throwStart, validateBlast, type NadeFlight } from "./grenade";
 import type { MapDef } from "./map";
 import { buildNav, type NavGraph } from "./nav";
 import { SEASONS, SEASON_RULES, type Season, type SeasonRules } from "./options";
@@ -23,6 +23,7 @@ import {
   EV_HIT,
   EV_KILL,
   EV_NADE,
+  EV_ROCKET,
   F_ADS,
   F_CROUCH,
   F_DEAD,
@@ -313,6 +314,10 @@ export interface LiveNade {
   exploded: boolean;
   /** This client decides who the blast hits. */
   authority: boolean;
+  /** A rocket (straight flight, goes off on impact) rather than a thrown grenade. */
+  rocket: boolean;
+  /** What a kill by its blast is recorded as (GRENADE_WEAPON, or the launcher's index). */
+  weapon: number;
 }
 
 export interface GameTransport {
@@ -930,6 +935,8 @@ export class Game {
         if (s.burstLeft > 0 && --s.burstLeft === 0) s.nextFireAt += (cur.burstDelayS ?? 0) * 1000;
         s.lastFireAt = now;
         s.burst++;
+        // Single-shot launchers load the next rocket straight away.
+        if (cur.mag === 1 && !cur.melee && s.mag[slot] === 0) startReload();
       } else if (s.burstLeft > 0) {
         s.burstLeft = 0;
       } else if (!s.triggerHeld) {
@@ -966,7 +973,9 @@ export class Game {
     const impacts: Impact[] = [];
     const perVictim = new Map<Soldier, { counts: [number, number, number]; point: Vec3; dist: number }>();
     const [cx, cy] = spreadOffset(s.shotSeed, s.shotSeq, 99);
-    for (let p = 0; p < w.pellets; p++) {
+    // A rocket: one projectile, its blast does the damage (see updateNades).
+    if (w.rocket) ends.push(this.launchRocket(s, w, eye, deflect(s.yaw, s.pitch, cx * spread, cy * spread), now));
+    for (let p = 0; p < (w.rocket ? 0 : w.pellets); p++) {
       let ox = cx * spread;
       let oy = cy * spread;
       if (w.pellets > 1) {
@@ -1015,7 +1024,8 @@ export class Game {
     s.lastShotFx = now;
     s.lastShotAirborne = !b.grounded;
     this.fx?.shot(s, w, eye, ends, impacts);
-    if (!this.simAll && !this.spectator) {
+    // Rockets reach the others as their own event (EV_ROCKET).
+    if (!this.simAll && !this.spectator && !w.rocket) {
       const end = ends[0]!;
       this.pendingShots.push({ at: now, row: [s.seat, 0, Math.round(end.x * 10), Math.round(end.y * 10), Math.round(end.z * 10), weaponIndex(w.id)] });
       if (this.pendingShots.length > 12) this.pendingShots.shift();
@@ -1333,17 +1343,52 @@ export class Game {
     this.fx?.nade(n);
   }
 
+  /** A number for `s`'s next grenade or rocket, unique for the match (one blast per number per victim). */
+  private nextThrowId(s: Soldier): number {
+    s.nadeSeq++;
+    return s.life * 256 + (s.nadeSeq % 256);
+  }
+
+  /** Launches a rocket from `eye` along the shot's direction `d`: it flies straight to the first wall or body in its way. */
+  private launchRocket(s: Soldier, w: WeaponDef, eye: Vec3, d: Vec3, now: number): Vec3 {
+    const origin = { x: eye.x + d.x * 0.5, y: eye.y + d.y * 0.5 - 0.05, z: eye.z + d.z * 0.5 };
+    const mapHit = raycastMap(this.world, origin.x, origin.y, origin.z, d.x, d.y, d.z, w.maxRange);
+    let t = mapHit ? mapHit.t : w.maxRange;
+    for (const o of this.soldiers) {
+      if (o === s || !this.targetable(o)) continue;
+      if (this.teams && o.team === s.team) continue;
+      const pos = this.posOf(o);
+      // Proximity fuse: it goes off passing within 0.7 m of a body (closest approach to their axis).
+      const flat = d.x * d.x + d.z * d.z;
+      if (flat < 1e-8) continue;
+      const tc = ((pos.x - origin.x) * d.x + (pos.z - origin.z) * d.z) / flat;
+      if (tc <= 0 || tc >= t) continue;
+      const miss = Math.hypot(origin.x + d.x * tc - pos.x, origin.z + d.z * tc - pos.z);
+      const y = origin.y + d.y * tc;
+      if (miss < 0.7 && y > pos.y - 0.2 && y < pos.y + 2) t = Math.max(0, tc - Math.sqrt(0.49 - miss * miss));
+    }
+    // Go off just short of the surface (on the near side of a wall, not inside it).
+    t = Math.max(0.3, t - 0.15);
+    const q = (v: number) => Math.round(v * 100) / 100;
+    const o = { x: q(origin.x), y: q(origin.y), z: q(origin.z) };
+    const end = { x: q(origin.x + d.x * t), y: q(origin.y + d.y * t), z: q(origin.z + d.z * t) };
+    const wi = weaponIndex(w.id);
+    const n: LiveNade = { thrower: s.seat, n: this.nextThrowId(s), flight: rocketFlight(o, end), releasedAt: now, explodeAt: now + rocketMs(o, end), exploded: false, authority: true, rocket: true, weapon: wi };
+    this.addNade(n);
+    if (!this.simAll && !this.spectator) this.out.push({ kind: EV_ROCKET, shooter: s.seat, n: n.n, weapon: wi, origin: [o.x, o.y, o.z], end: [end.x, end.y, end.z], t: now }, now);
+    return end;
+  }
+
   /** Throws `s`'s grenade along (yaw, pitch). */
   private throwNade(s: Soldier, yaw: number, pitch: number, now: number): void {
     if (s.nades <= 0 || !s.alive || this.phase !== "live") return;
     s.nades--;
-    s.nadeSeq++;
     s.lastThrowFx = now;
     s.nextFireAt = Math.max(s.nextFireAt, now + 420);
     s.reloadUntil = 0;
     const eye = { x: s.body.x, y: s.body.y + this.eyeHeight(s), z: s.body.z };
     const { origin, vel } = throwStart(eye, yaw, pitch, { x: s.body.vx, z: s.body.vz });
-    const n: LiveNade = { thrower: s.seat, n: s.nadeSeq + s.life * 16, flight: simulateNade(this.world, origin, vel), releasedAt: now, explodeAt: now + NADE_FUSE_MS, exploded: false, authority: true };
+    const n: LiveNade = { thrower: s.seat, n: this.nextThrowId(s), flight: simulateNade(this.world, origin, vel), releasedAt: now, explodeAt: now + NADE_FUSE_MS, exploded: false, authority: true, rocket: false, weapon: GRENADE_WEAPON };
     this.addNade(n);
     if (!this.simAll && !this.spectator) {
       this.out.push({ kind: EV_NADE, thrower: s.seat, n: n.n, origin: [origin.x, origin.y, origin.z], vel: [vel.x, vel.y, vel.z], t: now }, now);
@@ -1389,7 +1434,7 @@ export class Game {
         if (thrower?.isMe) this.fx?.hitMarker("hit");
         if (o.local) {
           const dist = Math.hypot(p.x - point.x, p.z - point.z);
-          this.applyDamage(o, damage, n.thrower, GRENADE_WEAPON, false, dist, point, now);
+          this.applyDamage(o, damage, n.thrower, n.weapon, false, dist, point, now);
         } else if (!this.simAll && !this.spectator) {
           this.out.push({ kind: EV_BLAST, thrower: n.thrower, n: n.n, victim: o.seat, life: o.buf.latest?.life ?? o.life, point: [point.x, point.y, point.z] }, now);
         }
@@ -1660,7 +1705,22 @@ export class Game {
       const o = { x: ev.origin[0], y: ev.origin[1], z: ev.origin[2] };
       const v = { x: ev.vel[0], y: ev.vel[1], z: ev.vel[2] };
       thrower.lastThrowFx = now;
-      this.addNade({ thrower: thrower.seat, n: ev.n, flight: simulateNade(this.world, o, v), releasedAt: now - age, explodeAt: now - age + NADE_FUSE_MS, exploded: false, authority: false });
+      this.addNade({ thrower: thrower.seat, n: ev.n, flight: simulateNade(this.world, o, v), releasedAt: now - age, explodeAt: now - age + NADE_FUSE_MS, exploded: false, authority: false, rocket: false, weapon: GRENADE_WEAPON });
+      return;
+    }
+    if (ev.kind === EV_ROCKET) {
+      const shooter = this.speaksFor(from, ev.shooter);
+      const w = weaponAt(ev.weapon);
+      if (!shooter || shooter.local || !w?.rocket) return;
+      const o = { x: ev.origin[0], y: ev.origin[1], z: ev.origin[2] };
+      const end = { x: ev.end[0], y: ev.end[1], z: ev.end[2] };
+      const flightMs = rocketMs(o, end);
+      // Their clock → ours: how long ago it left the tube (it may already have landed).
+      const remoteNow = this.clocks.get(from.id)?.toRemote(now);
+      const age = remoteNow === null || remoteNow === undefined ? 0 : Math.max(0, Math.min(flightMs, remoteNow - ev.t));
+      shooter.lastShotFx = now;
+      this.fx?.shot(shooter, w, o, [], []);
+      this.addNade({ thrower: shooter.seat, n: ev.n, flight: rocketFlight(o, end), releasedAt: now - age, explodeAt: now - age + flightMs, exploded: false, authority: false, rocket: true, weapon: ev.weapon });
       return;
     }
     if (ev.kind === EV_BLAST) {
@@ -1684,7 +1744,7 @@ export class Game {
         return;
       }
       applied.add(ev.n);
-      this.applyDamage(victim, verdict.damage, thrower.seat, GRENADE_WEAPON, false, verdict.dist, { x: ev.point[0], y: ev.point[1], z: ev.point[2] }, now);
+      this.applyDamage(victim, verdict.damage, thrower.seat, known?.weapon ?? GRENADE_WEAPON, false, verdict.dist, { x: ev.point[0], y: ev.point[1], z: ev.point[2] }, now);
       return;
     }
     // A kill, announced by the victim's owner.

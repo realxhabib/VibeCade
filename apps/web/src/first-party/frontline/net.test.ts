@@ -17,6 +17,7 @@ import {
   ReliableOut,
   SendBudget,
   SnapshotBuffer,
+  EV_ROCKET,
   decodeEvent,
   encodeEvent,
   packSoldier,
@@ -50,6 +51,8 @@ describe("wire format", () => {
     expect(decodeEvent(encodeEvent(8, { kind: EV_KILL, rec: [...kill.rec] }))).toEqual({ id: 8, ev: { kind: EV_KILL, rec: [0, 3, 1, 2, 1, 456] } });
     expect(decodeEvent([0, EV_KILL, 1, 2, 3, 4, 5, 6])).toBeNull();
     expect(decodeEvent([1, 5])).toBeNull();
+    const rocket = { kind: EV_ROCKET, shooter: 2, n: 257, weapon: 12, origin: [1.25, 1.5, -3] as [number, number, number], end: [20.5, 0.4, -14.75] as [number, number, number], t: 4321 } as const;
+    expect(decodeEvent(encodeEvent(9, rocket))).toEqual({ id: 9, ev: rocket });
     expect(decodeEvent("x")).toBeNull();
   });
 

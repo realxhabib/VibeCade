@@ -34,6 +34,7 @@ const GUNS: Record<WeaponId, GunVoice> = {
   autoshot: { crack: 0.55, crackF: 2400, body: 0.95, bodyF: 650, bodyDecay: 0.2, thump: 0.9, thumpF: 60, tail: 0.38, tailDecay: 0.55 },
   mp: { crack: 0.55, crackF: 4400, body: 0.5, bodyF: 1600, bodyDecay: 0.06, thump: 0.3, thumpF: 140, tail: 0.14, tailDecay: 0.25 },
   magnum: { crack: 0.85, crackF: 3000, body: 1, bodyF: 720, bodyDecay: 0.22, thump: 0.95, thumpF: 60, tail: 0.5, tailDecay: 0.9 },
+  rpg: { crack: 0.35, crackF: 1800, body: 1, bodyF: 420, bodyDecay: 0.35, thump: 1, thumpF: 45, tail: 0.5, tailDecay: 0.9 },
   // Never fired (the knife has its own swish), here so every weapon has a voice.
   knife: { crack: 0, crackF: 4000, body: 0, bodyF: 1000, bodyDecay: 0.05, thump: 0, thumpF: 100, tail: 0, tailDecay: 0.1 },
 };
