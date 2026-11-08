@@ -9,6 +9,8 @@ import {
   decodeLoadout,
   encodeLoadout,
   falloff,
+  GUN_GAME_LADDER,
+  gunGameRung,
   hitDamage,
   parseLoadout,
   PERK_IDS,
@@ -81,6 +83,33 @@ describe("damage and falloff", () => {
       expect(w.adsSpread).toBeLessThanOrEqual(w.hipSpread);
     }
     expect(reloadTime(WEAPONS.ar, "quick_hands")).toBeCloseTo(WEAPONS.ar.reloadS * 0.7);
+  });
+});
+
+describe("gun game ladder", () => {
+  it("uses every weapon once, long guns first, and ends on the knife", () => {
+    expect(new Set(GUN_GAME_LADDER).size).toBe(GUN_GAME_LADDER.length);
+    expect([...GUN_GAME_LADDER].sort()).toEqual([...WEAPON_IDS].sort());
+    expect(GUN_GAME_LADDER[0]).toBe("ar");
+    expect(GUN_GAME_LADDER.at(-1)).toBe("knife");
+    expect(gunGameRung(0, 1)).toBe(0);
+    expect(gunGameRung(5, 2)).toBe(2);
+    expect(gunGameRung(500, 1)).toBe(GUN_GAME_LADDER.length - 1);
+  });
+
+  it("the knife drops anyone in one slash, but only within arm's reach", () => {
+    const k = WEAPONS.knife;
+    expect(k.melee).toBe(true);
+    expect(shotsToKill(k, 1.5, ZONE_LOWER)).toBe(1);
+    expect(hitDamage(k, 3, [0, 1, 0])).toBe(0);
+  });
+
+  it("new guns: the burst kills with one full burst up close, the DMR with two to the chest, the revolver with one to the head", () => {
+    expect(WEAPONS.burst.burst).toBe(3);
+    expect(shotsToKill(WEAPONS.burst, 10, ZONE_UPPER)).toBe(3);
+    expect(shotsToKill(WEAPONS.dmr, 60, ZONE_UPPER)).toBe(2);
+    expect(shotsToKill(WEAPONS.magnum, 8, ZONE_HEAD)).toBe(1);
+    expect(shotsToKill(WEAPONS.autoshot, 4, ZONE_UPPER)).toBe(2);
   });
 });
 

@@ -76,6 +76,7 @@ import {
   applyClock,
   applyKill,
   chooseDriver,
+  gunGameWeapon,
   isWinner,
   killKey,
   mergeKills,
@@ -91,12 +92,14 @@ import {
   type Tally,
 } from "./rules";
 import {
+  GUN_GAME_LADDER,
   WEAPONS,
   ZONE_HEAD,
   decodeLoadout,
   drawTime,
   encodeLoadout,
   fireInterval,
+  gunGameRung,
   hash01,
   hitDamage,
   recoilKick,
@@ -180,6 +183,8 @@ export interface Soldier {
   nextFireAt: number;
   lastFireAt: number;
   burst: number;
+  /** Rounds left in the burst rifle's current burst. */
+  burstLeft: number;
   triggerHeld: boolean;
   bloom: number;
   recoilDebt: number;
@@ -262,7 +267,7 @@ const MAX_DROPS = 12;
  * What a drop gives: half of each gun's starting reserve (never past it) and a
  * grenade back (up to a full set). Returns what it added.
  */
-export function takeAmmo(s: Pick<Soldier, "weapons" | "reserve" | "nades">): { rounds: number; nades: number } {
+export function takeAmmo(s: Pick<Soldier, "weapons" | "reserve" | "nades">, grenades = true): { rounds: number; nades: number } {
   let added = 0;
   for (const slot of [0, 1] as const) {
     const full = WEAPONS[s.weapons[slot]].reserve;
@@ -270,7 +275,7 @@ export function takeAmmo(s: Pick<Soldier, "weapons" | "reserve" | "nades">): { r
     added += Math.max(0, next - s.reserve[slot]);
     s.reserve[slot] = Math.max(s.reserve[slot], next);
   }
-  const nades = s.nades < NADES_PER_LIFE ? 1 : 0;
+  const nades = grenades && s.nades < NADES_PER_LIFE ? 1 : 0;
   s.nades += nades;
   return { rounds: added, nades };
 }
@@ -287,6 +292,8 @@ export interface GameFx {
   swap(s: Soldier): void;
   dry(s: Soldier): void;
   streak(kind: "radar"): void;
+  /** Gun game: `s` moved to a new weapon on the ladder (`rung`, 0-based). */
+  climbed(s: Soldier, rung: number): void;
   /** `s` took the ammo a kill of theirs left (what it added across both guns, and grenades). */
   pickup(s: Soldier, got: { rounds: number; nades: number }): void;
   /** A grenade left the thrower's hand (any client's). */
@@ -331,8 +338,8 @@ export interface GameOptions {
   seedRandom: (label: string) => () => number;
   transport: GameTransport;
   initialState: unknown;
-  /** Test overrides for the doc (dev only). */
-  docOverrides?: { dur?: number; lim?: number };
+  /** The host's options for the doc (length, limit, gun game) and dev test overrides. */
+  docOverrides?: { dur?: number; lim?: number; gg?: boolean };
   /** The season's gameplay twist (options.ts); summer when left out. */
   season?: Season;
 }
@@ -501,6 +508,7 @@ export class Game {
       nextFireAt: 0,
       lastFireAt: -1e9,
       burst: 0,
+      burstLeft: 0,
       triggerHeld: false,
       bloom: 0,
       recoilDebt: 0,
@@ -610,7 +618,7 @@ export class Game {
   /* Shared doc                                                             */
   /* ---------------------------------------------------------------------- */
 
-  private initDoc(overrides?: { dur?: number; lim?: number; s?: string }): void {
+  private initDoc(overrides?: { dur?: number; lim?: number; s?: string; gg?: boolean }): void {
     const seats = this.soldiers.length;
     this.transport
       .update((raw) => (parseDoc(raw) ? undefined : newDoc(Date.now(), this.teams, seats, overrides)))
@@ -628,6 +636,7 @@ export class Game {
     mergeKills(this.kills, doc.k);
     // Kills we learn only from the state (missed on the room) still show in the feed.
     if (!firstShared) for (const r of doc.k) if (!before.has(killKey(r[0], r[1]))) this.onKillLearned(r, performance.now());
+    this.climb(performance.now());
     if (doc.end && this.phase === "live") this.finish(performance.now());
     this.bump();
   }
@@ -859,10 +868,11 @@ export class Game {
       }
     }
 
-    // Weapon swap.
-    if (it.slot >= 0 && it.slot !== s.slot && !this.isSwapping(s, now)) {
+    // Weapon swap (gun game: there's only the gun the ladder gave you).
+    if (it.slot >= 0 && it.slot !== s.slot && !this.isSwapping(s, now) && !this.doc.gg) {
       s.slot = it.slot;
       s.reloadUntil = 0;
+      s.burstLeft = 0;
       const d = drawTime(this.weapon(s), perk) * 1000;
       s.swapStart = now;
       s.swapUntil = now + d;
@@ -888,12 +898,13 @@ export class Game {
       s.reloadStart = now;
       s.reloadUntil = now + reloadTime(cur, perk) * 1000;
       s.burst = 0;
+      s.burstLeft = 0;
       this.fx?.reload(s);
     };
     if (it.reload) startReload();
 
     // Aim down sights.
-    const adsWant = it.ads && !s.sprinting && !swapping && !(cur.scope && reloading) ? 1 : 0;
+    const adsWant = it.ads && !cur.melee && !s.sprinting && !swapping && !(cur.scope && reloading) ? 1 : 0;
     s.ads += Math.sign(adsWant - s.ads) * Math.min(Math.abs(adsWant - s.ads), dt / cur.adsS);
 
     // Grenade: hold to see the arc, release to throw.
@@ -905,14 +916,22 @@ export class Game {
 
     // Fire.
     const canFire = !reloading && !swapping && !s.sprinting && now >= s.sprintOutAt && now >= s.nextFireAt;
-    if (it.fire && canFire && (cur.auto || !s.triggerHeld)) {
+    // Burst rifle: one pull starts a burst, which finishes on its own.
+    const burstSize = cur.burst ?? 1;
+    if (burstSize > 1 && it.fire && !s.triggerHeld && canFire && s.burstLeft === 0 && s.mag[slot] > 0) s.burstLeft = burstSize;
+    const wantShot = burstSize > 1 ? s.burstLeft > 0 : it.fire && (cur.auto || !s.triggerHeld);
+    if (wantShot && canFire) {
       if (s.mag[slot] > 0) {
         if (now - s.lastFireAt > fireInterval(cur) * 1000 * 1.8) s.burst = 0;
         this.fire(s, cur, now);
-        s.mag[slot]--;
+        // Blades don't run dry.
+        if (!cur.melee) s.mag[slot]--;
         s.nextFireAt = now + fireInterval(cur) * 1000;
+        if (s.burstLeft > 0 && --s.burstLeft === 0) s.nextFireAt += (cur.burstDelayS ?? 0) * 1000;
         s.lastFireAt = now;
         s.burst++;
+      } else if (s.burstLeft > 0) {
+        s.burstLeft = 0;
       } else if (!s.triggerHeld) {
         this.fx?.dry(s);
         startReload();
@@ -1111,7 +1130,65 @@ export class Game {
     if (victim?.isMe) this.log.deaths++;
     if (killer?.local && victim && killer !== victim && this.phase === "live") this.dropAmmo(victim, killer, now);
     this.fx?.kill(entry, mine);
+    this.climb(now);
     this.bump();
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Gun game                                                               */
+  /* ---------------------------------------------------------------------- */
+
+  /** Gun game: kills per weapon (0 when it's a standard match). */
+  get gunGame(): number {
+    return this.doc.gg ?? 0;
+  }
+
+  /** The kills that count toward `seat`'s place on the ladder (their team's in team play). */
+  ladderScore(seat: number): number {
+    const team = teamOf(seat, this.teams);
+    let n = 0;
+    for (const r of this.kills.values()) {
+      const k = r[2];
+      if (k < 0 || k === r[0]) continue;
+      if (team === null ? k === seat : teamOf(k, this.teams) === team) n++;
+    }
+    return n;
+  }
+
+  /** Which weapon the ladder hands `seat` right now. */
+  ladderWeapon(seat: number): WeaponId {
+    return gunGameWeapon(this.ladderScore(seat), this.gunGame || 1);
+  }
+
+  /** Puts `id` in both of `s`'s hands with full ammo (gun game: one weapon, no sidearm). */
+  private arm(s: Soldier, id: WeaponId, now: number): void {
+    const w = WEAPONS[id];
+    s.slot = 0;
+    s.weapons = [id, id];
+    s.mag = [w.mag, w.mag];
+    s.reserve = [w.reserve, w.reserve];
+    s.reloadUntil = 0;
+    s.burstLeft = 0;
+    s.burst = 0;
+    s.bloom = 0;
+    s.swapStart = now;
+    s.swapUntil = now + drawTime(w, s.loadout.perk) * 1000;
+    s.nextFireAt = Math.max(s.nextFireAt, s.swapUntil);
+  }
+
+  /** Gun game: hands every soldier we simulate the weapon their score has earned (mid-life too). */
+  private climb(now: number): void {
+    if (!this.gunGame || this.phase !== "live") return;
+    for (const s of this.soldiers) {
+      if (!s.local || !s.alive) continue;
+      const id = this.ladderWeapon(s.seat);
+      if (s.weapons[0] === id) continue;
+      const rung = GUN_GAME_LADDER.indexOf(id);
+      const was = GUN_GAME_LADDER.indexOf(s.weapons[0]);
+      this.arm(s, id, now);
+      this.fx?.swap(s);
+      if (rung > was) this.fx?.climbed(s, rung);
+    }
   }
 
   private dropAmmo(victim: Soldier, killer: Soldier, now: number): void {
@@ -1133,7 +1210,7 @@ export class Game {
       const dx = s.body.x - d.x;
       const dz = s.body.z - d.z;
       if (dx * dx + dz * dz > AMMO_PICKUP_R * AMMO_PICKUP_R || Math.abs(s.body.y - d.y) > 2.2) continue;
-      const got = takeAmmo(s);
+      const got = takeAmmo(s, !this.gunGame);
       this.drops.splice(i, 1);
       this.fx?.pickup(s, got);
       this.bump();
@@ -1197,14 +1274,21 @@ export class Game {
     s.spawnIndex = index;
     s.respawnAt = 0;
     s.slot = 0;
-    const primary = s.loadout.primary;
-    s.weapons = [primary, "pistol"];
-    s.mag = [WEAPONS[primary].mag, WEAPONS.pistol.mag];
-    s.reserve = [WEAPONS[primary].reserve, WEAPONS.pistol.reserve];
-    s.reloadUntil = 0;
-    s.swapUntil = now + drawTime(WEAPONS[primary], s.loadout.perk) * 1000;
-    s.swapStart = now;
-    s.nextFireAt = s.swapUntil;
+    if (this.gunGame) {
+      // Gun game: the weapon your score has earned, and no grenades.
+      s.nextFireAt = 0;
+      this.arm(s, this.ladderWeapon(s.seat), now);
+    } else {
+      const primary = s.loadout.primary;
+      s.weapons = [primary, "pistol"];
+      s.mag = [WEAPONS[primary].mag, WEAPONS.pistol.mag];
+      s.reserve = [WEAPONS[primary].reserve, WEAPONS.pistol.reserve];
+      s.reloadUntil = 0;
+      s.burstLeft = 0;
+      s.swapUntil = now + drawTime(WEAPONS[primary], s.loadout.perk) * 1000;
+      s.swapStart = now;
+      s.nextFireAt = s.swapUntil;
+    }
     s.bloom = 0;
     s.recoilDebt = 0;
     s.shotSeq = 0;
@@ -1213,7 +1297,7 @@ export class Game {
     s.hurtBy.clear();
     s.hitsFrom.clear();
     s.streak = 0;
-    s.nades = NADES_PER_LIFE;
+    s.nades = this.gunGame ? 0 : NADES_PER_LIFE;
     s.nadeHeld = false;
     s.brain?.reset();
     this.fx?.spawned(s);
@@ -1378,7 +1462,7 @@ export class Game {
     s.yaw += Math.max(-turn, Math.min(turn, dy));
     s.pitch += Math.max(-turn, Math.min(turn, bi.pitch - s.pitch));
     // Pistol when the primary is empty and the fight is on.
-    const slot = s.mag[0] === 0 && s.slot === 0 && bi.fire && s.reserve[0] >= 0 && s.mag[1] > 0 ? 1 : s.slot === 1 && s.mag[0] > 0 && !bi.fire ? 0 : -1;
+    const slot = this.gunGame ? -1 : s.mag[0] === 0 && s.slot === 0 && bi.fire && s.reserve[0] >= 0 && s.mag[1] > 0 ? 1 : s.slot === 1 && s.mag[0] > 0 && !bi.fire ? 0 : -1;
     this.botNade(s, now);
     return { forward: bi.forward, strafe: bi.strafe, sprint: bi.sprint, crouch: bi.crouch, jump: bi.jump, fire: bi.fire, ads: bi.ads, reload: bi.reload || (s.slot === 0 && s.mag[0] === 0 && !bi.fire), slot, grenade: false };
   }
@@ -1756,6 +1840,7 @@ export class Game {
       phase: this.phase,
       remainingMs: this.remainingMs(),
       limit: this.doc.lim,
+      gunGame: this.gunGame,
       teams: this.teams,
       scores: this.soldiers.map((s) => ({ seat: s.seat, id: s.id, name: s.name, avatarUrl: s.avatarUrl, handle: s.handle, isBot: s.isBot, isMe: s.isMe, team: s.team, kills: t.kills.get(s.seat) ?? 0, deaths: t.deaths.get(s.seat) ?? 0, alive: s.alive, online: s.isBot || s.isMe || !this.online || this.online.has(s.id), link: s.isBot || s.isMe ? null : (this.transport.link?.(s.id) ?? null) })),
       teamScores: t.team,
@@ -1782,6 +1867,7 @@ export class Game {
             kills: t.kills.get(me.seat) ?? 0,
             team: me.team,
             seat: me.seat,
+            ladder: this.gunGame ? this.ladderOf(me.seat) : null,
           }
         : null,
       feed: this.feed.filter((f) => now - f.at < 6000).slice(-5),
@@ -1790,6 +1876,14 @@ export class Game {
     this.hudCacheVersion = this.hudVersion;
     return this.hudCache;
   };
+
+  /** Gun game: where `seat` is on the ladder. */
+  ladderOf(seat: number): Ladder {
+    const per = this.gunGame || 1;
+    const score = this.ladderScore(seat);
+    const rung = gunGameRung(score, per);
+    return { rung, of: GUN_GAME_LADDER.length, per, into: Math.min(per, score - rung * per), next: GUN_GAME_LADDER[rung + 1] ?? null };
+  }
 
   /** Seats of the enemies of `seat` (for the minimap). */
   isEnemy(a: Soldier, b: Soldier): boolean {
@@ -1829,8 +1923,21 @@ export class Game {
 
 }
 
+/** A place on the gun game ladder. */
+export interface Ladder {
+  /** 0-based rung (weapon) and how many there are. */
+  rung: number;
+  of: number;
+  /** Kills per rung, and how many of them are done on this one. */
+  per: number;
+  into: number;
+  next: WeaponId | null;
+}
+
 export interface HudState {
   phase: Phase;
+  /** Gun game: kills per weapon (0 in a standard match). */
+  gunGame: number;
   /** The season's grenade (snowball, turkey, …) for names and icons. */
   nade: Throwable;
   remainingMs: number;
@@ -1859,6 +1966,7 @@ export interface HudState {
     kills: number;
     team: number | null;
     seat: number;
+    ladder: Ladder | null;
   } | null;
   feed: FeedEntry[];
   driver: string | null;

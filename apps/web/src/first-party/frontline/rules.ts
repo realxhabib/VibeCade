@@ -14,7 +14,7 @@
 
 import { CollisionWorld, lineOfSight, type Vec3 } from "./physics";
 import type { Spawn } from "./map";
-import { hitDamage, weaponAt, type WeaponDef } from "./weapons";
+import { GUN_GAME_LADDER, gunGameRung, hitDamage, weaponAt, type WeaponDef, type WeaponId } from "./weapons";
 
 /** [victimSeat, victimLife, killerSeat, weaponIndex, flags, distance dm] */
 export type KillRec = [number, number, number, number, number, number];
@@ -36,6 +36,12 @@ export interface MatchDoc {
   end: { r: EndReason; at: number } | null;
   /** The season the match is played in (so a player who reconnects gets the same one). */
   s?: string;
+  /**
+   * Gun game: kills per weapon on the ladder (1 in free for all, the team
+   * size in team play, where the team climbs together). The limit is then
+   * the whole ladder, so the kill that finishes the last weapon ends it.
+   */
+  gg?: number;
 }
 
 export const MATCH_MS = 7 * 60_000;
@@ -48,18 +54,25 @@ export function teamLimit(teamSize: number): number {
   return teamSize <= 1 ? FFA_LIMIT : teamSize === 2 ? 30 : 40;
 }
 
-export function newDoc(now: number, teams: number, seats: number, overrides: { dur?: number; lim?: number; s?: string } = {}): MatchDoc {
+export function newDoc(now: number, teams: number, seats: number, overrides: { dur?: number; lim?: number; s?: string; gg?: boolean } = {}): MatchDoc {
   const teamSize = teams >= 2 ? Math.ceil(seats / teams) : 1;
+  const per = overrides.gg ? Math.max(1, teamSize) : 0;
   return {
     v: 1,
     t0: now,
     dur: overrides.dur ?? MATCH_MS,
-    lim: overrides.lim ?? (teams >= 2 ? teamLimit(teamSize) : FFA_LIMIT),
+    lim: per ? GUN_GAME_LADDER.length * per : (overrides.lim ?? (teams >= 2 ? teamLimit(teamSize) : FFA_LIMIT)),
     teams: teams >= 2 ? teams : 0,
     k: [],
     end: null,
     ...(overrides.s ? { s: overrides.s } : {}),
+    ...(per ? { gg: per } : {}),
   };
+}
+
+/** The weapon gun game hands a player (or their team) with `score` kills. */
+export function gunGameWeapon(score: number, per: number): WeaponId {
+  return GUN_GAME_LADDER[gunGameRung(score, per)]!;
 }
 
 export function parseDoc(raw: unknown): MatchDoc | null {
@@ -70,6 +83,7 @@ export function parseDoc(raw: unknown): MatchDoc | null {
   const end = d.end && typeof d.end === "object" && (d.end.r === "limit" || d.end.r === "time") && typeof d.end.at === "number" ? d.end : null;
   const doc: MatchDoc = { v: 1, t0: d.t0, dur: d.dur, lim: d.lim, teams: typeof d.teams === "number" ? d.teams : 0, k, end };
   if (typeof d.s === "string") doc.s = d.s;
+  if (typeof d.gg === "number" && Number.isInteger(d.gg) && d.gg >= 1) doc.gg = d.gg;
   return doc;
 }
 

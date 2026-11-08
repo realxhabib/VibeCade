@@ -47,7 +47,7 @@ import { NadeFx } from "./nadefx";
 import { fireTexture, flashTexture, holeTexture, scorchTexture, smokeTexture, softDot, streakTexture } from "./textures";
 import { Vfx } from "./vfx";
 import { ViewModel } from "./viewmodel";
-import { BASE_FOV, spreadDeg, type WeaponDef } from "./weapons";
+import { BASE_FOV, GUN_GAME_LADDER, spreadDeg, type WeaponDef, type WeaponId } from "./weapons";
 import { buildWorld, type WorldView } from "./world";
 import type { Season } from "./options";
 import { SeasonFx, applySeasonLight, seasonalMap } from "./season";
@@ -74,6 +74,8 @@ export type Callout =
   | { kind: "first_blood" }
   | { kind: "crown"; name: string; me: boolean }
   | { kind: "season"; season: Season }
+  /** Gun game: your new weapon (`rung` 0-based of `of`). */
+  | { kind: "climb"; weapon: WeaponId; rung: number; of: number }
   | { kind: "spawn" };
 
 export interface EngineOptions {
@@ -239,6 +241,7 @@ export class Engine {
       if (holder) this.call({ kind: "crown", name: holder.name, me: holder.seat === meSeat });
     };
     this.vm = new ViewModel(flash, pbr, this.game.season);
+    if (this.game.gunGame) this.vm.prepare(GUN_GAME_LADDER);
     if (pbr && this.envTarget) this.vm.scene.environment = this.envTarget.texture;
     if (t.post) this.post = new PostFx(this.renderer, this.scene, this.camera, { scene: this.vm.scene, camera: this.vm.camera, visible: () => this.vmVisible });
     this.vfx = new Vfx(this.scene, fxTex, { decals: t.decals, particles: t.particles, lights: t.flashLights, ambience: t.ambience, lite: !pbr });
@@ -747,31 +750,36 @@ export class Engine {
       // Muzzle light, a wisp of smoke, and a spent case (not for the shotgun's pump, not every SMG round).
       const camD = Math.hypot(mx - this.camera.position.x, mz - this.camera.position.z);
       if (camD < 45) {
-        this.vfx.flash(mx, my, mz, mine ? 3.5 : 5, 55, 0xffb266);
-        this.vfx.muzzleSmoke(mx, my, mz, w.id === "shotgun" || w.id === "sniper");
-        if (w.id !== "shotgun" && (w.id !== "smg" || s.shotSeq % 2 === 0)) {
+        if (!w.melee) {
+          this.vfx.flash(mx, my, mz, mine ? 3.5 : 5, 55, 0xffb266);
+          this.vfx.muzzleSmoke(mx, my, mz, !!w.heavy);
+        }
+        // Spent cases: not from the pump guns or the revolver (or a blade), every other one from the fast guns.
+        if (!w.melee && w.pellets === 1 && w.id !== "magnum" && (w.rpm < 800 || s.shotSeq % 2 === 0)) {
           const rx = Math.cos(s.yaw);
           const rz = -Math.sin(s.yaw);
           const f = viewDir(s.yaw, s.pitch);
           const ex = mine ? this.camera.position.x + rx * 0.16 + f.x * 0.35 : mx - f.x * 0.45;
           const ey = mine ? this.camera.position.y - 0.1 : my;
           const ez = mine ? this.camera.position.z + rz * 0.16 + f.z * 0.35 : mz - f.z * 0.45;
-          this.vfx.casing(ex, ey, ez, rx, rz, w.id === "sniper");
+          this.vfx.casing(ex, ey, ez, rx, rz, w.id === "sniper" || w.id === "dmr");
         }
       }
       const every = mine ? (w.pellets > 1 ? 3 : 2) : w.pellets > 1 ? 3 : 1;
-      ends.forEach((e, i) => {
-        if (i % every === 0 && (!mine || s.shotSeq % 2 === 0 || w.pellets > 1)) this.vfx.tracer(muzzle, e, w.id === "sniper" ? 0.06 : 0.035);
-      });
+      if (!w.melee)
+        ends.forEach((e, i) => {
+          if (i % every === 0 && (!mine || s.shotSeq % 2 === 0 || w.pellets > 1)) this.vfx.tracer(muzzle, e, w.id === "sniper" || w.id === "dmr" ? 0.06 : 0.035);
+        });
       for (const i of impacts) {
         this.vfx.impact(i);
         if (i.surface !== "flesh") this.audio.impact(i.x, i.z, i.surface === "metal" || i.surface === "container");
       }
-      this.audio.gunshot(w.id, s.body.x, s.body.z, mine);
+      if (w.melee) this.audio.slash(s.body.x, s.body.z, mine, impacts.some((i) => i.surface === "flesh"));
+      else this.audio.gunshot(w.id, s.body.x, s.body.z, mine);
       if (mine) {
-        const strength = w.id === "sniper" || w.id === "shotgun" ? 2.2 : w.id === "pistol" ? 1.1 : 0.8;
+        const strength = w.melee ? 1 : w.heavy ? 2.2 : w.id === "pistol" || w.id === "mp" ? 1.1 : 0.8;
         this.vm.fired(performance.now(), strength);
-        this.trauma = Math.min(1, this.trauma + (w.id === "sniper" || w.id === "shotgun" ? 0.45 : 0.12));
+        this.trauma = Math.min(1, this.trauma + (w.heavy ? 0.45 : w.melee ? 0.05 : 0.12));
         this.punch += (w.recoilPitch * DEG) * 0.4;
       }
     },
@@ -823,6 +831,7 @@ export class Engine {
         if (!this.seasonTold) {
           this.seasonTold = true;
           this.call({ kind: "season", season: this.game.season });
+          if (this.game.gunGame) this.call({ kind: "climb", weapon: s.weapons[0], rung: GUN_GAME_LADDER.indexOf(s.weapons[0]), of: GUN_GAME_LADDER.length });
         }
       }
     },
@@ -858,6 +867,12 @@ export class Engine {
       this.call({ kind: "ammo", ...got });
       this.opts.haptic("light");
     },
+    climbed: (s: Soldier, rung: number) => {
+      if (!s.isMe || this.spectating()) return;
+      this.audio.climb(rung === GUN_GAME_LADDER.length - 1);
+      this.call({ kind: "climb", weapon: s.weapons[0], rung, of: GUN_GAME_LADDER.length });
+      this.opts.haptic("success");
+    },
     streak: (kind) => {
       if (kind === "radar") {
         this.audio.radar();
@@ -890,7 +905,7 @@ export class Engine {
             crouched: me.crouch > 0.5,
             bloom: me.bloom,
             steadyAim: me.loadout.perk === "steady_aim",
-          }) + (w.pellets > 1 ? w.pelletSpread * 0.8 : 0);
+          }) + (w.pellets > 1 && !w.melee ? w.pelletSpread * 0.8 : 0);
         const px = (Math.tan(spread * DEG) / Math.tan((this.camera.fov * DEG) / 2)) * (this.height / 2);
         const gap = Math.max(3, Math.min(90, px));
         const hide = me.sprinting ? 1 : w.scope ? me.ads : w.pellets > 1 ? 0 : Math.max(0, me.ads * 1.6 - 0.6);

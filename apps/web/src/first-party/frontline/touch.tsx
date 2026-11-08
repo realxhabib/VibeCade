@@ -17,6 +17,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { cn } from "@/lib/utils";
 import type { Engine } from "./engine";
 import type { HudState } from "./game";
+import { WEAPONS } from "./weapons";
 
 const RADIUS = 52;
 
@@ -98,7 +99,7 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
 
   // Fire aims too (mobile shooters' "ADS fire"): guns aim down sights and shoot while it's
   // held; the sniper scopes in while held and fires on release (a quick-scope).
-  const sniper = me?.weapon === "sniper";
+  const sniper = !!me && WEAPONS[me.weapon].scope;
   const scopedIn = sniper && scoped;
   const aimFire = (down: boolean) => {
     if (down) input.setTouch({ ads: true, fire: !sniper });
@@ -177,14 +178,19 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
       {/* Buttons: fire under the thumb with jump above it, crouch and the grenade beside them (and the sniper's scope). */}
       <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 grid grid-cols-[auto_auto_auto] items-center justify-items-center gap-x-3 gap-y-2 [@media(max-height:480px)]:gap-y-1.5">
         <div />
-        <Btn
-          label={`${hud.nade.name} (hold to aim, release to throw)`}
-          size="sm"
-          className={me.nades > 0 ? undefined : "opacity-35"}
-          {...press((down) => input.setTouch({ grenade: down && me.nades > 0 }), true)}
-        >
-          <span className="text-[19px] leading-none">{hud.nade.icon}</span>
-        </Btn>
+        {/* Gun game has no grenades. */}
+        {hud.gunGame ? (
+          <div />
+        ) : (
+          <Btn
+            label={`${hud.nade.name} (hold to aim, release to throw)`}
+            size="sm"
+            className={me.nades > 0 ? undefined : "opacity-35"}
+            {...press((down) => input.setTouch({ grenade: down && me.nades > 0 }), true)}
+          >
+            <span className="text-[19px] leading-none">{hud.nade.icon}</span>
+          </Btn>
+        )}
         <Btn label="Jump" size="sm" {...tap(() => input.setTouch({ jump: true }))}>
           <ArrowUpFromLine className="size-5" />
         </Btn>

@@ -1,14 +1,24 @@
 /**
- * The armory: five original weapons and the pure math every client runs the
+ * The armory: twelve original weapons (four primaries and a sidearm for the
+ * standard loadout, seven more that only the gun game ladder hands out) and
+ * the pure math every client runs the
  * same way. Damage falls off linearly between two ranges and is scaled by
  * the body zone hit; spread and recoil are deterministic functions of a
  * per-life seed and the shot number, so a replay (or a test) of the same
  * trigger pulls lands the same pellets and kicks the same way.
  */
 
-export const WEAPON_IDS = ["ar", "smg", "sniper", "shotgun", "pistol"] as const;
+/** The order is the wire format (weapon indices in snapshots, hits and kills): only ever append. */
+export const WEAPON_IDS = ["ar", "smg", "sniper", "shotgun", "pistol", "lmg", "burst", "dmr", "autoshot", "mp", "magnum", "knife"] as const;
 export type WeaponId = (typeof WEAPON_IDS)[number];
 export const PRIMARIES: readonly WeaponId[] = ["ar", "smg", "sniper", "shotgun"];
+
+/**
+ * Gun game: every kill moves you one weapon down this ladder (a team moves
+ * together in team play), and a kill with the last one, the knife, wins.
+ * Long guns first, then the close-range ones, then the sidearms.
+ */
+export const GUN_GAME_LADDER: readonly WeaponId[] = ["ar", "smg", "lmg", "burst", "shotgun", "autoshot", "dmr", "sniper", "mp", "magnum", "pistol", "knife"];
 
 /** Hit zones: head, upper body (chest, arms), lower body (hips, legs). */
 export const ZONE_HEAD = 0;
@@ -58,6 +68,13 @@ export interface WeaponDef {
   zones: [number, number, number];
   /** Scoped sniper: black overlay, no viewmodel when fully aimed. */
   scope: boolean;
+  /** Rounds per trigger pull (burst rifle); they cycle at `rpm`, then `burstDelayS` before the next pull. */
+  burst?: number;
+  burstDelayS?: number;
+  /** A blade: no ammo, no muzzle flash or tracer, it only reaches `maxRange`. */
+  melee?: boolean;
+  /** Big kick (camera shake, view model punch, a thicker smoke puff). */
+  heavy?: boolean;
   /** Loadout card bars (0–1). */
   card: { damage: number; range: number; rate: number; mobility: number };
   blurb: string;
@@ -159,6 +176,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     mobility: 0.9,
     zones: [1.5, 1, 0.7],
     scope: true,
+    heavy: true,
     card: { damage: 1, range: 1, rate: 0.12, mobility: 0.45 },
     blurb: "One shot to the upper body drops anyone. Scope in first.",
   },
@@ -191,6 +209,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     mobility: 1,
     zones: [1.25, 1, 0.9],
     scope: false,
+    heavy: true,
     card: { damage: 0.95, range: 0.15, rate: 0.2, mobility: 0.75 },
     blurb: "Eight pellets. One pump clears a doorway.",
   },
@@ -225,6 +244,236 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     scope: false,
     card: { damage: 0.55, range: 0.45, rate: 0.5, mobility: 1 },
     blurb: "Always on your hip. Swapping beats reloading.",
+  },
+  lmg: {
+    id: "lmg",
+    name: "Ox-60",
+    kind: "Light machine gun",
+    damage: [28, 22],
+    range: [25, 55],
+    maxRange: 220,
+    rpm: 650,
+    auto: true,
+    mag: 60,
+    reserve: 120,
+    reloadS: 4.2,
+    drawS: 0.75,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 4.2,
+    adsSpread: 0.45,
+    moveSpread: 3,
+    bloomPerShot: 0.25,
+    bloomMax: 2.4,
+    bloomRecover: 6,
+    recoilPitch: 0.48,
+    recoilYaw: 0.34,
+    adsRecoil: 0.55,
+    adsFov: 52,
+    adsS: 0.34,
+    mobility: 0.86,
+    zones: [1.4, 1, 0.85],
+    scope: false,
+    card: { damage: 0.6, range: 0.8, rate: 0.7, mobility: 0.3 },
+    blurb: "Sixty rounds before you think about reloading. Slow to aim, slow to run.",
+  },
+  burst: {
+    id: "burst",
+    name: "Lark BR-3",
+    kind: "Burst rifle",
+    damage: [34, 25],
+    range: [22, 50],
+    maxRange: 220,
+    rpm: 950,
+    auto: false,
+    burst: 3,
+    burstDelayS: 0.24,
+    mag: 30,
+    reserve: 120,
+    reloadS: 2.3,
+    drawS: 0.5,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 3,
+    adsSpread: 0.25,
+    moveSpread: 2,
+    bloomPerShot: 0.25,
+    bloomMax: 2.2,
+    bloomRecover: 8,
+    recoilPitch: 0.5,
+    recoilYaw: 0.18,
+    adsRecoil: 0.6,
+    adsFov: 52,
+    adsS: 0.24,
+    mobility: 0.95,
+    zones: [1.5, 1, 0.85],
+    scope: false,
+    card: { damage: 0.7, range: 0.75, rate: 0.6, mobility: 0.6 },
+    blurb: "Three rounds a pull. Land the whole burst up close and they drop.",
+  },
+  dmr: {
+    id: "dmr",
+    name: "Falcon DMR",
+    kind: "Marksman rifle",
+    damage: [55, 50],
+    range: [30, 80],
+    maxRange: 260,
+    rpm: 320,
+    auto: false,
+    mag: 12,
+    reserve: 48,
+    reloadS: 2.6,
+    drawS: 0.55,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 4.5,
+    adsSpread: 0.05,
+    moveSpread: 2.6,
+    bloomPerShot: 0.9,
+    bloomMax: 2.6,
+    bloomRecover: 6,
+    recoilPitch: 1.6,
+    recoilYaw: 0.25,
+    adsRecoil: 0.65,
+    adsFov: 38,
+    adsS: 0.28,
+    mobility: 0.92,
+    zones: [1.7, 1, 0.8],
+    scope: false,
+    card: { damage: 0.8, range: 0.9, rate: 0.35, mobility: 0.5 },
+    blurb: "Two to the chest at any range. Every miss shows.",
+  },
+  autoshot: {
+    id: "autoshot",
+    name: "Mauler AS-8",
+    kind: "Auto shotgun",
+    damage: [12, 3],
+    range: [5, 14],
+    maxRange: 32,
+    rpm: 220,
+    auto: true,
+    mag: 8,
+    reserve: 32,
+    reloadS: 3,
+    drawS: 0.55,
+    pellets: 7,
+    pelletSpread: 5.2,
+    hipSpread: 1,
+    adsSpread: 0.6,
+    moveSpread: 1.2,
+    bloomPerShot: 0.6,
+    bloomMax: 1.6,
+    bloomRecover: 4,
+    recoilPitch: 2.2,
+    recoilYaw: 0.7,
+    adsRecoil: 0.8,
+    adsFov: 64,
+    adsS: 0.22,
+    mobility: 0.98,
+    zones: [1.25, 1, 0.9],
+    scope: false,
+    heavy: true,
+    card: { damage: 0.8, range: 0.1, rate: 0.45, mobility: 0.7 },
+    blurb: "Hold the trigger. Two shells up close is all it takes.",
+  },
+  mp: {
+    id: "mp",
+    name: "Hornet MP",
+    kind: "Machine pistol",
+    damage: [22, 12],
+    range: [7, 20],
+    maxRange: 120,
+    rpm: 1100,
+    auto: true,
+    mag: 20,
+    reserve: 100,
+    reloadS: 1.6,
+    drawS: 0.3,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 2.6,
+    adsSpread: 0.9,
+    moveSpread: 1,
+    bloomPerShot: 0.25,
+    bloomMax: 2.6,
+    bloomRecover: 9,
+    recoilPitch: 0.5,
+    recoilYaw: 0.5,
+    adsRecoil: 0.75,
+    adsFov: 62,
+    adsS: 0.14,
+    mobility: 1.08,
+    zones: [1.4, 1, 0.9],
+    scope: false,
+    card: { damage: 0.4, range: 0.3, rate: 1, mobility: 1 },
+    blurb: "A pistol that empties in a second. Get close and hold on.",
+  },
+  magnum: {
+    id: "magnum",
+    name: "Mule .44",
+    kind: "Revolver",
+    damage: [62, 40],
+    range: [12, 35],
+    maxRange: 140,
+    rpm: 150,
+    auto: false,
+    mag: 6,
+    reserve: 30,
+    reloadS: 2.4,
+    drawS: 0.45,
+    pellets: 1,
+    pelletSpread: 0,
+    hipSpread: 2.2,
+    adsSpread: 0.2,
+    moveSpread: 1.4,
+    bloomPerShot: 1.4,
+    bloomMax: 3,
+    bloomRecover: 5,
+    recoilPitch: 4.2,
+    recoilYaw: 0.8,
+    adsRecoil: 0.7,
+    adsFov: 60,
+    adsS: 0.18,
+    mobility: 1.06,
+    zones: [1.7, 1, 0.85],
+    scope: false,
+    heavy: true,
+    card: { damage: 0.85, range: 0.5, rate: 0.2, mobility: 0.95 },
+    blurb: "Six heavy rounds. One to the head up close is enough.",
+  },
+  knife: {
+    id: "knife",
+    name: "Talon knife",
+    kind: "Knife",
+    damage: [100, 100],
+    range: [1, 2.6],
+    maxRange: 2.6,
+    rpm: 110,
+    auto: true,
+    mag: 1,
+    reserve: 0,
+    reloadS: 0,
+    drawS: 0.3,
+    pellets: 3,
+    pelletSpread: 9,
+    hipSpread: 0,
+    adsSpread: 0,
+    moveSpread: 0,
+    bloomPerShot: 0,
+    bloomMax: 0,
+    bloomRecover: 1,
+    // A small nudge of the view with each swing.
+    recoilPitch: 0.3,
+    recoilYaw: 0.2,
+    adsRecoil: 0.8,
+    adsFov: BASE_FOV,
+    adsS: 0.1,
+    mobility: 1.12,
+    zones: [1.2, 1, 1],
+    scope: false,
+    melee: true,
+    card: { damage: 1, range: 0, rate: 0.3, mobility: 1 },
+    blurb: "One slash drops anyone, if you can get close enough.",
   },
 };
 
@@ -272,6 +521,11 @@ export function decodeLoadout(n: number): Loadout {
 export const reloadTime = (w: WeaponDef, perk: PerkId | null): number => w.reloadS * (perk === "quick_hands" ? 0.7 : 1);
 export const drawTime = (w: WeaponDef, perk: PerkId | null): number => w.drawS * (perk === "quick_hands" ? 0.7 : 1);
 export const fireInterval = (w: WeaponDef): number => 60 / w.rpm;
+
+/** Index of the ladder rung for a gun game score (`per` kills per weapon), capped at the last rung. */
+export function gunGameRung(score: number, per: number): number {
+  return Math.max(0, Math.min(GUN_GAME_LADDER.length - 1, Math.floor(Math.max(0, score) / Math.max(1, per))));
+}
 
 /* ---------------------------------------------------------------------- */
 /* Damage                                                                 */

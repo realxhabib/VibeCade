@@ -16,7 +16,7 @@ import { ActionButton, AnimatedDots, Eyebrow, Screen } from "@/first-party/share
 import { useMediaQuery } from "@/first-party/shared/hooks";
 import { ease } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import { LoadoutPicker } from "./loadout";
+import { GunGameLadder, LoadoutPicker, PerkPicker } from "./loadout";
 import { MAPS, DEFAULT_MAP } from "./map";
 import { MatchView } from "./match";
 import { newDoc } from "./rules";
@@ -46,7 +46,9 @@ function debugSeason(): SeasonChoice | null {
 
 export function modeLabel(teams: number, seats: number, options: MatchOptions = DEFAULT_OPTIONS): string {
   const lim = newDoc(0, teams, seats, docOverrides(options)).lim;
-  return `${teams >= 2 ? "Team deathmatch" : "Free-for-all"} · ${limitLabel(lim, teams >= 2)}`;
+  const gg = options.mode === "gungame";
+  const kind = gg ? (teams >= 2 ? "Team gun game" : "Gun game") : teams >= 2 ? "Team deathmatch" : "Free-for-all";
+  return `${kind} · ${limitLabel(lim, teams >= 2, gg)}`;
 }
 
 export function FrontlineApp() {
@@ -186,7 +188,14 @@ export function FrontlineApp() {
                 </Eyebrow>
               ) : (
                 <>
-                  <LoadoutPicker value={settings.loadout} onChange={(l) => update({ ...settings, loadout: l })} disabled={locked} compact={small} summary />
+                  {options.mode === "gungame" ? (
+                    <>
+                      <GunGameLadder compact={small} />
+                      <PerkPicker value={settings.loadout} onChange={(l) => update({ ...settings, loadout: l })} disabled={locked} compact={small} />
+                    </>
+                  ) : (
+                    <LoadoutPicker value={settings.loadout} onChange={(l) => update({ ...settings, loadout: l })} disabled={locked} compact={small} summary />
+                  )}
                   {/* Phones: look speed before the fight (also in the pause menu). */}
                   {touch && <LookSpeed settings={settings} onSettings={update} touch className="glass w-full max-w-xs rounded-2xl px-3 py-2" />}
                   <div className={cn("flex w-full flex-col items-center gap-2", small ? "sticky bottom-0 mt-auto pb-1 pt-1" : "pb-4")}>

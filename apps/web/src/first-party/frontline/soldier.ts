@@ -53,7 +53,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import type { SoldierAsset } from "./assets";
 import type { Soldier } from "./game";
 import { patchMaterial } from "./materials";
-import type { WeaponId } from "./weapons";
+import { WEAPON_IDS, type WeaponId } from "./weapons";
 
 /* ---------------------------------------------------------------------- */
 /* Kit (shared per engine)                                                */
@@ -158,28 +158,39 @@ function gunGeometry(id: WeaponId): { geo: BufferGeometry; fore: Vector3; muzzle
   const od = 0x4a5238;
   let fore = new Vector3(0, -0.02, -0.3);
   let muzzle = new Vector3(0, 0.02, -0.62);
-  if (id === "pistol") {
-    box(0, 0.035, -0.07, 0.03, 0.035, 0.18, black);
-    box(0, -0.03, 0, 0.028, 0.09, 0.045, black, 0.25);
+  if (id === "knife") {
+    box(0, -0.01, 0, 0.026, 0.03, 0.1, black);
+    box(0, 0.0, -0.06, 0.05, 0.012, 0.012, steel);
+    box(0, 0.006, -0.15, 0.008, 0.035, 0.17, 0xb9bec4);
+    fore = new Vector3(0, -0.01, 0.01);
+    muzzle = new Vector3(0, 0.01, -0.24);
+  } else if (id === "pistol" || id === "mp" || id === "magnum") {
+    const len = id === "magnum" ? 0.24 : 0.18;
+    box(0, 0.035, -0.07 - (len - 0.18) / 2, 0.03, 0.035, len, id === "magnum" ? steel : black);
+    if (id === "magnum") box(0, 0.025, -0.03, 0.045, 0.045, 0.055, steel); // cylinder
+    box(0, -0.03, 0, 0.028, 0.09, 0.045, id === "magnum" ? 0x5a4030 : black, 0.25);
+    if (id === "mp") box(0, -0.1, 0.012, 0.026, 0.09, 0.04, black, 0.25); // long magazine
     fore = new Vector3(0, -0.03, 0.01);
-    muzzle = new Vector3(0, 0.035, -0.17);
+    muzzle = new Vector3(0, 0.035, -0.07 - len + 0.08);
   } else {
-    const accent = id === "sniper" ? tan : id === "shotgun" ? 0x5a4030 : id === "smg" ? black : od;
-    const len = id === "sniper" ? 0.62 : id === "shotgun" ? 0.5 : id === "smg" ? 0.3 : 0.44;
+    const accent = id === "sniper" || id === "dmr" ? tan : id === "shotgun" ? 0x5a4030 : id === "smg" || id === "autoshot" ? black : id === "burst" ? 0x5d6166 : od;
+    const len = id === "sniper" ? 0.62 : id === "dmr" ? 0.56 : id === "shotgun" ? 0.5 : id === "lmg" ? 0.5 : id === "autoshot" ? 0.4 : id === "smg" ? 0.3 : id === "burst" ? 0.32 : 0.44;
     box(0, 0.02, -0.08, 0.05, 0.07, 0.3, steel); // receiver
     box(0, 0.024, -0.08 - 0.15 - len * 0.25, 0.055, 0.06, len * 0.5, accent); // handguard
     barrel(0.03, -0.08 - 0.15 - len * 0.5, -0.08 - 0.15 - len * 0.95, 0.011, black);
     box(0, -0.04, 0.02, 0.03, 0.08, 0.04, black, 0.3); // grip
     box(0, 0.0, 0.17, 0.045, 0.07, id === "smg" ? 0.12 : 0.2, accent); // stock
     box(0, 0.068, -0.06, 0.02, 0.018, 0.16, black); // rail
-    if (id === "sniper") {
-      box(0, 0.1, -0.07, 0.045, 0.045, 0.26, black); // scope
+    if (id === "sniper" || id === "dmr") {
+      box(0, 0.1, -0.07, 0.045, 0.045, id === "dmr" ? 0.18 : 0.26, black); // scope
       box(0, 0.1, -0.21, 0.055, 0.055, 0.04, black);
     } else {
       box(0, 0.095, -0.06, 0.03, 0.035, 0.06, black); // optic
     }
     if (id === "shotgun") box(0, -0.018, -0.34, 0.05, 0.045, 0.16, accent);
-    else box(0, -0.075, -0.1, 0.03, id === "smg" ? 0.15 : 0.12, 0.055, black, -0.18); // magazine
+    else if (id === "lmg") box(0, -0.06, -0.12, 0.07, 0.09, 0.11, 0x3d4430); // box magazine
+    else if (id === "autoshot") box(0, -0.07, -0.12, 0.05, 0.1, 0.1, black); // drum
+    else box(0, -0.075, id === "burst" ? 0.06 : -0.1, 0.03, id === "smg" ? 0.15 : 0.12, 0.055, black, -0.18); // magazine
     fore = new Vector3(0, -0.015, -0.08 - 0.1 - len * 0.12);
     muzzle = new Vector3(0, 0.03, -0.08 - 0.15 - len * 0.95);
   }
@@ -375,7 +386,7 @@ export class SoldierKit {
       this.clipsUpper.set(clip.name, new AnimationClip(`${clip.name}_up`, clip.duration, upper));
       this.clipsFull.set(clip.name, clip);
     }
-    for (const id of ["ar", "smg", "sniper", "shotgun", "pistol"] as WeaponId[]) this.guns.set(id, gunGeometry(id));
+    for (const id of WEAPON_IDS) this.guns.set(id, gunGeometry(id));
   }
 
   findSkinned(root: Object3D): SkinnedMesh {

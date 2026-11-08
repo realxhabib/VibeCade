@@ -2,7 +2,7 @@
 
 /**
  * Match options on the loadout screen: the host (the lowest-seated person)
- * can change the time limit, the kill limit and the season right up to the
+ * can change the mode, the time limit, the kill limit and the season right up to the
  * start, in any match (quick matches included); everyone else sees what was
  * picked. Changes go into the shared match state as `{ pre: settings }`
  * (see `optionsFrom`), which the match document replaces when the fight
@@ -15,7 +15,7 @@ import type { Json } from "vibecade-sdk";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 import { CustomNumber } from "./custom-number";
-import { KILLS_RANGE, MINUTES_RANGE, killChoices, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
+import { KILLS_RANGE, MINUTES_RANGE, MODES, MODE_LABEL, killChoices, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
 import { parseDoc } from "./rules";
 
 export function HostOptions({ options, host, standardKills, compact }: { options: MatchOptions; host: boolean; standardKills: number; compact?: boolean }) {
@@ -40,6 +40,13 @@ export function HostOptions({ options, host, standardKills, compact }: { options
         <span>Match options</span>
         <span className="normal-case tracking-normal text-ink-400">{host ? "You're the host" : "The host picks"}</span>
       </p>
+      <Row label="Mode">
+        {MODES.map((m) => (
+          <Chip key={m} on={m === options.mode} disabled={!host} onClick={() => change({ mode: m })}>
+            {MODE_LABEL[m]}
+          </Chip>
+        ))}
+      </Row>
       <Row label="Time">
         {TIME_CHOICES.map((m) => (
           <Chip key={m} on={m === minutes} disabled={!host} onClick={() => change({ minutes: m })}>
@@ -65,31 +72,33 @@ export function HostOptions({ options, host, standardKills, compact }: { options
           </Chip>
         )}
       </Row>
-      <Row label="Kills">
-        {kills.map((k) => (
-          <Chip key={String(k)} on={k === options.kills} disabled={!host} onClick={() => change({ kills: k })}>
-            {k === null ? standardKills : k === 0 ? "∞" : k}
-          </Chip>
-        ))}
-        {editing === "kills" ? (
-          <CustomNumber
-            label="Custom kill limit"
-            value={options.kills === null ? standardKills : options.kills || null}
-            min={KILLS_RANGE[0]}
-            max={KILLS_RANGE[1]}
-            className="h-7 text-xs"
-            onCommit={(k) => {
-              setEditing(null);
-              if (k !== options.kills) change({ kills: k === standardKills ? null : k });
-            }}
-            onCancel={() => setEditing(null)}
-          />
-        ) : (
-          <Chip on={customKills} disabled={!host} onClick={() => setEditing("kills")} onReselect={host ? () => setEditing("kills") : undefined} title="Type any kill limit">
-            {customKills ? options.kills : "Custom"}
-          </Chip>
-        )}
-      </Row>
+      {options.mode === "standard" && (
+        <Row label="Kills">
+          {kills.map((k) => (
+            <Chip key={String(k)} on={k === options.kills} disabled={!host} onClick={() => change({ kills: k })}>
+              {k === null ? standardKills : k === 0 ? "∞" : k}
+            </Chip>
+          ))}
+          {editing === "kills" ? (
+            <CustomNumber
+              label="Custom kill limit"
+              value={options.kills === null ? standardKills : options.kills || null}
+              min={KILLS_RANGE[0]}
+              max={KILLS_RANGE[1]}
+              className="h-7 text-xs"
+              onCommit={(k) => {
+                setEditing(null);
+                if (k !== options.kills) change({ kills: k === standardKills ? null : k });
+              }}
+              onCancel={() => setEditing(null)}
+            />
+          ) : (
+            <Chip on={customKills} disabled={!host} onClick={() => setEditing("kills")} onReselect={host ? () => setEditing("kills") : undefined} title="Type any kill limit">
+              {customKills ? options.kills : "Custom"}
+            </Chip>
+          )}
+        </Row>
+      )}
       <Row label="Season">
         {(["auto", ...SEASONS] as SeasonChoice[]).map((s) => (
           <Chip key={s} on={s === options.season} disabled={!host} onClick={() => change({ season: s })} title={s === "auto" ? "This time of year" : SEASON_LABEL[s]}>

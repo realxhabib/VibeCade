@@ -43,7 +43,9 @@ import {
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { patchMaterial } from "./materials";
-import type { WeaponId } from "./weapons";
+import { PRIMARIES, type WeaponId } from "./weapons";
+
+const STANDARD: readonly WeaponId[] = [...PRIMARIES, "pistol"];
 import type { Season } from "./options";
 import { throwableParts } from "./throwables";
 
@@ -93,6 +95,9 @@ export class ViewModel {
   private readonly nadeArm = new Group();
   private nadeHold = 0;
   private throwAt = -1e9;
+  /** The knife's last swing (and which way it went: they alternate). */
+  private slashAt = -1e9;
+  private slashSide = 1;
   // Springs.
   private swayX = 0;
   private swayY = 0;
@@ -146,12 +151,8 @@ export class ViewModel {
     this.flash.visible = false;
     this.flash.renderOrder = 5;
     this.root.add(this.flash);
-    for (const id of ["ar", "smg", "sniper", "shotgun", "pistol"] as WeaponId[]) {
-      const m = this.build(id);
-      m.group.visible = false;
-      this.root.add(m.group);
-      this.guns.set(id, m);
-    }
+    // The standard loadout's guns up front; the gun game's others when `prepare` asks (or on first use).
+    for (const id of STANDARD) this.gun(id);
     this.buildNadeArm();
     this.scene.add(this.nadeArm);
   }
@@ -192,7 +193,8 @@ export class ViewModel {
     const black = 0x1b1c1f;
     const dark = 0x2b2d31;
     const steel = 0x46494e;
-    const accent = id === "sniper" ? 0x7a6b4b : id === "shotgun" ? 0x6b4a2e : id === "smg" ? 0x2b2e33 : 0x54583f;
+    const accent =
+      id === "sniper" || id === "dmr" ? 0x7a6b4b : id === "shotgun" || id === "magnum" ? 0x6b4a2e : id === "smg" || id === "mp" ? 0x2b2e33 : id === "lmg" ? 0x4a4f3a : id === "burst" ? 0x5d6166 : id === "autoshot" ? 0x3a3f46 : 0x54583f;
     const glove = 0x2a2622;
     const sleeve = 0x55603f;
     const parts: BufferGeometry[] = [];
@@ -309,6 +311,123 @@ export class ViewModel {
       muzzle = [0, 0.018, -0.66];
       sightY = 0.05;
       adsZ = -0.3;
+    } else if (id === "lmg") {
+      rbox(0.064, 0.074, 0.34, 0, 0.004, -0.08, dark, "parkerized"); // receiver
+      box(0.003, 0.02, 0.06, 0.033, 0.01, -0.06, black, "steel"); // ejection port
+      rbox(0.07, 0.024, 0.16, 0, 0.05, -0.1, accent, "parkerized", 0, 0.006); // feed cover
+      rbox(0.012, 0.03, 0.09, 0, 0.085, -0.16, black, "parkerized", 0, 0.004); // carry handle
+      rbox(0.062, 0.062, 0.2, 0, 0.004, -0.36, accent, "polymer", 0, 0.012); // handguard
+      if (detail) for (let z = -0.44; z < -0.28; z += 0.035) box(0.066, 0.014, 0.012, 0, 0.004, z, black, "polymer");
+      cyl(0.013, 0.24, 0, 0.008, -0.56, black, "steel");
+      cyl(0.019, 0.05, 0, 0.008, -0.69, black, "steel", 8);
+      box(0.008, 0.008, 0.16, -0.012, -0.03, -0.5, black, "steel"); // folded bipod
+      box(0.008, 0.008, 0.16, 0.012, -0.03, -0.5, black, "steel");
+      rbox(0.046, 0.06, 0.15, 0, -0.016, 0.14, accent, "polymer", 0, 0.01); // stock
+      rbox(0.036, 0.075, 0.045, 0, -0.08, 0.03, black, "polymer", 0.28, 0.008); // grip
+      box(0.006, 0.02, 0.05, 0, -0.07, -0.02, black, "parkerized");
+      mag = magBox(0.07, 0.09, 0.11, 0.004, -0.08, -0.13, 0x3d4430); // box magazine
+      magY = -0.08;
+      rail(-0.06, 0.04, 0.042);
+      sightY = 0.098;
+      redDot(sightY, -0.01);
+      dotAt = [sightY, -0.01];
+      muzzle = [0, 0.008, -0.72];
+      adsZ = -0.27;
+    } else if (id === "burst") {
+      // Bullpup: the magazine sits behind the grip, the receiver runs back into the stock.
+      rbox(0.056, 0.07, 0.46, 0, 0, -0.06, accent, "polymer", 0, 0.014);
+      box(0.003, 0.02, 0.05, 0.029, 0.01, 0.05, black, "steel");
+      rbox(0.05, 0.03, 0.12, 0, 0.045, -0.12, accent, "polymer", 0, 0.01); // top shroud
+      cyl(0.012, 0.14, 0, 0.008, -0.36, black, "steel");
+      cyl(0.017, 0.045, 0, 0.008, -0.45, black, "steel", 8);
+      rbox(0.036, 0.075, 0.045, 0, -0.08, -0.11, black, "polymer", 0.28, 0.008); // grip forward of the mag
+      box(0.006, 0.02, 0.05, 0, -0.07, -0.15, black, "parkerized");
+      mag = magBox(0.03, 0.12, 0.055, 0, -0.09, 0.03, dark, -0.1, 0.02);
+      magY = -0.09;
+      rail(-0.2, 0.0, 0.062);
+      sightY = 0.1;
+      redDot(sightY, -0.1);
+      dotAt = [sightY, -0.1];
+      muzzle = [0, 0.008, -0.48];
+      adsZ = -0.24;
+    } else if (id === "dmr") {
+      rbox(0.05, 0.064, 0.3, 0, 0.003, -0.09, dark, "parkerized");
+      rbox(0.046, 0.05, 0.2, 0, -0.045, -0.04, dark, "parkerized");
+      box(0.003, 0.018, 0.05, 0.026, 0.008, -0.08, black, "steel");
+      rbox(0.054, 0.054, 0.28, 0, 0.004, -0.38, accent, "polymer", 0, 0.012); // long handguard
+      if (detail) for (let z = -0.5; z < -0.28; z += 0.04) box(0.058, 0.012, 0.016, 0, 0.004, z, black, "polymer");
+      cyl(0.011, 0.2, 0, 0.008, -0.6, black, "steel");
+      cyl(0.017, 0.06, 0, 0.008, -0.72, black, "steel", 8);
+      rbox(0.04, 0.06, 0.16, 0, -0.012, 0.15, accent, "polymer", 0, 0.01); // stock
+      rbox(0.03, 0.025, 0.08, 0, 0.032, 0.17, accent, "polymer", 0, 0.008); // cheek riser
+      rbox(0.036, 0.075, 0.045, 0, -0.08, 0.03, black, "polymer", 0.28, 0.008);
+      box(0.006, 0.02, 0.05, 0, -0.07, -0.02, black, "parkerized");
+      mag = magBox(0.03, 0.08, 0.06, 0, -0.08, -0.12, dark, -0.05);
+      magY = -0.08;
+      rail(-0.22, 0.03, 0.037);
+      // A short scope: tube, bells and two rings.
+      cyl(0.019, 0.2, 0, 0.076, -0.08, black, "parkerized", 18);
+      cyl(0.026, 0.05, 0, 0.076, -0.2, black, "parkerized", 18, 0.02);
+      cyl(0.024, 0.04, 0, 0.076, 0.03, black, "parkerized", 18);
+      box(0.014, 0.035, 0.016, 0, 0.055, -0.13, black, "parkerized");
+      box(0.014, 0.035, 0.016, 0, 0.055, -0.02, black, "parkerized");
+      muzzle = [0, 0.008, -0.76];
+      sightY = 0.076;
+      adsZ = -0.18;
+    } else if (id === "autoshot") {
+      rbox(0.058, 0.078, 0.32, 0, 0, -0.07, accent, "polymer", 0, 0.012);
+      box(0.003, 0.022, 0.05, 0.03, 0.01, -0.06, black, "steel");
+      rbox(0.06, 0.05, 0.16, 0, -0.004, -0.3, dark, "polymer", 0, 0.012); // handguard
+      cyl(0.017, 0.26, 0, 0.016, -0.42, black, "steel");
+      cyl(0.022, 0.05, 0, 0.016, -0.56, black, "steel", 8);
+      rbox(0.046, 0.06, 0.15, 0, -0.02, 0.15, accent, "polymer", 0.05, 0.012);
+      rbox(0.036, 0.08, 0.05, 0, -0.08, 0.03, black, "polymer", 0.28, 0.008);
+      box(0.006, 0.02, 0.05, 0, -0.07, -0.02, black, "parkerized");
+      mag = magBox(0.05, 0.1, 0.1, 0, -0.09, -0.13, black); // drum
+      magY = -0.09;
+      rail(-0.2, 0.0, 0.042);
+      sightY = 0.096;
+      redDot(sightY, -0.08);
+      dotAt = [sightY, -0.08];
+      muzzle = [0, 0.016, -0.6];
+      adsZ = -0.27;
+    } else if (id === "mp") {
+      rbox(0.036, 0.034, 0.2, 0, 0.026, -0.065, dark, "parkerized", 0, 0.004); // slide
+      rbox(0.033, 0.032, 0.18, 0, -0.006, -0.055, black, "polymer", 0, 0.004);
+      cyl(0.011, 0.05, 0, 0.026, -0.185, black, "steel", 10); // compensator
+      box(0.012, 0.012, 0.06, 0, 0.0, 0.05, steel, "steel"); // stub stock
+      box(0.006, 0.018, 0.04, 0, -0.03, -0.04, black, "polymer");
+      mag = magBox(0.028, 0.2, 0.05, 0, -0.1, 0.012, black, 0.25); // long magazine
+      magY = -0.1;
+      rear(0.044, 0.06, 0.02, 0.008);
+      front(0.044, 0.056, -0.15);
+      muzzle = [0, 0.026, -0.215];
+      sightY = 0.056;
+      adsZ = -0.33;
+    } else if (id === "magnum") {
+      cyl(0.013, 0.2, 0, 0.032, -0.16, steel, "steel", 12); // barrel
+      rbox(0.022, 0.016, 0.2, 0, 0.048, -0.16, steel, "steel", 0, 0.004); // top rib
+      cyl(0.024, 0.06, 0, 0.022, -0.035, steel, "steel", 6); // frame around the cylinder
+      rbox(0.03, 0.05, 0.06, 0, 0.022, 0.015, steel, "steel", 0, 0.006);
+      box(0.008, 0.016, 0.014, 0, 0.06, 0.04, black, "steel"); // hammer
+      rbox(0.032, 0.095, 0.05, 0, -0.035, 0.05, accent, "wood", 0.3, 0.01); // grip
+      box(0.006, 0.018, 0.04, 0, -0.012, -0.01, black, "steel");
+      mag = magBox(0.044, 0.044, 0.05, 0, 0.022, -0.035, dark); // the cylinder swings out to reload
+      magY = 0.022;
+      rear(0.052, 0.064, 0.03, 0.008);
+      front(0.052, 0.066, -0.25);
+      muzzle = [0, 0.032, -0.27];
+      sightY = 0.064;
+      adsZ = -0.34;
+    } else if (id === "knife") {
+      // Handle in the fist, blade forward and a little up.
+      rbox(0.026, 0.032, 0.1, 0, -0.03, 0.0, 0x2a2622, "polymer", 0.35, 0.008);
+      box(0.05, 0.012, 0.012, 0, -0.012, -0.055, steel, "steel", 0.35); // guard
+      box(0.006, 0.034, 0.17, 0, 0.022, -0.14, 0xb9bec4, "steel", 0.35); // blade
+      box(0.004, 0.012, 0.05, 0, 0.052, -0.215, 0xd8dde2, "steel", 0.62); // tip
+      muzzle = [0, 0.05, -0.22];
+      sightY = 0.04;
+      adsZ = -0.4;
     } else {
       rbox(0.034, 0.03, 0.19, 0, 0.026, -0.06, dark, "parkerized", 0, 0.004); // slide
       if (detail) for (let z = 0.0; z < 0.03; z += 0.007) box(0.036, 0.022, 0.003, 0, 0.026, z, black, "parkerized"); // serrations
@@ -343,12 +462,15 @@ export class ViewModel {
       parts.push(this.place(new CylinderGeometry(0.043, 0.048, 0.3, 10).rotateX(Math.PI / 2), sleeve, "sleeve", x + Math.sin(ry) * 0.18, y - 0.06, z + 0.2, rx - 0.35, ry));
       parts.push(this.place(new CylinderGeometry(0.035, 0.038, 0.035, 10).rotateX(Math.PI / 2), 0x3e4430, "sleeve", x + Math.sin(ry) * 0.05, y - 0.018, z + 0.065, rx - 0.35, ry));
     };
-    if (id === "pistol") {
-      hand(0.005, -0.06, 0.03, 0.25, 0, true);
-      hand(-0.03, -0.07, 0.02, 0.25, 0.4, true);
+    if (id === "knife") {
+      hand(0.0, -0.035, 0.0, 0.35, 0, true);
+    } else if (id === "pistol" || id === "mp" || id === "magnum") {
+      hand(0.005, -0.06, id === "magnum" ? 0.06 : 0.03, 0.25, 0, true);
+      hand(-0.03, -0.07, id === "magnum" ? 0.05 : 0.02, 0.25, 0.4, true);
     } else {
-      hand(0.005, -0.07, 0.03, 0.25, 0, true);
-      hand(-0.015, -0.035, id === "smg" ? -0.2 : id === "shotgun" ? -0.36 : -0.32, 0.1, 0.35, true);
+      hand(0.005, -0.07, id === "burst" ? -0.11 : 0.03, 0.25, 0, true);
+      const support = id === "smg" ? -0.2 : id === "shotgun" ? -0.36 : id === "burst" ? -0.3 : id === "lmg" ? -0.38 : id === "dmr" ? -0.36 : id === "autoshot" ? -0.3 : -0.32;
+      hand(-0.015, -0.035, support, 0.1, 0.35, true);
     }
     // Low detail: the red dot is just a bright bead in the one mesh (no glass, no extra draws).
     if (dotAt && !detail) box(0.003, 0.003, 0.003, 0, dotAt[0], dotAt[1] - 0.02, 0xff2a1a, "glass");
@@ -397,14 +519,36 @@ export class ViewModel {
   /* Animation                                                            */
   /* -------------------------------------------------------------------- */
 
+  private gun(id: WeaponId): GunModel {
+    let m = this.guns.get(id);
+    if (!m) {
+      m = this.build(id);
+      m.group.visible = false;
+      this.root.add(m.group);
+      this.guns.set(id, m);
+    }
+    return m;
+  }
+
+  /** Builds these models now (gun game: the whole ladder before the fight, so climbing never hitches). */
+  prepare(ids: readonly WeaponId[]): void {
+    for (const id of ids) this.gun(id);
+  }
+
   setWeapon(id: WeaponId): void {
     if (this.current === id) return;
-    if (this.current) this.guns.get(this.current)!.group.visible = false;
+    if (this.current) this.gun(this.current).group.visible = false;
     this.current = id;
-    this.guns.get(id)!.group.visible = true;
+    this.gun(id).group.visible = true;
   }
 
   fired(now: number, strength: number): void {
+    if (this.current === "knife") {
+      // A blade swings instead of kicking, and there's no flash.
+      this.slashAt = now;
+      this.slashSide = -this.slashSide;
+      return;
+    }
     this.kickV += 3.2 * strength;
     this.kickRotV += 1.9 * strength;
     this.rollV += (Math.random() - 0.5) * 3 * strength;
@@ -527,7 +671,21 @@ export class ViewModel {
       this.nadeArm.position.set(ax, ay, az);
       this.nadeArm.rotation.set(arx, 0.3, -0.2);
     }
-    this.root.position.set(x, y + dy, z);
+    // Knife swing: a quick arc across the screen, alternating sides.
+    let sx = 0;
+    let sz = 0;
+    const slash = (o.now - this.slashAt) / 1000;
+    if (slash >= 0 && slash < 0.3) {
+      const p = slash / 0.3;
+      const arc = Math.sin(p * Math.PI) * calm;
+      const side = this.slashSide;
+      sx = (0.06 - p * 0.16) * side * calm;
+      sz = -0.14 * arc;
+      ry += 0.9 * arc * side;
+      rz -= 0.7 * arc * side;
+      rx -= 0.25 * arc;
+    }
+    this.root.position.set(x + sx, y + dy, z + sz);
     this.root.rotation.set(rx, ry, rz);
     // Muzzle flash.
     const flashing = o.now < this.flashUntil;

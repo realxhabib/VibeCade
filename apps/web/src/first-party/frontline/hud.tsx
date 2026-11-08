@@ -11,7 +11,7 @@
  */
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeftRight, Bomb, Package, RotateCw, Camera, ChevronRight, Crosshair, Crown, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeftRight, Bomb, ChevronsUp, Package, RotateCw, Camera, ChevronRight, Crosshair, Crown, MousePointer2, Pause, Radar, Skull, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { isSoundEnabled, onSoundChange, setSoundEnabled } from "@/lib/sfx";
@@ -22,7 +22,7 @@ import type { Callout, Engine } from "./engine";
 import type { Game, HudState } from "./game";
 import { GRENADE_WEAPON } from "./grenade";
 import type { Throwable } from "./throwables";
-import { GunGlyph, LoadoutPicker } from "./loadout";
+import { GunGameLadder, GunGlyph, LoadoutPicker } from "./loadout";
 import { TouchControls } from "./touch";
 import { LookSpeed } from "./look-speed";
 import type { PeerLink } from "./net";
@@ -132,7 +132,7 @@ export function Hud({
         if (c.kind === "spawn") return;
         const id = nextId.current++;
         setCallouts((list) => [...list.slice(-2), { id, c }]);
-        setTimeout(() => setCallouts((list) => list.filter((x) => x.id !== id)), c.kind === "season" ? 6000 : c.kind === "radar" || c.kind === "crown" ? 3200 : 1800);
+        setTimeout(() => setCallouts((list) => list.filter((x) => x.id !== id)), c.kind === "season" ? 6000 : c.kind === "radar" || c.kind === "crown" || c.kind === "climb" ? 3200 : 1800);
       }),
     [engine],
   );
@@ -216,17 +216,19 @@ export function Hud({
             {/* Phones: ammo at the top too (above the touch controls); tapping it swaps weapons. */}
             {me && me.alive && live && (
               <>
-                {/* Reload when you like (it also reloads by itself when the magazine runs dry). */}
-                <button
-                  type="button"
-                  aria-label="Reload"
-                  disabled={me.reloading || me.mag >= me.magSize || me.reserve <= 0}
-                  onClick={() => engine.input.setTouch({ reload: true })}
-                  className="glass pointer-events-auto mt-1.5 flex size-9 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-35"
-                >
-                  <RotateCw className={cn("size-4", me.reloading && "animate-spin")} />
-                </button>
-                <Ammo me={me} nade={hud.nade} touch onSwap={() => engine.input.setTouch({ swap: true })} />
+                {/* Reload when you like (it also reloads by itself when the magazine runs dry). Blades never do. */}
+                {!WEAPONS[me.weapon].melee && (
+                  <button
+                    type="button"
+                    aria-label="Reload"
+                    disabled={me.reloading || me.mag >= me.magSize || me.reserve <= 0}
+                    onClick={() => engine.input.setTouch({ reload: true })}
+                    className="glass pointer-events-auto mt-1.5 flex size-9 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-35"
+                  >
+                    <RotateCw className={cn("size-4", me.reloading && "animate-spin")} />
+                  </button>
+                )}
+                <Ammo me={me} nade={hud.nade} touch onSwap={hud.gunGame ? undefined : () => engine.input.setTouch({ swap: true })} />
               </>
             )}
             <button type="button" aria-label="Menu" onClick={() => setMenu(true)} className="glass pointer-events-auto flex size-9 items-center justify-center rounded-full">
@@ -255,7 +257,7 @@ export function Hud({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6 }}
               transition={spring.snappy}
-              className={cn("rounded-full px-3 py-1 text-center text-sm font-extrabold uppercase tracking-wider [text-shadow:0_2px_8px_rgb(0_0_0/0.7)]", c.kind === "radar" ? "text-[#7dffa8]" : "text-white")}
+              className={cn("rounded-full px-3 py-1 text-center text-sm font-extrabold uppercase tracking-wider [text-shadow:0_2px_8px_rgb(0_0_0/0.7)]", c.kind === "radar" ? "text-[#7dffa8]" : c.kind === "climb" ? "text-[#ffc83d]" : "text-white")}
             >
               <CalloutText c={c} nade={hud.nade} />
             </motion.div>
@@ -362,6 +364,21 @@ function CalloutText({ c, nade }: { c: Callout; nade: Throwable }) {
         <span className="text-[11px] font-semibold normal-case tracking-normal text-ink-200">{SEASON_TWIST[c.season]}</span>
       </span>
     );
+  if (c.kind === "climb") {
+    const w = WEAPONS[c.weapon];
+    const last = c.rung === c.of - 1;
+    return (
+      <span className="flex flex-col items-center gap-0.5">
+        <span className="inline-flex items-center gap-1.5">
+          <ChevronsUp className="size-4" /> {last ? "Final weapon" : `Weapon ${c.rung + 1} of ${c.of}`}
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-[12px] text-white">
+          <GunGlyph id={w.id} className="h-4 w-10" /> {w.name}
+          {last && <span className="normal-case tracking-normal text-ink-200">· a knife kill wins</span>}
+        </span>
+      </span>
+    );
+  }
   return null;
 }
 
@@ -426,7 +443,11 @@ function ScoreBar({ hud, onTap, compact }: { hud: HudState; onTap: () => void; c
   return (
     <button type="button" onClick={onTap} className="glass-strong pointer-events-auto flex flex-col items-center rounded-2xl px-3 py-1 shadow-[0_10px_30px_-12px_rgb(0_0_0/0.8)]">
       {middle}
-      {!compact && <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-400">{isNoLimit(hud.limit) ? "most kills wins" : hud.teams ? `first to ${hud.limit}` : `first to ${hud.limit} kills`}</span>}
+      {!compact && (
+        <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-400">
+          {hud.gunGame ? (hud.teams ? `gun game · ${hud.limit} to win` : "gun game · knife kill wins") : isNoLimit(hud.limit) ? "most kills wins" : hud.teams ? `first to ${hud.limit}` : `first to ${hud.limit} kills`}
+        </span>
+      )}
     </button>
   );
 }
@@ -496,18 +517,24 @@ function Vitals({ hp, streak, compact = false }: { hp: number; streak: number; c
 
 function Ammo({ me, nade, touch, onSwap }: { me: NonNullable<HudState["me"]>; nade: Throwable; touch: boolean; onSwap?: () => void }) {
   const w = WEAPONS[me.weapon];
-  const low = me.mag <= Math.ceil(me.magSize * 0.25);
-  const canSwap = !!onSwap && me.weapons.length > 1;
+  const low = !w.melee && me.mag <= Math.ceil(me.magSize * 0.25);
+  const ladder = me.ladder;
+  const canSwap = !!onSwap && !ladder && me.weapons.length > 1;
   const Root = canSwap ? "button" : "div";
   return (
     <Root
       {...(canSwap ? { type: "button" as const, onClick: onSwap, "aria-label": `${w.name}: tap to swap to your other weapon` } : {})}
       className={cn("flex flex-col items-end gap-0.5", canSwap && "pointer-events-auto glass rounded-2xl px-2.5 py-1.5 active:scale-95")}
     >
-      <div className="flex items-baseline gap-1.5 font-mono tabular [text-shadow:0_2px_6px_rgb(0_0_0/0.6)]">
-        <span className={cn("font-bold", touch ? "text-xl leading-none" : "text-4xl", low && "text-[#ff6a5a]")}>{me.mag}</span>
-        <span className="text-sm text-white/70">/ {me.reserve}</span>
-      </div>
+      {ladder && <LadderMeter ladder={ladder} touch={touch} />}
+      {w.melee ? (
+        <GunGlyph id={w.id} className={cn("text-white [filter:drop-shadow(0_2px_6px_rgb(0_0_0/0.6))]", touch ? "h-5 w-14" : "h-9 w-24")} />
+      ) : (
+        <div className="flex items-baseline gap-1.5 font-mono tabular [text-shadow:0_2px_6px_rgb(0_0_0/0.6)]">
+          <span className={cn("font-bold", touch ? "text-xl leading-none" : "text-4xl", low && "text-[#ff6a5a]")}>{me.mag}</span>
+          <span className="text-sm text-white/70">/ {me.reserve}</span>
+        </div>
+      )}
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/80">
         {me.reloading ? (
           <span className="flex items-center gap-1.5">
@@ -524,11 +551,13 @@ function Ammo({ me, nade, touch, onSwap }: { me: NonNullable<HudState["me"]>; na
             {canSwap && <ArrowLeftRight className="size-3 text-white/60" aria-hidden />}
           </span>
         )}
-        <span className={cn("flex items-center gap-0.5", me.nades > 0 ? "text-white" : "text-white/30")} aria-label={`${me.nades} ${nade.noun}${me.nades === 1 ? "" : "s"}`}>
-          <span className={cn("text-[13px] leading-none", me.nades === 0 && "grayscale")}>{nade.icon}</span>
-          {!touch && <span className="text-[9px]">G</span>}
-        </span>
-        {!touch && (
+        {!ladder && (
+          <span className={cn("flex items-center gap-0.5", me.nades > 0 ? "text-white" : "text-white/30")} aria-label={`${me.nades} ${nade.noun}${me.nades === 1 ? "" : "s"}`}>
+            <span className={cn("text-[13px] leading-none", me.nades === 0 && "grayscale")}>{nade.icon}</span>
+            {!touch && <span className="text-[9px]">G</span>}
+          </span>
+        )}
+        {!touch && !ladder && (
           <span className="flex gap-1">
             {me.weapons.map((id: WeaponId, i) => (
               <span key={id + i} className={cn("rounded border px-1 text-[9px]", i === me.slot ? "border-white/80 text-white" : "border-white/20 text-white/40")}>
@@ -539,6 +568,31 @@ function Ammo({ me, nade, touch, onSwap }: { me: NonNullable<HudState["me"]>; na
         )}
       </div>
     </Root>
+  );
+}
+
+/** Gun game: weapon N of 12 (pips for a team's kills on this rung) and what comes next. */
+function LadderMeter({ ladder, touch }: { ladder: NonNullable<NonNullable<HudState["me"]>["ladder"]>; touch: boolean }) {
+  const next = ladder.next ? WEAPONS[ladder.next] : null;
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#ffc83d] [text-shadow:0_1px_4px_rgb(0_0_0/0.7)]" aria-label={`Weapon ${ladder.rung + 1} of ${ladder.of}`}>
+      <span className="font-mono">
+        {ladder.rung + 1}/{ladder.of}
+      </span>
+      {ladder.per > 1 && (
+        <span className="flex gap-0.5">
+          {Array.from({ length: ladder.per }).map((_, i) => (
+            <span key={i} className={cn("size-1.5 rounded-full", i < ladder.into ? "bg-[#ffc83d]" : "bg-white/25")} />
+          ))}
+        </span>
+      )}
+      {next && !touch && (
+        <span className="flex items-center gap-1 text-white/60">
+          next <GunGlyph id={next.id} className="h-3 w-8 text-white/70" />
+        </span>
+      )}
+      {!next && <span className="text-white/80">knife kill wins</span>}
+    </div>
   );
 }
 
@@ -553,7 +607,7 @@ function DeathPanel({ hud, game, settings, onSettings, engine, touch }: { hud: H
     () =>
       engine.input.onDigit((n) => {
         const id = PRIMARIES[n - 1];
-        if (!id) return;
+        if (!id || game.gunGame) return;
         const { settings: s, onSettings: set } = latest.current;
         const l = { ...s.loadout, primary: id };
         set({ ...s, loadout: l });
@@ -582,21 +636,25 @@ function DeathPanel({ hud, game, settings, onSettings, engine, touch }: { hud: H
           {secs}
         </div>
       </div>
+      {me.ladder ? (
+        <GunGameLadder compact rung={me.ladder.rung} />
+      ) : (
       <div>
-        <p className="mb-1.5 flex justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-ink-400">
-          <span>Next life</span>
-          {!touch && <span className="normal-case tracking-normal">keys 1–4 · Esc for the mouse</span>}
-        </p>
-        <LoadoutPicker
-          keys={!touch}
-          compact
-          value={settings.loadout}
-          onChange={(l) => {
-            onSettings({ ...settings, loadout: l });
-            game.setLoadout(l);
-          }}
-        />
-      </div>
+        <p className="mb-1.5   flex justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-ink-400">
+            <span>Next life</span>
+            {!touch && <span className="normal-case tracking-normal">keys 1–4 · Esc for the mouse</span>}
+          </p>
+          <LoadoutPicker
+            keys={!touch}
+            compact
+            value={settings.loadout}
+            onChange={(l) => {
+              onSettings({ ...settings, loadout: l });
+              game.setLoadout(l);
+            }}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }
