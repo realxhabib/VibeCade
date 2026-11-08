@@ -14,7 +14,7 @@ struct GameDetailView: View {
                         VStack(alignment: .leading, spacing: 22) { howTo; achievements; about }
                             .padding(16)
                     }
-                    .contentMargins(.bottom, FoldTabBar.height + 16, for: .scrollContent)
+                    .contentMargins(.bottom, FoldTabBarHeight.value + 16, for: .scrollContent)
                 }
             } else {
                 unfolded

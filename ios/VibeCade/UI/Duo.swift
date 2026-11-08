@@ -146,8 +146,12 @@ final class Chrome {
 
 /// Half folded, the system tab bar would straddle the crease (sideways) or crowd the
 /// controls half. This strip takes its place at the bottom of the lower (or right) half.
+enum FoldTabBarHeight {
+    static let value: CGFloat = 56
+}
+
 struct FoldTabBar<Tab: Hashable>: View {
-    static var height: CGFloat { 56 }
+    static var height: CGFloat { FoldTabBarHeight.value }
     let tabs: [(tab: Tab, title: String, icon: String)]
     @Binding var selection: Tab
 

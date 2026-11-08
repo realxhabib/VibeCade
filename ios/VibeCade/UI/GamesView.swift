@@ -69,7 +69,7 @@ struct GamesView: View {
             .padding(.top, 12)
         }
         .scrollDismissesKeyboard(.immediately)
-        .contentMargins(.bottom, FoldTabBar.height + 16, for: .scrollContent)
+        .contentMargins(.bottom, FoldTabBarHeight.value + 16, for: .scrollContent)
     }
 
     private func shelf(wide: Bool) -> some View {

@@ -126,7 +126,7 @@ struct BrowseControls: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Brand.panel, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Brand.line.opacity(0.6)))
-        .padding(.bottom, FoldTabBar.height + 6)
+        .padding(.bottom, FoldTabBarHeight.value + 6)
     }
 }
 
