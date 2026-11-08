@@ -21,5 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/play/[matchId]">)
 
 export default async function PlayPage({ params, searchParams }: PageProps<"/play/[matchId]">) {
   const [{ matchId }, query] = await Promise.all([params, searchParams]);
-  return <PlayRoom matchId={matchId} join={query.join !== undefined} />;
+  // Already fetched (cached) for the metadata: lets the loading screen show the game before the match loads.
+  const app = await getMatchApp(matchId);
+  return <PlayRoom matchId={matchId} join={query.join !== undefined} initialApp={app} />;
 }

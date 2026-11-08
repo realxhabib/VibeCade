@@ -17,5 +17,5 @@ export async function generateMetadata({ params }: PageProps<"/apps/[slug]/open"
 export default async function OpenAppPage({ params, searchParams }: PageProps<"/apps/[slug]/open">) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const version = typeof query.version === "string" && query.version ? query.version : null;
-  return <AppRoom slug={slug} versionId={version} />;
+  return <AppRoom slug={slug} versionId={version} initialApp={getOfficialApp(slug) ?? null} />;
 }

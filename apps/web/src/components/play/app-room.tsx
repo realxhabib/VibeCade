@@ -13,7 +13,6 @@ import { celebrate } from "@/components/motion/confetti";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Spinner } from "@/components/ui/spinner";
 import { XLogo } from "@/components/ui/x-logo";
 import { isSupabaseConfigured } from "@/lib/env";
 import { haptic } from "@/lib/haptics";
@@ -27,6 +26,7 @@ import { launchApp } from "@/platform/match-utils";
 import { invalidateProgress, useApp } from "@/platform/queries";
 import type { AppManifest, Json, LogLevel, Profile } from "@/platform/types";
 import { showAchievement } from "./achievement-moment";
+import { GameLoading } from "./game-loading";
 import { useHostRoutes } from "./host-routes";
 import { ImmersiveButton, ImmersiveChrome, useImmersive } from "./immersive";
 import {
@@ -75,15 +75,6 @@ function HostScreen({ slug, accent, children }: { slug: string; accent?: Accent;
   );
 }
 
-function PulsingGlyph({ app }: { app: AppManifest }) {
-  const reduced = useReducedMotion();
-  return (
-    <motion.div animate={reduced ? undefined : { scale: [1, 1.08, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>
-      <AppGlyph app={app} size={72} />
-    </motion.div>
-  );
-}
-
 function openPath(slug: string, versionId: string | null): string {
   return `/apps/${slug}/open${versionId ? `?version=${encodeURIComponent(versionId)}` : ""}`;
 }
@@ -100,11 +91,14 @@ export function AppRoom({
   versionId,
   signIn,
   immersive = true,
+  initialApp = null,
 }: {
   slug: string;
   versionId: string | null;
   signIn?: ReactNode;
   immersive?: boolean;
+  /** The server's copy of the listing (first-party apps), so the loader shows the app before the listing loads here. */
+  initialApp?: AppManifest | null;
 }) {
   const backend = useBackend();
   const routes = useHostRoutes();
@@ -126,9 +120,7 @@ export function AppRoom({
 
   if (viewerLoading || (viewer && launch.isPending)) {
     return (
-      <HostScreen slug={slug} accent={listed?.accent}>
-        {listed ? <PulsingGlyph app={listed} /> : <Spinner className="size-8 text-ink-300" />}
-      </HostScreen>
+      <GameLoading step="opening" app={listed ?? initialApp} backHref={routes.app(slug)} />
     );
   }
 
@@ -393,6 +385,12 @@ function AppStage({ app, versionId, viewer, immersiveButton }: { app: AppManifes
     emitRef.current = emit;
   }, [emit]);
 
+  /** The loader's Reload: navigates the frame again (the bridge picks the new page up). */
+  const reloadFrame = () => {
+    const frame = iframeRef.current;
+    if (frame && appUrl) frame.src = appUrl.href;
+  };
+
   const share = () => openXIntent(`Check out ${app.name} on VibeCade ${app.icon}`, `${window.location.origin}${routes.share(app.slug)}`);
 
   return (
@@ -459,13 +457,8 @@ function AppStage({ app, versionId, viewer, immersiveButton }: { app: AppManifes
           )}
           <AnimatePresence>
             {appUrl && !connected && (
-              <motion.div
-                key="loading"
-                className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-ink-950"
-                exit={{ opacity: 0, transition: { duration: 0.3 } }}
-              >
-                <PulsingGlyph app={app} />
-                <p className="text-sm text-ink-300">Opening {app.name}…</p>
+              <motion.div key="loading" className="absolute inset-0 z-10" exit={{ opacity: 0, transition: { duration: 0.3 } }}>
+                <GameLoading app={app} step="loading" overlay onRetry={reloadFrame} />
               </motion.div>
             )}
           </AnimatePresence>
