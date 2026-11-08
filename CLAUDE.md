@@ -24,6 +24,9 @@ Monorepo (npm workspaces): `apps/web` (Next.js 16 App Router, React 19, Tailwind
   Claude Arcade server (`NEXT_PUBLIC_LIVE_SERVER_URL`, `platform/supabase/live-room.ts`; the server side is
   `server/rooms.mjs` in realxhabib/ClaudeArcade) instead of Supabase Realtime. The room also holds the match state
   in memory (seeded from the hosts' copies, `rebase_match_state` when falling back; docs/platform-v2.md); results stay in Supabase.
+- Who's online: `backend.presence` (`platform/presence.ts`) shares each signed-in tab's activity (lobby / playing /
+  watching) on the private Realtime presence channel `online` (demo: BroadcastChannel). PlayRoom announces it; the top
+  bar's online list, lobby "Online now" invites and the "@x is waiting in the lobby" toast (`LobbyAlerts`) read it.
 - Lint uses the React Compiler rules: no setState in effect bodies, no ref access during render.
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e` (demo mode),

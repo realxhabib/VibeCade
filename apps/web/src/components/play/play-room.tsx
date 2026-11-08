@@ -28,6 +28,8 @@ import { buildLaunchContext, opponentOf, playerOf, toLaunchMatch, toMatchResult 
 import { invalidateProgress, useApp, useAppVersions, useMatch, useMatchAction } from "@/platform/queries";
 import { retiredAppManifest } from "@/platform/retired-apps";
 import { isOfflineMatch } from "@/platform/health";
+import { activityForMatch } from "@/platform/presence";
+import { useAnnounceActivity } from "@/platform/presence-client";
 import { applyVersionToApp, isTestBuild } from "@/platform/shipping";
 import type { AppManifest, Json, LogLevel, Match, Profile } from "@/platform/types";
 import { showAchievement } from "./achievement-moment";
@@ -188,6 +190,9 @@ export function PlayRoom({ matchId, join = false }: { matchId: string; join?: bo
     // Drop the flag once seated, so coming back later never re-joins.
     void run("join", () => router.replace(routes.match(match.id)));
   }, [joinOnArrival, match, router, routes, run]);
+
+  // Tell everyone online what we're doing here (an open lobby lets them jump in).
+  useAnnounceActivity(match && app && !app.retired ? activityForMatch(match, me) : null);
 
   const lobbyCall = async (kind: "start" | "watch") => {
     if (!match) return;

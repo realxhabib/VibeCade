@@ -31,6 +31,7 @@ import type {
   UpvoteResult,
 } from "./types";
 import type { AppDetails } from "./shipping";
+import type { PresenceHub } from "./presence";
 
 /* ---------------------------------------------------------------------- */
 /* Realtime room                                                          */
@@ -279,6 +280,11 @@ export interface Backend {
   watchInbox(handler: () => void): () => void;
   /** `appSlug` picks the transport (the live server for `liveServer` apps, see AppManifest). */
   openRoom(matchId: string, viewerId: string, appSlug?: string, options?: RoomOptions): RoomTransport;
+  /**
+   * Who's online (signed-in players with VibeCade open) and what they're doing: one shared
+   * connection for the page's lifetime, joined by `presence.connect(viewer)` (see `presence.ts`).
+   */
+  readonly presence: PresenceHub;
 
   // Per-app storage ----------------------------------------------------
   storageGet(appSlug: string, key: string, scope?: StorageScope): Promise<Json | null>;

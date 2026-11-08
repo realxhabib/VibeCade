@@ -1,3 +1,5 @@
+import { PresenceHub } from "../presence";
+import { createSupabasePresence } from "./presence";
 import { APP_IMAGES_BUCKET, APP_IMAGE_MAX_BYTES, APP_IMAGE_UPLOADS_PER_DAY, type AppImageKind } from "@/lib/app-images";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { LIMITS } from "vibecade-sdk";
@@ -149,6 +151,7 @@ export class SupabaseBackend implements Backend {
   readonly kind = "supabase" as const;
   readonly serverApi = true;
   private client: SupabaseClient | null;
+  readonly presence = new PresenceHub((viewerId) => createSupabasePresence(this.sb, viewerId));
 
   constructor(client?: SupabaseClient) {
     // Created lazily so constructing the backend during SSR never touches Supabase.

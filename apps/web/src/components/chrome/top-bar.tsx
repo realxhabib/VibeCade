@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useViewer } from "@/platform/client";
 import { usePalette } from "./command-palette";
 import { Logo } from "./logo";
+import { OnlineNow } from "./online-now";
 import { NAV_ITEMS, isActive } from "./nav-items";
 import { useInbox } from "./use-inbox";
 import { UserMenu } from "./user-menu";
@@ -120,7 +121,10 @@ export function TopBar() {
           {loading ? (
             <Skeleton className="size-10 rounded-full" />
           ) : viewer ? (
-            <UserMenu viewer={viewer} />
+            <>
+              <OnlineNow />
+              <UserMenu viewer={viewer} />
+            </>
           ) : (
             <Button href={`/login?next=${encodeURIComponent(pathname)}`} size="md" magnetic>
               Sign in
