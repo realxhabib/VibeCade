@@ -55,8 +55,18 @@ export function InboxWatcher() {
       if (!before && me?.state === "invited" && (match.status === "pending" || match.status === "open")) {
         play("notify");
         const host = group ? creator : opponent;
+        if (match.mode === "live") {
+          // They're sitting in the lobby right now: one tap takes the seat (even from inside another game).
+          toast(`@${creator?.profile.handle ?? host?.profile.handle ?? "someone"} is waiting in the lobby`, {
+            description: `${app?.name ?? "A match"} · ${group ? `${match.maxPlayers} players · ` : ""}they invited you`,
+            icon,
+            action: { label: "Join", onClick: () => goToHost(router, `/play/${match.id}?join=1`) },
+            duration: 12_000,
+          });
+          continue;
+        }
         toast(group ? `@${host?.profile.handle ?? "someone"} saved you a seat` : `@${host?.profile.handle ?? "someone"} challenged you`, {
-          description: `${app?.name ?? "A match"} · ${group ? `${match.maxPlayers} players · ` : ""}${match.mode === "live" ? "live" : "play anytime"}`,
+          description: `${app?.name ?? "A match"} · ${group ? `${match.maxPlayers} players · ` : ""}play anytime`,
           icon,
           action: { label: "View", onClick: () => goToHost(router, `/play/${match.id}`) },
           duration: 9000,

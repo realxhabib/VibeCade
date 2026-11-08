@@ -18,7 +18,9 @@ import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 import { MODE_LABEL } from "@/platform/match-utils";
 import { useBackend } from "@/platform/client";
-import { useSearchProfiles } from "@/platform/queries";
+import { activityLabel } from "@/platform/presence";
+import { useOnlineOthers } from "@/platform/presence-client";
+import { useApps, useSearchProfiles } from "@/platform/queries";
 import type { AppManifest, Match, MatchPlayer, Profile } from "@/platform/types";
 import { useHostRoutes } from "./host-routes";
 import { maxSeats, SEAT_COLORS, seatedPlayers, tableSizeLabelForMatch, teamStyle } from "./match-view";
@@ -230,6 +232,8 @@ function DuelLobby({
           }
         />
       )}
+
+      {onCancel && !invited && <OnlineInvites match={match} />}
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <AnimatePresence>
@@ -474,6 +478,7 @@ function TableLobby({
         </div>
       )}
 
+      {onStart && filled + invitedCount < total && <OnlineInvites match={match} />}
       {onStart && filled + invitedCount < total && <InviteMore match={match} inputRef={inviteRef} />}
 
       {link && (
@@ -605,6 +610,69 @@ function SeatCard({
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+/**
+ * The lobby host's "Online now": everyone on VibeCade right now who isn't at the table, with
+ * Invite. An invite reaches them wherever they are, mid-game too ("@you is waiting in the lobby").
+ */
+function OnlineInvites({ match }: { match: Match }) {
+  const backend = useBackend();
+  const queryClient = useQueryClient();
+  const { data: apps } = useApps();
+  const online = useOnlineOthers();
+  const [pending, setPending] = useState<string | null>(null);
+  const atTable = new Set(match.players.filter((p) => p.role !== "spectator" && p.state !== "declined").map((p) => p.userId));
+  const people = online.filter((p) => !atTable.has(p.userId)).slice(0, 6);
+  if (people.length === 0) return null;
+
+  const invite = async (handle: string, userId: string) => {
+    setPending(userId);
+    try {
+      const updated = await backend.inviteToMatch(match.id, [handle]);
+      queryClient.setQueryData(["match", match.id], updated);
+      play("whoosh");
+      haptic("light");
+      toast(`Invited @${handle}`, { description: "They'll get a notification, even mid-game.", tone: "success" });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Couldn't send the invite", { tone: "danger" });
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return (
+    <div className="mx-auto mt-6 w-full max-w-md text-left">
+      <p className="mb-1.5 flex items-center gap-2 px-1 text-xs font-bold uppercase tracking-[0.16em] text-ink-400">
+        <span className="size-2 rounded-full bg-success" />
+        Online now
+      </p>
+      <div className="space-y-1 rounded-3xl glass p-1.5">
+        {people.map((person) => {
+          const app = person.activity ? apps?.find((a) => a.slug === person.activity?.appSlug) : undefined;
+          return (
+            <div key={person.userId} className="flex items-center gap-3 rounded-2xl px-2.5 py-1.5">
+              <Avatar person={person} size={32} online />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">@{person.handle}</span>
+                <span className="block truncate text-xs text-ink-400">{activityLabel(person.activity, app?.name)}</span>
+              </span>
+              <Button
+                size="sm"
+                variant="glass"
+                icon={<UserPlus className="size-3.5" />}
+                loading={pending === person.userId}
+                disabled={!!pending}
+                onClick={() => invite(person.handle, person.userId)}
+              >
+                Invite
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

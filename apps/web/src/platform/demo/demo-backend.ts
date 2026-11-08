@@ -1,3 +1,5 @@
+import { PresenceHub } from "../presence";
+import { createDemoPresence } from "./presence";
 import { appImageKeyError, blobToDataUrl, type AppImageKind } from "@/lib/app-images";
 import { LIMITS, randomId } from "vibecade-sdk";
 import { byteLength } from "vibecade-sdk/protocol";
@@ -612,6 +614,7 @@ export class DemoBackend implements Backend {
   readonly kind = "demo" as const;
   private viewerListeners = new Set<(viewer: Profile | null) => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  readonly presence = new PresenceHub((viewerId) => createDemoPresence(viewerId));
 
   constructor() {
     if (typeof window !== "undefined") {

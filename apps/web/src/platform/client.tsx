@@ -55,6 +55,7 @@ export function PlatformProvider({ children, guest = false }: { children: ReactN
     <BackendContext.Provider value={backend}>
       <QueryClientProvider client={queryClient}>
         <ViewerSync />
+        {!guest && <PresenceSync />}
         {children}
       </QueryClientProvider>
     </BackendContext.Provider>
@@ -83,6 +84,16 @@ function ViewerSync() {
       }),
     [backend, queryClient],
   );
+  return null;
+}
+
+/** Joins the `online` presence channel while someone is signed in (see `presence.ts`). */
+function PresenceSync() {
+  const backend = useBackend();
+  const { viewer, loading } = useViewer();
+  useEffect(() => {
+    if (!loading) backend.presence.connect(viewer);
+  }, [backend, loading, viewer]);
   return null;
 }
 
