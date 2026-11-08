@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 // Chromium's fake microphone (a beeping tone) and no permission prompt.
 test.use({
-  launchOptions: async ({ launchOptions }, use) => {
-    await use({ ...launchOptions, args: [...(launchOptions.args ?? []), "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
+  launchOptions: async ({ launchOptions }, provide) => {
+    await provide({ ...launchOptions, args: [...(launchOptions.args ?? []), "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   },
   permissions: ["microphone"],
 });
