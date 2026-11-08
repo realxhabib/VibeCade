@@ -1,5 +1,6 @@
 import { ViewTransition } from "react";
 import { Hero } from "@/components/home/hero";
+import { Spotlight } from "@/components/home/spotlight";
 import { ArenaTeaser, BuildTeaser, FeaturedApps, HowItWorks, LiveTicker, YourMove } from "@/components/home/sections";
 
 export default function HomePage() {
@@ -9,6 +10,7 @@ export default function HomePage() {
         <Hero />
         <LiveTicker />
         <YourMove />
+        <Spotlight />
         <FeaturedApps />
         <ArenaTeaser />
         <HowItWorks />
