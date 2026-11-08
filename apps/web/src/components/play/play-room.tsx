@@ -21,6 +21,7 @@ import { spring } from "@/lib/motion";
 import { copyText, openXIntent } from "@/lib/share";
 import { shareLinkFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
+import { isVoiceEvent, VoiceChat, VoiceError, type VoiceSnapshot, voiceSupported } from "@/lib/voice-chat";
 import type { RoomPeer, RoomStateCopy, RoomTransport } from "@/platform/backend";
 import { BackendError } from "@/platform/backend";
 import { useBackend, useViewer } from "@/platform/client";
@@ -34,6 +35,7 @@ import { showAchievement } from "./achievement-moment";
 import { ChallengeEnded } from "./challenge-ended";
 import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./hud";
 import { ImmersiveChrome, useImmersive } from "./immersive";
+import type { VoiceControls } from "./voice";
 import { InviteCard, Lobby } from "./lobby";
 import { isMultiplayer, ordinal, seatedPlayers, viewerIsSpectator, viewerOutcome } from "./match-view";
 import { SITE_ROUTES, useHostRoutes } from "./host-routes";
@@ -428,10 +430,17 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   const [now, setNow] = useState(() => Date.now());
   const { items: floating, push: pushFloating } = useFloatingReactions();
   const { immersive, toggle: toggleImmersive } = useImmersive();
+  /** Voice chat in the match room (null until the room opens, or where the browser can't). */
+  const voiceRef = useRef<VoiceChat | null>(null);
+  const [voiceSnap, setVoiceSnap] = useState<VoiceSnapshot | null>(null);
 
   const live = match.mode === "live";
   const me = playerOf(match, viewer.id);
   const spectating = viewerIsSpectator(match, viewer.id);
+  const canTalkRef = useRef(!spectating);
+  useLayoutEffect(() => {
+    canTalkRef.current = !spectating;
+  }, [spectating]);
   const seated = seatedPlayers(match);
   const others = seated.filter((p) => p.userId !== viewer.id);
   const opponent = others[0] ?? opponentOf(match, viewer.id);
@@ -845,9 +854,18 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     const room = backend.openRoom(match.id, viewer.id, match.appSlug, { latestState: () => latestCopyRef.current() });
     roomRef.current = room;
     room.track({ ready: false });
-    const offPresence = room.onPresence(setPeers);
+    const voice = voiceSupported()
+      ? new VoiceChat({ selfId: viewer.id, send: (event) => room.send(event), canTalk: () => canTalkRef.current, onChange: setVoiceSnap })
+      : null;
+    voiceRef.current = voice;
+    const offPresence = room.onPresence((list) => {
+      setPeers(list);
+      voice?.setPresent(list.map((p) => p.userId));
+    });
     const offEvent = room.onEvent((event, from, at) => {
-      if (event.kind === "app") {
+      if (isVoiceEvent(event)) {
+        voice?.handle(event, from);
+      } else if (event.kind === "app") {
         emit("room.message", { type: event.type, payload: event.payload, from, at });
       } else if (event.kind === "reaction") {
         pushFloating(event.emoji, "right");
@@ -864,6 +882,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       offPresence();
       offEvent();
       offState?.();
+      voice?.destroy();
+      voiceRef.current = null;
       room.close();
       roomRef.current = null;
     };
@@ -1043,6 +1063,25 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     router.push(routes.app(app.slug));
   };
 
+  const voice: VoiceControls | undefined = voiceSnap
+    ? {
+        snapshot: voiceSnap,
+        listenOnly: spectating,
+        join: () => {
+          voiceRef.current?.join().then(
+            () => play("pop"),
+            (error: unknown) => toast(error instanceof VoiceError ? error.message : "Couldn't start voice chat", { tone: "danger" }),
+          );
+        },
+        leave: () => {
+          voiceRef.current?.leave();
+          play("tick");
+        },
+        toggleMute: () => voiceRef.current?.setMuted(!voiceSnap.muted),
+        silence: (userId, silenced) => voiceRef.current?.setSilenced(userId, silenced),
+      }
+    : undefined;
+
   const react = (emoji: string) => {
     pushFloating(emoji, "left");
     roomRef.current?.send({ kind: "reaction", emoji });
@@ -1096,6 +1135,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
           }}
           immersive={immersive}
           onToggleImmersive={toggleImmersive}
+          voice={voice}
         />
       </ImmersiveChrome>
 

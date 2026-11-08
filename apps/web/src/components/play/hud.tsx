@@ -15,6 +15,7 @@ import type { AppManifest, Match, MatchPlayer } from "@/platform/types";
 import { isMultiplayer, seatedPlayers, teamOf, teamStyle, type TeamStyle } from "./match-view";
 import { ImmersiveButton } from "./immersive";
 import { TestBuildBadge } from "./test-build-badge";
+import { type SeatVoice, SeatVoiceMark, seatVoices, VoiceButton, type VoiceControls, VoiceMenu } from "./voice";
 
 export const REACTIONS = ["🔥", "😂", "😱", "👏", "💀", "🫡"] as const;
 
@@ -30,12 +31,14 @@ function PlayerChip({
   score,
   active,
   side,
+  voice,
 }: {
   player: MatchPlayer | undefined;
   online: boolean;
   score: number | string | undefined;
   active: boolean;
   side: "left" | "right";
+  voice?: SeatVoice;
 }) {
   return (
     <motion.div
@@ -52,7 +55,10 @@ function PlayerChip({
         />
       )}
       {player ? (
-        <Avatar person={{ ...player.profile, isBot: player.isBot }} size={36} online={player.isBot ? true : online} />
+        <span className="relative">
+          <Avatar person={{ ...player.profile, isBot: player.isBot }} size={36} online={player.isBot ? true : online} />
+          <SeatVoiceMark state={voice} />
+        </span>
       ) : (
         <span className="flex size-9 items-center justify-center rounded-full border border-dashed border-white/25 text-sm text-ink-400">?</span>
       )}
@@ -159,6 +165,7 @@ function StripSeat({
   showName,
   size,
   turnLayoutId,
+  voice,
 }: {
   player: MatchPlayer;
   team: TeamStyle | null;
@@ -170,6 +177,7 @@ function StripSeat({
   showName: boolean;
   size: number;
   turnLayoutId: string;
+  voice?: SeatVoice;
 }) {
   const gone = player.state === "left";
   return (
@@ -196,6 +204,7 @@ function StripSeat({
           />
         )}
         <Avatar person={{ ...player.profile, isBot: player.isBot }} size={size} online={player.isBot ? undefined : online} />
+        <SeatVoiceMark state={voice} />
         <AnimatePresence>
           {leader && (
             <motion.span
@@ -259,6 +268,7 @@ function PlayerStrip({
   className,
   turnLayoutId,
   size,
+  voices,
 }: {
   match: Match;
   players: MatchPlayer[];
@@ -269,6 +279,7 @@ function PlayerStrip({
   className?: string;
   turnLayoutId: string;
   size: number;
+  voices: Map<string, SeatVoice>;
 }) {
   const numeric = players.map((p) => scores[p.userId]).filter((v): v is number => typeof v === "number");
   const best = numeric.length > 1 ? (match.scoring === "low" ? Math.min(...numeric) : Math.max(...numeric)) : null;
@@ -289,6 +300,7 @@ function PlayerStrip({
           showName={players.length <= 4}
           size={size}
           turnLayoutId={turnLayoutId}
+          voice={voices.get(p.userId)}
         />
       ))}
     </div>
@@ -343,6 +355,7 @@ export function Hud({
   onCopyLink,
   immersive,
   onToggleImmersive,
+  voice,
 }: {
   app: AppManifest;
   match: Match;
@@ -358,7 +371,10 @@ export function Hud({
   /** Full-screen mode (see `./immersive`). */
   immersive?: boolean;
   onToggleImmersive?: () => void;
+  /** In-match voice chat (live matches with a room). */
+  voice?: VoiceControls;
 }) {
+  const voices = seatVoices(voice, viewerId);
   const seated = seatedPlayers(match).filter((p) => p.state !== "invited");
   const me = seated.find((p) => p.userId === viewerId);
   const others = seated.filter((p) => p.userId !== viewerId);
@@ -407,6 +423,7 @@ export function Hud({
               turn={turn}
               turnLayoutId="hud-turn-wide"
               size={36}
+              voices={voices}
               className="ml-auto hidden min-w-0 gap-3 px-1.5 pb-2.5 pt-3.5 md:flex"
             />
           </div>
@@ -418,6 +435,7 @@ export function Hud({
               score={left ? hud.scores[left.userId] : undefined}
               active={!!left && turn === left.userId}
               side="left"
+              voice={left ? voices.get(left.userId) : undefined}
             />
             <div className="hidden min-w-0 flex-col items-center md:flex">
               <MatchTitle app={app} match={match} hud={hud} spectating={spectating} spectatorCount={spectatorCount} />
@@ -433,12 +451,14 @@ export function Hud({
               score={right ? hud.scores[right.userId] : undefined}
               active={!!right && turn === right.userId}
               side="right"
+              voice={right ? voices.get(right.userId) : undefined}
             />
           </div>
         )}
 
         <div ref={menuRef} className="relative flex shrink-0 items-center gap-0.5 sm:gap-1">
           {onToggleImmersive && <ImmersiveButton immersive={!!immersive} onToggle={onToggleImmersive} className="size-10 sm:size-11" />}
+          {voice && <VoiceButton voice={voice} />}
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={() => {
@@ -501,8 +521,9 @@ export function Hud({
                 exit={{ opacity: 0, y: -6, scale: 0.95 }}
                 transition={spring.snappy}
                 style={{ transformOrigin: "top right" }}
-                className="glass-strong absolute right-0 top-14 w-56 rounded-2xl p-1.5 shadow-2xl"
+                className="glass-strong absolute right-0 top-14 w-64 rounded-2xl p-1.5 shadow-2xl"
               >
+                {voice && <VoiceMenu voice={voice} match={match} onDone={() => setMenuOpen(false)} />}
                 <button
                   onClick={() => {
                     onCopyLink();
@@ -545,6 +566,7 @@ export function Hud({
             scores={hud.scores}
             turn={turn}
             turnLayoutId="hud-turn-narrow"
+            voices={voices}
             size={seated.length > 6 ? 30 : 34}
             className={cn(
               "glass no-scrollbar max-w-full overflow-x-auto rounded-full px-3 pb-3 pt-3.5",

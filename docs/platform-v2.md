@@ -477,3 +477,16 @@ start in seconds (`npx create-vibecade`, a publishable SDK).
 - `/developers/apps/[slug]` becomes the app's console: Overview, Versions
   (create/edit/submit/publish, testers), Analytics, Logs, Server (Stage 2).
 - The registration form creates the app + version 1.0.0 in one go.
+
+## Voice chat
+
+Live matches have opt-in voice chat (the mic button in the match HUD, `src/lib/voice-chat.ts`). It is a
+WebRTC audio mesh, one connection per pair of people in the call, so audio goes browser to browser and is
+never recorded. Signaling rides the match room as two more `RoomEvent` kinds (`voice` for who's in the
+call, `rtc` for one offer and one answer per pair with ICE candidates gathered in), so it works unchanged
+on Supabase Realtime, the live server (which relays any event) and the demo backend: no migration and no
+server change. Seated players talk; spectators can only listen. Apps don't see voice traffic.
+
+ICE servers come from `NEXT_PUBLIC_ICE_SERVERS` (a JSON RTCIceServer list); unset, public STUN only, so
+players behind strict NATs (some mobile and corporate networks) can't connect until a TURN server is added.
+The approach follows hovtgc/open-space (MIT).

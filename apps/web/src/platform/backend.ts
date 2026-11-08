@@ -45,7 +45,33 @@ export type RoomEvent =
   /** Emoji reaction from the HUD. */
   | { kind: "reaction"; emoji: string }
   /** The sender unlocked one of the app's achievements (so the others' hosts and apps hear about it). */
-  | { kind: "achievement"; id: string };
+  | { kind: "achievement"; id: string }
+  /** Voice chat (`lib/voice-chat.ts`): who's in the call. `to` addresses one peer; the rest ignore it. */
+  | VoiceRoomEvent
+  /** Voice chat: a WebRTC offer or answer for one peer, its ICE candidates gathered in. */
+  | RtcRoomEvent;
+
+/** `hello`: I'm in voice (instance `session`); `here`: a reply to a hello; `bye`: I left; `mute`: my mic changed. */
+export interface VoiceRoomEvent {
+  kind: "voice";
+  op: "hello" | "here" | "bye" | "mute";
+  session: string;
+  to?: string;
+  /** Has a microphone in the call (spectators only listen). */
+  talk: boolean;
+  muted: boolean;
+  /** hello/here: who the sender is connected to, so a peer still holding a dead connection to them redials. */
+  linked?: string[];
+}
+
+export interface RtcRoomEvent {
+  kind: "rtc";
+  to: string;
+  /** The dialer's connection id: a new one replaces the old connection. */
+  link: string;
+  type: "offer" | "answer";
+  sdp: string;
+}
 
 export interface RoomPeer {
   userId: string;
