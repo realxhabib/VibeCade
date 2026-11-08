@@ -11,6 +11,12 @@ export const env = {
    * https://174-138-34-59.sslip.io. Unset: every game uses Supabase Realtime.
    */
   liveServerUrl: (process.env.NEXT_PUBLIC_LIVE_SERVER_URL || "").trim().replace(/\/+$/, ""),
+  /**
+   * ICE servers for voice chat, as JSON (an RTCIceServer list), e.g.
+   * [{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.example.com:3478","username":"u","credential":"p"}].
+   * Unset: public STUN only, so a few strict networks can't connect (no TURN relay).
+   */
+  iceServers: process.env.NEXT_PUBLIC_ICE_SERVERS || "",
   /** Force `x` (OAuth 2.0) or `twitter` (legacy OAuth 1.0a). Unset: detect which one is enabled. */
   xProvider: (["x", "twitter"] as const).find((p) => p === process.env.NEXT_PUBLIC_SUPABASE_X_PROVIDER) ?? null,
 };

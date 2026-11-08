@@ -34,6 +34,8 @@ import { showAchievement } from "./achievement-moment";
 import { ChallengeEnded } from "./challenge-ended";
 import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./hud";
 import { ImmersiveChrome, useImmersive } from "./immersive";
+import { acquireRoom } from "./shared-room";
+import { LobbyVoice, useVoiceControls } from "./voice";
 import { InviteCard, Lobby } from "./lobby";
 import { isMultiplayer, ordinal, seatedPlayers, viewerIsSpectator, viewerOutcome } from "./match-view";
 import { SITE_ROUTES, useHostRoutes } from "./host-routes";
@@ -176,6 +178,9 @@ export function PlayRoom({ matchId, join = false }: { matchId: string; join?: bo
   const lobbyOpen = !!match && (match.status === "open" || match.status === "pending");
   const hasSeat = !!match && match.isOpen && lobbyOpen && seatedPlayers(match).length < Math.max(2, match.maxPlayers);
   const joinOnArrival = join && !!viewer && !!app && !app.retired && (me ? me.state === "invited" && lobbyOpen : hasSeat);
+  /** Talk while the table fills up (live matches): the call carries on into the match. */
+  const lobbyVoice =
+    !!match && !!viewer && !!app && !app.retired && match.mode === "live" && lobbyOpen && (spectating || me?.state === "joined");
   const joinTried = useRef(false);
   useEffect(() => {
     if (!joinOnArrival || joinTried.current || !match) return;
@@ -376,6 +381,7 @@ export function PlayRoom({ matchId, join = false }: { matchId: string; join?: bo
           <Button variant="ghost" size="sm" href={viewer && !routes.guest ? routes.challenges : routes.home}>
             ← {viewer && !routes.guest && routes.challenges === SITE_ROUTES.challenges ? "Challenges" : "VibeCade"}
           </Button>
+          {lobbyVoice && viewer && <LobbyVoice match={match} viewer={viewer} listenOnly={spectating} />}
         </div>
       </div>
       {body}
@@ -842,7 +848,10 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
   useEffect(() => {
     if (!live) return;
-    const room = backend.openRoom(match.id, viewer.id, match.appSlug, { latestState: () => latestCopyRef.current() });
+    // Shared with the lobby: the room (and a voice call on it) carries on into the match.
+    const shared = acquireRoom(backend, match.id, viewer.id, match.appSlug);
+    shared.setLatestState(() => latestCopyRef.current());
+    const room = shared.room;
     roomRef.current = room;
     room.track({ ready: false });
     const offPresence = room.onPresence(setPeers);
@@ -864,7 +873,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       offPresence();
       offEvent();
       offState?.();
-      room.close();
+      shared.setLatestState(null);
+      shared.release();
       roomRef.current = null;
     };
     // pushFloating is recreated each render but only appends state.
@@ -1043,6 +1053,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     router.push(routes.app(app.slug));
   };
 
+  const voice = useVoiceControls(match.id, spectating);
+
   const react = (emoji: string) => {
     pushFloating(emoji, "left");
     roomRef.current?.send({ kind: "reaction", emoji });
@@ -1096,6 +1108,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
           }}
           immersive={immersive}
           onToggleImmersive={toggleImmersive}
+          voice={voice}
         />
       </ImmersiveChrome>
 
