@@ -69,14 +69,12 @@ enum Site {
 
     /// Runs before the site's own scripts on every page.
     static let earlyScript = """
-    // The first build forced the site's full-screen mode, which hides the match's top
-    // bar (players, reactions, leave). Clear that once; the site's own toggle decides now.
-    try {
-      if (!localStorage.getItem('vibecade-ios:immersive-reset')) {
-        localStorage.removeItem('xapps:immersive');
-        localStorage.setItem('vibecade-ios:immersive-reset', '1');
-      }
-    } catch (e) {}
+    // The app already plays matches full screen, so the site's own full-screen mode
+    // would only hide the match's top bar (players, reactions, leave) behind a tiny
+    // handle. Keep it off: clear it on every page and hide its button (lateScript).
+    try { localStorage.removeItem('xapps:immersive'); } catch (e) {}
+    // Like a home-screen web app: no "Add to Home Screen" tips.
+    try { Object.defineProperty(navigator, 'standalone', { get: function () { return true; } }); } catch (e) {}
     window.vibecadeApp = { platform: 'ios', version: 1 };
     """
 
@@ -86,7 +84,7 @@ enum Site {
       if (document.getElementById('vibecade-ios')) return;
       var s = document.createElement('style');
       s.id = 'vibecade-ios';
-      s.textContent = 'nav[aria-label="Main"]{display:none!important} main{padding-bottom:2.5rem!important} body{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}';
+      s.textContent = 'nav[aria-label="Main"],button[aria-label="Full screen"],button[aria-label="Exit full screen"]{display:none!important} main{padding-bottom:2.5rem!important} body{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}';
       (document.head || document.documentElement).appendChild(s);
     })();
     """

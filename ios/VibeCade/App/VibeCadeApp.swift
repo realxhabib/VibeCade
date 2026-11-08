@@ -55,6 +55,9 @@ struct RootView: View {
         .overlay { tabBar }
         .background(HingeReader().allowsHitTesting(false))
         .animation(.easeInOut(duration: 0.25), value: playing)
+        // From the root: set deeper down, the Duo's inner screen kept its status bar.
+        .statusBarHidden(playing)
+        .persistentSystemOverlays(playing ? .hidden : .automatic)
         .onOpenURL(perform: open)
     }
 

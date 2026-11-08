@@ -14,10 +14,11 @@ struct SiteScreen: View {
 
     var body: some View {
         GeometryReader { geo in
-            let insets = geo.safeAreaInsets
-            // The ZStack below ignores the safe area: its size is the proxy's plus the insets.
-            let full = CGSize(width: geo.size.width + insets.leading + insets.trailing,
-                              height: geo.size.height + insets.top + insets.bottom)
+            // The reader itself ignores the safe area, so its size is the whole screen and
+            // a match can reach every edge (the Duo's inner screen has insets on the right
+            // and bottom in landscape). The window's insets place everything else.
+            let insets = WindowInsets.current
+            let full = geo.size
             let layout = ScreenLayout.of(full, halfOpen: hinge.halfOpen)
             let split = layout.folded && !(page.playing && wholeScreen)
             let halves = ScreenLayout.halves(of: full, layout: layout)
@@ -25,7 +26,9 @@ struct SiteScreen: View {
             // HUD by the web view's own safe area).
             let web = split ? (page.playing ? halves.game : halves.game.inset(by: UIEdgeInsets(top: insets.top, left: insets.leading, bottom: layout == .foldedSideBySide ? insets.bottom : 0, right: 0)))
                 : page.playing ? CGRect(origin: .zero, size: full)
-                : CGRect(x: insets.leading, y: insets.top, width: geo.size.width, height: max(0, geo.size.height - barRoom))
+                : CGRect(x: insets.leading, y: insets.top,
+                          width: max(0, full.width - insets.leading - insets.trailing),
+                          height: max(0, full.height - insets.top - insets.bottom - barRoom))
 
             ZStack(alignment: .topLeading) {
                 Brand.void
@@ -73,14 +76,12 @@ struct SiteScreen: View {
                     .offset(y: full.height / 2 + 12)
                 }
             }
-            .ignoresSafeArea()
             .animation(.spring(response: 0.45, dampingFraction: 0.88), value: split)
             .animation(.easeInOut(duration: 0.25), value: page.playing)
         }
+        .ignoresSafeArea()
         .background(HingeReader().allowsHitTesting(false))
         .toolbar(.hidden, for: .navigationBar)
-        .statusBarHidden(page.playing)
-        .persistentSystemOverlays(page.playing ? .hidden : .automatic)
         .onChange(of: page.playing) { _, now in
             if !now { wholeScreen = false }
             if pushed { Chrome.shared.playing = now }
