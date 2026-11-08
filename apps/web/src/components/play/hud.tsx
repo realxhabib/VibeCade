@@ -32,6 +32,7 @@ function PlayerChip({
   active,
   side,
   voice,
+  onVoiceTap,
 }: {
   player: MatchPlayer | undefined;
   online: boolean;
@@ -39,6 +40,7 @@ function PlayerChip({
   active: boolean;
   side: "left" | "right";
   voice?: SeatVoice;
+  onVoiceTap?: () => void;
 }) {
   return (
     <motion.div
@@ -57,7 +59,7 @@ function PlayerChip({
       {player ? (
         <span className="relative">
           <Avatar person={{ ...player.profile, isBot: player.isBot }} size={36} online={player.isBot ? true : online} />
-          <SeatVoiceMark state={voice} />
+          <SeatVoiceMark state={voice} onToggle={onVoiceTap} handle={player.profile.handle} />
         </span>
       ) : (
         <span className="flex size-9 items-center justify-center rounded-full border border-dashed border-white/25 text-sm text-ink-400">?</span>
@@ -166,6 +168,7 @@ function StripSeat({
   size,
   turnLayoutId,
   voice,
+  onVoiceTap,
 }: {
   player: MatchPlayer;
   team: TeamStyle | null;
@@ -178,6 +181,7 @@ function StripSeat({
   size: number;
   turnLayoutId: string;
   voice?: SeatVoice;
+  onVoiceTap?: () => void;
 }) {
   const gone = player.state === "left";
   return (
@@ -204,7 +208,7 @@ function StripSeat({
           />
         )}
         <Avatar person={{ ...player.profile, isBot: player.isBot }} size={size} online={player.isBot ? undefined : online} />
-        <SeatVoiceMark state={voice} />
+        <SeatVoiceMark state={voice} onToggle={onVoiceTap} handle={player.profile.handle} />
         <AnimatePresence>
           {leader && (
             <motion.span
@@ -269,6 +273,7 @@ function PlayerStrip({
   turnLayoutId,
   size,
   voices,
+  onVoiceTap,
 }: {
   match: Match;
   players: MatchPlayer[];
@@ -280,6 +285,7 @@ function PlayerStrip({
   turnLayoutId: string;
   size: number;
   voices: Map<string, SeatVoice>;
+  onVoiceTap: (userId: string) => (() => void) | undefined;
 }) {
   const numeric = players.map((p) => scores[p.userId]).filter((v): v is number => typeof v === "number");
   const best = numeric.length > 1 ? (match.scoring === "low" ? Math.min(...numeric) : Math.max(...numeric)) : null;
@@ -301,6 +307,7 @@ function PlayerStrip({
           size={size}
           turnLayoutId={turnLayoutId}
           voice={voices.get(p.userId)}
+          onVoiceTap={onVoiceTap(p.userId)}
         />
       ))}
     </div>
@@ -375,6 +382,12 @@ export function Hud({
   voice?: VoiceControls;
 }) {
   const voices = seatVoices(voice, viewerId);
+  /** In the call: tap someone's avatar to mute them just for you (and again to hear them). */
+  const voiceTap = (userId: string) => {
+    const state = voices.get(userId);
+    if (!voice?.snapshot.joined || userId === viewerId || !state) return undefined;
+    return () => voice.silence(userId, state !== "silenced");
+  };
   const seated = seatedPlayers(match).filter((p) => p.state !== "invited");
   const me = seated.find((p) => p.userId === viewerId);
   const others = seated.filter((p) => p.userId !== viewerId);
@@ -424,6 +437,7 @@ export function Hud({
               turnLayoutId="hud-turn-wide"
               size={36}
               voices={voices}
+              onVoiceTap={voiceTap}
               className="ml-auto hidden min-w-0 gap-3 px-1.5 pb-2.5 pt-3.5 md:flex"
             />
           </div>
@@ -436,6 +450,7 @@ export function Hud({
               active={!!left && turn === left.userId}
               side="left"
               voice={left ? voices.get(left.userId) : undefined}
+              onVoiceTap={left ? voiceTap(left.userId) : undefined}
             />
             <div className="hidden min-w-0 flex-col items-center md:flex">
               <MatchTitle app={app} match={match} hud={hud} spectating={spectating} spectatorCount={spectatorCount} />
@@ -452,6 +467,7 @@ export function Hud({
               active={!!right && turn === right.userId}
               side="right"
               voice={right ? voices.get(right.userId) : undefined}
+              onVoiceTap={right ? voiceTap(right.userId) : undefined}
             />
           </div>
         )}
@@ -567,6 +583,7 @@ export function Hud({
             turn={turn}
             turnLayoutId="hud-turn-narrow"
             voices={voices}
+            onVoiceTap={voiceTap}
             size={seated.length > 6 ? 30 : 34}
             className={cn(
               "glass no-scrollbar max-w-full overflow-x-auto rounded-full px-3 pb-3 pt-3.5",

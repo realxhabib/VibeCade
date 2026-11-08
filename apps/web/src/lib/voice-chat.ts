@@ -120,6 +120,24 @@ export function voiceSupported(): boolean {
   return typeof window !== "undefined" && typeof RTCPeerConnection !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
 }
 
+/**
+ * Microphone processing: echo cancellation, noise suppression and gain control everywhere, plus
+ * voice isolation (the browser keeps only the speaker's voice) where the browser offers it. Keeping
+ * the platform's voice processing on is also what lets Safari on iPhone and Mac apply the system's
+ * own Voice Isolation mic mode (Control Center, while the mic is in use).
+ */
+export function micConstraints(
+  supported: MediaTrackSupportedConstraints & { voiceIsolation?: boolean } = typeof navigator !== "undefined" ? (navigator.mediaDevices?.getSupportedConstraints?.() ?? {}) : {},
+): MediaTrackConstraints {
+  const audio: MediaTrackConstraints & { voiceIsolation?: boolean } = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  };
+  if (supported.voiceIsolation) audio.voiceIsolation = true;
+  return audio;
+}
+
 const randomId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 /** Waits for ICE gathering to finish (or a timeout: whatever was gathered by then goes). */
@@ -203,7 +221,7 @@ export class VoiceChat {
         if (!this.opts.getUserMedia && !voiceSupported()) throw new VoiceError("Voice chat isn't supported in this browser", "unsupported");
         try {
           this.stream = await getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            audio: micConstraints(),
             video: false,
           });
         } catch (error) {

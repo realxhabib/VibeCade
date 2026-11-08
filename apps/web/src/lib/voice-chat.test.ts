@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { iceServersFromEnv, type VoiceEvent, VoiceChat, type VoiceSnapshot } from "./voice-chat";
+import { iceServersFromEnv, micConstraints, type VoiceEvent, VoiceChat, type VoiceSnapshot } from "./voice-chat";
 
 /** Just enough of RTCPeerConnection for the signaling protocol (real audio is checked in a browser). */
 class FakePc {
@@ -176,5 +176,12 @@ describe("iceServersFromEnv", () => {
     expect(iceServersFromEnv(JSON.stringify(turn[0]))).toEqual(turn);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     expect(iceServersFromEnv("not json")[0]?.urls).toContain("stun:stun.l.google.com:19302");
+  });
+});
+
+describe("micConstraints", () => {
+  it("asks for voice isolation only where the browser supports it", () => {
+    expect(micConstraints({})).toEqual({ echoCancellation: true, noiseSuppression: true, autoGainControl: true });
+    expect(micConstraints({ voiceIsolation: true })).toMatchObject({ voiceIsolation: true, noiseSuppression: true });
   });
 });
