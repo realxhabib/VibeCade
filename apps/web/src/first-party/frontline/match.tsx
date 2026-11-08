@@ -222,16 +222,25 @@ export function MatchView({ settings, onSettings, season }: { settings: Settings
       fit();
       const ro = new ResizeObserver(fit);
       ro.observe(host);
-      e.start();
-      setEngine(e);
-      if (process.env.NODE_ENV !== "production") (window as unknown as { __frontline?: unknown }).__frontline = {
-          game,
-          engine: e,
-          aim: (seat?: number) => debugAim(game, seat),
-          // Throws your grenade on the next frame (as if G was released).
-          throwNade: () => !!game.me && game.me.nades > 0 && (game.me.nadeHeld = true),
-        };
+      // Build the shaders under the loading screen first (no hitches in the first seconds).
+      let gone = false;
+      void e
+        .warmUp()
+        .catch((error: unknown) => console.warn(`[${TAG}] warm-up failed`, error))
+        .then(() => {
+          if (gone) return;
+          e.start();
+          setEngine(e);
+          if (process.env.NODE_ENV !== "production") (window as unknown as { __frontline?: unknown }).__frontline = {
+            game,
+            engine: e,
+            aim: (seat?: number) => debugAim(game, seat),
+            // Throws your grenade on the next frame (as if G was released).
+            throwNade: () => !!game.me && game.me.nades > 0 && (game.me.nadeHeld = true),
+          };
+        });
       return () => {
+        gone = true;
         ro.disconnect();
         e.dispose();
         canvas.remove();

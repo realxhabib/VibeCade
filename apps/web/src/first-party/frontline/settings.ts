@@ -1,5 +1,5 @@
 /**
- * Player settings (mouse and touch look speed, invert, aim assist, quality) and the
+ * Player settings (mouse and touch look speed, invert, aim assist, auto-fire, quality) and the
  * last loadout, saved with the SDK's per-player storage so they follow the
  * player across devices, mirrored in localStorage so the first frame
  * already uses them.
@@ -16,6 +16,8 @@ export interface Settings {
   touchSensitivity: number;
   invert: boolean;
   aimAssist: boolean;
+  /** Phones: shoot automatically while the crosshair is on an enemy (off unless chosen). */
+  autoFire: boolean;
   quality: QualityPref;
   loadout: Loadout;
 }
@@ -25,7 +27,7 @@ export const MIN_SENSITIVITY = 0.3;
 export const MAX_SENSITIVITY = 8;
 
 /** Phones turn faster out of the box: a thumb drag is short, and 2.2 felt sluggish. */
-export const DEFAULT_SETTINGS: Settings = { sensitivity: 2.2, touchSensitivity: 3.6, invert: false, aimAssist: true, quality: "auto", loadout: DEFAULT_LOADOUT };
+export const DEFAULT_SETTINGS: Settings = { sensitivity: 2.2, touchSensitivity: 3.6, invert: false, aimAssist: true, autoFire: false, quality: "auto", loadout: DEFAULT_LOADOUT };
 
 const KEY = "settings";
 const LOCAL = "frontline:settings";
@@ -39,6 +41,7 @@ export function parseSettings(raw: unknown): Settings {
     touchSensitivity: sens(o.touchSensitivity, DEFAULT_SETTINGS.touchSensitivity),
     invert: o.invert === true,
     aimAssist: o.aimAssist !== false,
+    autoFire: o.autoFire === true,
     quality,
     loadout: parseLoadout(o.loadout),
   };

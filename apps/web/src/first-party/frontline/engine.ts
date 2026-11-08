@@ -21,6 +21,7 @@ import {
   HemisphereLight,
   Matrix4,
   NoToneMapping,
+  type Object3D,
   PCFShadowMap,
   PerspectiveCamera,
   PMREMGenerator,
@@ -450,7 +451,7 @@ export class Engine {
       const zoom = Math.tan((this.fov * DEG) / 2) / Math.tan((BASE_FOV * DEG) / 2);
       const d = this.input.sample(this.intent, this.opts.touch ? settings.touchSensitivity : settings.sensitivity, settings.invert, zoom, me.slot);
       intent = this.intent;
-      if (this.opts.touch && settings.aimAssist) this.aimAssist(me, w, d, intent, dt);
+      if (this.opts.touch && (settings.aimAssist || settings.autoFire)) this.aimAssist(me, w, d, intent, dt, settings);
       look = { yaw: d.dYaw, pitch: d.dPitch };
       this.lookX = d.dYaw;
       this.lookY = d.dPitch;
@@ -489,8 +490,13 @@ export class Engine {
 
     this.renderer.info.reset();
     this.flashAmount = Math.max(0, this.flashAmount - dt * 4);
+    this.draw(dt, now / 1000);
+    this.drawOverlays(now);
+  }
+
+  private draw(dt: number, t: number): void {
     if (this.post) {
-      this.post.render(dt, now / 1000, this.flashAmount);
+      this.post.render(dt, t, this.flashAmount);
     } else {
       this.renderer.setRenderTarget(null);
       this.renderer.clear();
@@ -500,7 +506,55 @@ export class Engine {
         this.renderer.render(this.vm.scene, this.vm.camera);
       }
     }
-    this.drawOverlays(now);
+  }
+
+  /**
+   * Builds every shader and uploads every texture before the match shows, so the
+   * first seconds don't hitch (phones stall for a frame or more on each new shader:
+   * the first shot's muzzle flash, the first grenade, a weapon you haven't held yet).
+   * Everything hidden is shown for one off-screen pass (the loading screen covers
+   * it), then hidden again. Gives up after `timeoutMs` so loading never hangs.
+   */
+  async warmUp(timeoutMs = 5000): Promise<void> {
+    const hidden: Object3D[] = [];
+    const roots = [this.scene, this.vm.scene];
+    for (const root of roots) {
+      root.traverse((o) => {
+        if (o.visible) return;
+        hidden.push(o);
+        o.visible = true;
+      });
+    }
+    const vmWas = this.vmVisible;
+    this.vmVisible = true;
+    try {
+      // Drawing uploads only what's on screen: push every texture up front.
+      const seen = new Set<Texture>();
+      for (const root of roots) {
+        root.traverse((o) => {
+          const mat = (o as { material?: unknown }).material;
+          for (const m of Array.isArray(mat) ? mat : mat ? [mat] : []) {
+            for (const v of Object.values(m as Record<string, unknown>)) {
+              const tex = v as Texture | null;
+              if (tex && (tex as { isTexture?: boolean }).isTexture && !seen.has(tex)) {
+                seen.add(tex);
+                this.renderer.initTexture(tex);
+              }
+            }
+          }
+        });
+      }
+      const compile = Promise.all([this.renderer.compileAsync(this.scene, this.camera), this.renderer.compileAsync(this.vm.scene, this.vm.camera)]);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([compile, new Promise<void>((done) => (timer = setTimeout(done, timeoutMs)))]);
+      clearTimeout(timer);
+      if (this.disposed) return;
+      // One real frame through the same passes: post-processing, the shadow map.
+      this.draw(0, 0);
+    } finally {
+      for (const o of hidden) o.visible = false;
+      this.vmVisible = vmWas;
+    }
   }
 
   private vmVisible = false;
@@ -677,18 +731,27 @@ export class Engine {
     return best;
   }
 
-  private aimAssist(me: Soldier, w: WeaponDef, d: { dYaw: number; dPitch: number }, intent: Intent, dt: number): void {
-    // Light friction only: your look slows a little while the crosshair is on or
-    // right next to an enemy. No pull toward them and no auto-fire: you aim and
-    // you shoot.
-    void w;
-    void intent;
-    void dt;
-    const t = this.nearestToCrosshair(me, 2.5 * DEG);
+  private aimAssist(me: Soldier, w: WeaponDef, d: { dYaw: number; dPitch: number }, intent: Intent, dt: number, settings: Settings): void {
+    const t = this.nearestToCrosshair(me, 4 * DEG);
     if (!t) return;
-    const k = t.onTarget ? 0.72 : 0.85;
-    d.dYaw *= k;
-    d.dPitch *= k;
+    if (settings.aimAssist) {
+      // Friction: your look slows over an enemy (more when you're right on them).
+      const k = t.onTarget ? 0.6 : t.angle < 2.5 * DEG ? 0.78 : 0.9;
+      d.dYaw *= k;
+      d.dPitch *= k;
+      // Tracking, only while you're shooting: a gentle follow so a strafing enemy
+      // doesn't slide out from under the crosshair. Never a snap, never on its own.
+      if (intent.fire && t.angle < 3 * DEG) {
+        const pull = 0.45 * dt;
+        d.dYaw += Math.max(-pull, Math.min(pull, t.yawOff * 0.6));
+        d.dPitch += Math.max(-pull * 0.5, Math.min(pull * 0.5, t.pitchOff * 0.3));
+      }
+    }
+    // Auto-fire (opt in): shoots while the crosshair is on an enemy the gun can reach.
+    // The sniper only fires scoped in; semi-automatics release the trigger between shots.
+    if (settings.autoFire && !intent.fire && t.onTarget && t.dist < w.range[1] && !me.sprinting && !intent.grenade && (!w.scope || me.ads > 0.85)) {
+      intent.fire = w.auto || !me.triggerHeld;
+    }
   }
 
   /* ---------------------------------------------------------------------- */
