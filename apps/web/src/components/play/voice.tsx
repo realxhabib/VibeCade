@@ -2,12 +2,17 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Headphones, Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "@/components/chrome/toasts";
 import { Avatar } from "@/components/ui/avatar";
 import { haptic } from "@/lib/haptics";
 import { spring } from "@/lib/motion";
+import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
-import type { VoiceMember, VoiceSnapshot } from "@/lib/voice-chat";
-import type { Match } from "@/platform/types";
+import { VoiceError, type VoiceMember, type VoiceSnapshot } from "@/lib/voice-chat";
+import { useBackend } from "@/platform/client";
+import type { Match, Profile } from "@/platform/types";
+import { acquireRoom, useVoiceSnapshot, voiceActions } from "./shared-room";
 
 /** What the HUD needs to show and drive voice chat. */
 export interface VoiceControls {
@@ -18,6 +23,29 @@ export interface VoiceControls {
   leave: () => void;
   toggleMute: () => void;
   silence: (userId: string, silenced: boolean) => void;
+}
+
+/** The voice call on this match's room, as HUD/lobby controls (undefined while no room is open). */
+export function useVoiceControls(matchId: string, listenOnly: boolean): VoiceControls | undefined {
+  const snapshot = useVoiceSnapshot(matchId);
+  if (!snapshot) return undefined;
+  const actions = voiceActions(matchId);
+  return {
+    snapshot,
+    listenOnly,
+    join: () => {
+      actions.join(!listenOnly).then(
+        () => play("pop"),
+        (error: unknown) => toast(error instanceof VoiceError ? error.message : "Couldn't start voice chat", { tone: "danger" }),
+      );
+    },
+    leave: () => {
+      actions.leave();
+      play("tick");
+    },
+    toggleMute: () => actions.setMuted(!snapshot.muted),
+    silence: (userId, silenced) => actions.setSilenced(userId, silenced),
+  };
 }
 
 /** How one person shows on their seat: talking now, in the call with the mic off, or in the call. */
@@ -215,5 +243,64 @@ export function VoiceMenu({ voice, match, onDone }: { voice: VoiceControls; matc
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * Voice chat while the table fills up: opens the match room in the lobby (the match stage takes the
+ * same room over, so the call carries straight on into the game) and shows a compact call bar.
+ */
+export function LobbyVoice({ match, viewer, listenOnly }: { match: Match; viewer: Profile; listenOnly: boolean }) {
+  const backend = useBackend();
+  useEffect(() => {
+    const shared = acquireRoom(backend, match.id, viewer.id, match.appSlug);
+    shared.room.track({ ready: false });
+    return () => shared.release();
+  }, [backend, match.id, match.appSlug, viewer.id]);
+  const voice = useVoiceControls(match.id, listenOnly);
+  if (!voice) return null;
+  const { snapshot } = voice;
+  const people = snapshot.members.filter((m) => m.talk);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={spring.soft}
+      className="glass ml-auto flex items-center gap-2 rounded-full py-1 pl-1 pr-2"
+    >
+      <VoiceButton voice={voice} />
+      <div className="flex items-center">
+        {snapshot.joined && snapshot.talk && (
+          <span className="relative -ml-0 first:ml-0">
+            <Avatar person={viewer} size={26} />
+            {snapshot.speaking && <span aria-hidden className="absolute -inset-[3px] rounded-full border-2 border-success" />}
+          </span>
+        )}
+        {people.slice(0, 6).map((m) => {
+          const player = match.players.find((p) => p.userId === m.userId);
+          if (!player) return null;
+          return (
+            <span key={m.userId} className="relative -ml-1.5 first:ml-0" title={`@${player.profile.handle}${m.muted ? " (muted)" : ""}`}>
+              <Avatar person={player.profile} size={26} className={cn(m.muted && "opacity-60")} />
+              {m.speaking && <span aria-hidden className="absolute -inset-[3px] rounded-full border-2 border-success" />}
+            </span>
+          );
+        })}
+      </div>
+      <span className="hidden text-xs text-ink-300 sm:inline">
+        {snapshot.joined ? (people.length ? "In voice" : "Just you") : people.length ? `${people.length} talking` : "Voice chat"}
+      </span>
+      {snapshot.joined && (
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={voice.leave}
+          className="flex size-8 items-center justify-center rounded-full text-danger hover:bg-danger/10"
+          aria-label="Leave voice"
+          title="Leave voice"
+        >
+          <PhoneOff className="size-4" />
+        </motion.button>
+      )}
+    </motion.div>
   );
 }

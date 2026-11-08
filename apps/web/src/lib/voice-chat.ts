@@ -191,9 +191,8 @@ export class VoiceChat {
   }
 
   /** Join the call: with the microphone when we may talk, else to listen. Must run from a tap. */
-  async join(): Promise<void> {
+  async join(talk: boolean = this.opts.canTalk()): Promise<void> {
     if (this.joined || this.joining || this.destroyed) return;
-    const talk = this.opts.canTalk();
     this.joining = true;
     this.emit();
     try {

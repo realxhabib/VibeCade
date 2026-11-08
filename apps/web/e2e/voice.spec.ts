@@ -63,3 +63,48 @@ test("two players talk over voice chat in a live match", async ({ context }) => 
   await bob.getByRole("button", { name: "Leave voice" }).click();
   await expect(alice.getByLabel("In voice, muted")).toBeHidden();
 });
+
+test("a call started in the lobby carries on into the match", async ({ context }) => {
+  await context.addInitScript(() => {
+    localStorage.setItem("xapps:force-demo", "1");
+    sessionStorage.setItem("xapps:demo-banner", "hidden");
+    sessionStorage.setItem("xapps:demo-invited", "1");
+  });
+  const suffix = Date.now().toString(36).slice(-4);
+  const [host, guest] = [await context.newPage(), await context.newPage()];
+  for (const [page, handle] of [
+    [host, `vhost${suffix}`],
+    [guest, `vguest${suffix}`],
+  ] as const) {
+    await page.goto("/");
+    await page.evaluate(() => localStorage.removeItem("xapps:demo-last-viewer"));
+    await page.goto("/login");
+    await page.getByLabel("Demo handle").fill(handle);
+    await page.getByRole("button", { name: "Go" }).click();
+    await expect(page).toHaveURL("/");
+  }
+
+  await host.goto("/apps/rps-showdown");
+  await host.getByRole("button", { name: "Challenge someone" }).click();
+  await host.getByRole("button", { name: /Open challenge/ }).click();
+  await host.getByRole("button", { name: "Create open challenge" }).click();
+  await expect(host).toHaveURL(/\/play\//);
+
+  // Talk while waiting.
+  await host.getByRole("button", { name: "Join voice chat" }).click();
+  await expect(host.getByRole("button", { name: "Mute", exact: true })).toBeVisible();
+  await expect(host.getByText("Just you")).toBeVisible();
+
+  // The guest takes the seat: the match starts and the host is still in the call.
+  const link = (await host.getByText(/\/play\/[^/?]+\?join=1$/).textContent())!;
+  await guest.goto(link);
+  await expect(guest.frameLocator("iframe").getByRole("button", { name: "Paper" })).toBeVisible({ timeout: 30_000 });
+  await expect(host.frameLocator("iframe").getByRole("button", { name: "Paper" })).toBeVisible({ timeout: 30_000 });
+  await expect(host.getByRole("button", { name: "Mute", exact: true })).toBeVisible();
+  await expect(guest.getByLabel("1 in voice")).toBeVisible();
+  await guest.getByRole("button", { name: "Join voice chat" }).click();
+  await host.getByRole("button", { name: "Match options" }).click();
+  await expect(host.getByText(/Voice · 2 in call/)).toBeVisible();
+  await expect(host.getByText("connecting…")).toBeHidden({ timeout: 20_000 });
+  await expect(host.getByText("can't connect")).toBeHidden();
+});

@@ -21,7 +21,6 @@ import { spring } from "@/lib/motion";
 import { copyText, openXIntent } from "@/lib/share";
 import { shareLinkFor } from "@/lib/media";
 import { cn } from "@/lib/utils";
-import { isVoiceEvent, VoiceChat, VoiceError, type VoiceSnapshot, voiceSupported } from "@/lib/voice-chat";
 import type { RoomPeer, RoomStateCopy, RoomTransport } from "@/platform/backend";
 import { BackendError } from "@/platform/backend";
 import { useBackend, useViewer } from "@/platform/client";
@@ -35,7 +34,8 @@ import { showAchievement } from "./achievement-moment";
 import { ChallengeEnded } from "./challenge-ended";
 import { FloatingReactions, Hud, type HudState, useFloatingReactions } from "./hud";
 import { ImmersiveChrome, useImmersive } from "./immersive";
-import type { VoiceControls } from "./voice";
+import { acquireRoom } from "./shared-room";
+import { LobbyVoice, useVoiceControls } from "./voice";
 import { InviteCard, Lobby } from "./lobby";
 import { isMultiplayer, ordinal, seatedPlayers, viewerIsSpectator, viewerOutcome } from "./match-view";
 import { SITE_ROUTES, useHostRoutes } from "./host-routes";
@@ -178,6 +178,9 @@ export function PlayRoom({ matchId, join = false }: { matchId: string; join?: bo
   const lobbyOpen = !!match && (match.status === "open" || match.status === "pending");
   const hasSeat = !!match && match.isOpen && lobbyOpen && seatedPlayers(match).length < Math.max(2, match.maxPlayers);
   const joinOnArrival = join && !!viewer && !!app && !app.retired && (me ? me.state === "invited" && lobbyOpen : hasSeat);
+  /** Talk while the table fills up (live matches): the call carries on into the match. */
+  const lobbyVoice =
+    !!match && !!viewer && !!app && !app.retired && match.mode === "live" && lobbyOpen && (spectating || me?.state === "joined");
   const joinTried = useRef(false);
   useEffect(() => {
     if (!joinOnArrival || joinTried.current || !match) return;
@@ -378,6 +381,7 @@ export function PlayRoom({ matchId, join = false }: { matchId: string; join?: bo
           <Button variant="ghost" size="sm" href={viewer && !routes.guest ? routes.challenges : routes.home}>
             ← {viewer && !routes.guest && routes.challenges === SITE_ROUTES.challenges ? "Challenges" : "VibeCade"}
           </Button>
+          {lobbyVoice && viewer && <LobbyVoice match={match} viewer={viewer} listenOnly={spectating} />}
         </div>
       </div>
       {body}
@@ -430,17 +434,10 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
   const [now, setNow] = useState(() => Date.now());
   const { items: floating, push: pushFloating } = useFloatingReactions();
   const { immersive, toggle: toggleImmersive } = useImmersive();
-  /** Voice chat in the match room (null until the room opens, or where the browser can't). */
-  const voiceRef = useRef<VoiceChat | null>(null);
-  const [voiceSnap, setVoiceSnap] = useState<VoiceSnapshot | null>(null);
 
   const live = match.mode === "live";
   const me = playerOf(match, viewer.id);
   const spectating = viewerIsSpectator(match, viewer.id);
-  const canTalkRef = useRef(!spectating);
-  useLayoutEffect(() => {
-    canTalkRef.current = !spectating;
-  }, [spectating]);
   const seated = seatedPlayers(match);
   const others = seated.filter((p) => p.userId !== viewer.id);
   const opponent = others[0] ?? opponentOf(match, viewer.id);
@@ -851,21 +848,15 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
 
   useEffect(() => {
     if (!live) return;
-    const room = backend.openRoom(match.id, viewer.id, match.appSlug, { latestState: () => latestCopyRef.current() });
+    // Shared with the lobby: the room (and a voice call on it) carries on into the match.
+    const shared = acquireRoom(backend, match.id, viewer.id, match.appSlug);
+    shared.setLatestState(() => latestCopyRef.current());
+    const room = shared.room;
     roomRef.current = room;
     room.track({ ready: false });
-    const voice = voiceSupported()
-      ? new VoiceChat({ selfId: viewer.id, send: (event) => room.send(event), canTalk: () => canTalkRef.current, onChange: setVoiceSnap })
-      : null;
-    voiceRef.current = voice;
-    const offPresence = room.onPresence((list) => {
-      setPeers(list);
-      voice?.setPresent(list.map((p) => p.userId));
-    });
+    const offPresence = room.onPresence(setPeers);
     const offEvent = room.onEvent((event, from, at) => {
-      if (isVoiceEvent(event)) {
-        voice?.handle(event, from);
-      } else if (event.kind === "app") {
+      if (event.kind === "app") {
         emit("room.message", { type: event.type, payload: event.payload, from, at });
       } else if (event.kind === "reaction") {
         pushFloating(event.emoji, "right");
@@ -882,9 +873,8 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
       offPresence();
       offEvent();
       offState?.();
-      voice?.destroy();
-      voiceRef.current = null;
-      room.close();
+      shared.setLatestState(null);
+      shared.release();
       roomRef.current = null;
     };
     // pushFloating is recreated each render but only appends state.
@@ -1063,24 +1053,7 @@ function MatchStage({ app, match, viewer }: { app: AppManifest; match: Match; vi
     router.push(routes.app(app.slug));
   };
 
-  const voice: VoiceControls | undefined = voiceSnap
-    ? {
-        snapshot: voiceSnap,
-        listenOnly: spectating,
-        join: () => {
-          voiceRef.current?.join().then(
-            () => play("pop"),
-            (error: unknown) => toast(error instanceof VoiceError ? error.message : "Couldn't start voice chat", { tone: "danger" }),
-          );
-        },
-        leave: () => {
-          voiceRef.current?.leave();
-          play("tick");
-        },
-        toggleMute: () => voiceRef.current?.setMuted(!voiceSnap.muted),
-        silence: (userId, silenced) => voiceRef.current?.setSilenced(userId, silenced),
-      }
-    : undefined;
+  const voice = useVoiceControls(match.id, spectating);
 
   const react = (emoji: string) => {
     pushFloating(emoji, "left");
