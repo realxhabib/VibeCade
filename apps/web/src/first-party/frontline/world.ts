@@ -42,7 +42,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { AssetPack } from "./assets";
 import { Buf, hashN, rgbOf, type V3 } from "./geo";
 import type { MapDef } from "./map";
-import { CONTAINER_L, SHIP_BOW, SHIP_FORECASTLE_Y, SHIP_SEA_Y } from "./map";
+import { CONTAINER_L, SHIP_BOW, SHIP_DECK_Y, SHIP_FORECASTLE_X, SHIP_FORECASTLE_Y, SHIP_SEA_Y } from "./map";
 import { patchMaterial, worldMaterials, type WorldMaterials } from "./materials";
 import type { Box } from "./physics";
 import { BRANDS, LOGO_COLS, LOGO_ROWS, fenceTexture, weedTexture, groundLayers, groundTexture, logoAtlas, softDot, waterNormals } from "./textures";
@@ -141,7 +141,7 @@ function drumSpots(b: Box): [number, number][] {
 /** Low-poly props into the cheap buffers (low tier). */
 function liteProp(b: Box, metal: Buf, wood: Buf, seed: number): boolean {
   if (b.look === "drums") {
-    drumSpots(b).forEach(([x, z], i) => metal.cylinder(x, 0, z, 0.29, 0.88, 6, rgbOf(i % 3 === 2 ? 0x8a3b2b : b.color, vary(seed + i)), { scale: 1 }));
+    drumSpots(b).forEach(([x, z], i) => metal.cylinder(x, b.y0, z, 0.29, 0.88, 6, rgbOf(i % 3 === 2 ? 0x8a3b2b : b.color, vary(seed + i)), { scale: 1 }));
     return true;
   }
   if (b.look === "pallets") {
@@ -197,10 +197,12 @@ function shipHull(buf: Buf, map: MapDef, scale: number): void {
     }
   };
   const bow = SHIP_BOW.map(([x, h], i) => [x, i === 0 ? hb : h] as const);
-  plating(x0, hb, bow[0]![0], hb, 1.15);
+  const sheer = SHIP_DECK_Y + 1.15;
+  plating(x0, hb, SHIP_FORECASTLE_X, hb, sheer);
+  plating(SHIP_FORECASTLE_X, hb, bow[0]![0], hb, rail);
   // The transom.
   wall(x0, -hb, x0, hb, y0, yBoot, boot);
-  wall(x0, -hb, x0, hb, yBoot, 1.15, navy);
+  wall(x0, -hb, x0, hb, yBoot, sheer, navy);
   for (let i = 0; i + 1 < bow.length; i++) {
     const [ax, ah] = bow[i]!;
     const [bx, bh] = bow[i + 1]!;
@@ -215,9 +217,6 @@ function shipHull(buf: Buf, map: MapDef, scale: number): void {
       [ax / scale, -ah / scale],
     ], deck);
   }
-  // Where the forecastle's side plating stands taller than the main deck's bulwark.
-  wall(bow[0]![0], hb + 0.01, bow[0]![0], bounds.z1 - 0.4, 1.15, rail, navy);
-  wall(bow[0]![0], -bounds.z1 + 0.4, bow[0]![0], -hb - 0.01, 1.15, rail, navy);
 }
 
 /** Open water out to the horizon (a plain colour on the low tier). */
@@ -515,11 +514,11 @@ function drums(B: PbrBufs, b: Box, seed: number): void {
   drumSpots(b).forEach(([x, z], i) => {
     const tint = rgbOf(colors[Math.floor(hashN(seed * 5 + i) * colors.length)]!, vary(seed + i));
     const r = 0.29;
-    B.painted.cylinder(x, 0, z, r, 0.88, 14, tint, { scale: SCALE.painted, caps: true });
-    for (const y of [0.29, 0.58]) B.painted.cylinder(x, y - 0.012, z, r + 0.012, 0.024, 14, [tint[0] * 0.8, tint[1] * 0.8, tint[2] * 0.8], { scale: SCALE.painted, caps: false });
-    B.painted.cylinder(x, 0.86, z, r + 0.008, 0.03, 14, [tint[0] * 0.7, tint[1] * 0.7, tint[2] * 0.7], { scale: SCALE.painted, caps: false });
+    B.painted.cylinder(x, b.y0, z, r, 0.88, 14, tint, { scale: SCALE.painted, caps: true });
+    for (const y of [b.y0 + 0.29, b.y0 + 0.58]) B.painted.cylinder(x, y - 0.012, z, r + 0.012, 0.024, 14, [tint[0] * 0.8, tint[1] * 0.8, tint[2] * 0.8], { scale: SCALE.painted, caps: false });
+    B.painted.cylinder(x, b.y0 + 0.86, z, r + 0.008, 0.03, 14, [tint[0] * 0.7, tint[1] * 0.7, tint[2] * 0.7], { scale: SCALE.painted, caps: false });
     // Bung caps on the lid.
-    B.plate.cylinder(x + 0.14, 0.88, z + 0.06, 0.028, 0.015, 6, rgbOf(0x55595c), { scale: 0.5 });
+    B.plate.cylinder(x + 0.14, b.y0 + 0.88, z + 0.06, 0.028, 0.015, 6, rgbOf(0x55595c), { scale: 0.5 });
   });
 }
 
@@ -528,7 +527,7 @@ function pallets(B: PbrBufs, b: Box, seed: number): void {
   const n = Math.round((b.y1 - b.y0) / 0.15);
   const alongX = b.ribs !== "z";
   for (let i = 0; i < n; i++) {
-    const y = i * 0.15;
+    const y = b.y0 + i * 0.15;
     const tone = rgbOf(0xb89468, vary(seed * 3 + i) * (i % 3 === 1 ? 0.85 : 1));
     const jx = (hashN(seed + i * 17) - 0.5) * 0.06;
     const jz = (hashN(seed + i * 29) - 0.5) * 0.06;

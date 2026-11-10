@@ -286,6 +286,9 @@ export class BotBrain {
         const d = Math.hypot(dx, dz);
         if (d < 0.8 && Math.abs(next.y - self.pos.y) < 1.2) {
           this.path.shift();
+        } else if (d < 0.5) {
+          // Right at the waypoint but on another floor (fell off a deck): find a new way.
+          this.path = [];
         } else {
           moveX = dx / d;
           moveZ = dz / d;

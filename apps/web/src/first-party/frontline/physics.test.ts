@@ -156,47 +156,62 @@ describe.each(Object.values(MAPS))("$name", (map) => {
       const b = body(s.x, s.y, s.z);
       moveBody(world, b, 1 / 60);
       expect(Math.hypot(b.x - s.x, b.z - s.z), `${s.x},${s.z}`).toBeLessThan(1e-6);
-      expect(b.y).toBe(0);
+      expect(b.y).toBeCloseTo(s.y, 6);
     }
   });
 
-  it("the waypoint graph connects every spawn and both perches", () => {
+  it("the waypoint graph connects every spawn, perch and staircase", () => {
     const start = nav.nearest(map.spawns[0]!, world);
     const reach = nav.reachable(start);
     expect(nav.nodes.length).toBeGreaterThan(120);
-    // Nearly all ground nodes are one connected area.
+    // Nearly all nodes are one connected area.
     expect(reach.size / nav.nodes.length).toBeGreaterThan(0.95);
-    for (const s of map.spawns) expect(reach.has(nav.nearest(s, world)), `${s.x},${s.z}`).toBe(true);
-    for (const p of map.perches) {
-      const top = nav.nodes.findIndex((n) => n.x === p.x && n.y === p.y && n.z === p.z);
-      expect(reach.has(top)).toBe(true);
+    for (const s of map.spawns) {
+      const n = nav.nodes[nav.nearest(s, world)]!;
+      expect(reach.has(nav.nearest(s, world)), `${s.x},${s.z}`).toBe(true);
+      // …and that node is on the spawn's own floor, close by.
+      expect(Math.abs(n.y - s.y), `${s.x},${s.z}`).toBeLessThan(0.5);
+      expect(Math.hypot(n.x - s.x, n.z - s.z), `${s.x},${s.z}`).toBeLessThan(4.5);
+    }
+    const tops = [...map.perches.map((p) => [p.x, p.y, p.z] as const), ...(map.routes ?? []).flatMap((r) => [r[0]!, r[r.length - 1]!])];
+    expect(tops.length).toBeGreaterThan(1);
+    for (const [x, y, z] of tops) {
+      const top = nav.nodes.findIndex((n) => n.x === x && n.y === y && n.z === z);
+      expect(top, `${x},${y},${z}`).toBeGreaterThanOrEqual(0);
+      expect(reach.has(top), `${x},${y},${z}`).toBe(true);
       const path = nav.path(start, top)!;
       expect(path[0]).toBe(start);
       expect(path[path.length - 1]).toBe(top);
     }
   });
 
-  it("a bot walking a path from spawn to a perch actually gets up there", () => {
-    const p = map.perches[0]!;
-    const start = nav.nearest(map.spawns[3]!, world);
-    const top = nav.nodes.findIndex((n) => n.x === p.x && n.y === p.y && n.z === p.z);
-    const path = nav.path(start, top)!;
-    const b = body(nav.nodes[start]!.x, 0, nav.nodes[start]!.z);
-    for (const i of path) {
-      const n = nav.nodes[i]!;
-      for (let k = 0; k < 400 && Math.hypot(n.x - b.x, n.z - b.z) > 0.5; k++) {
-        const d = Math.hypot(n.x - b.x, n.z - b.z);
-        b.vx = ((n.x - b.x) / d) * 5;
-        b.vz = ((n.z - b.z) / d) * 5;
-        moveBody(world, b, 1 / 60);
+  it("a bot walking a path from every spawn to every high point actually gets up there", () => {
+    const goals = [...map.perches.map((p) => [p.x, p.y, p.z] as const), ...(map.routes ?? []).map((r) => r[r.length - 1]!)];
+    const from = map.routes ? map.spawns : [map.spawns[3]!];
+    for (const sp of from) {
+      for (const [gx, gy, gz] of goals) {
+        const start = nav.nearest(sp, world);
+        const top = nav.nodes.findIndex((n) => n.x === gx && n.y === gy && n.z === gz);
+        const path = nav.path(start, top)!;
+        const b = body(nav.nodes[start]!.x, nav.nodes[start]!.y, nav.nodes[start]!.z);
+        for (const i of path) {
+          const n = nav.nodes[i]!;
+          for (let k = 0; k < 400 && Math.hypot(n.x - b.x, n.z - b.z) > 0.5; k++) {
+            const d = Math.hypot(n.x - b.x, n.z - b.z);
+            b.vx = ((n.x - b.x) / d) * 5;
+            b.vz = ((n.z - b.z) / d) * 5;
+            moveBody(world, b, 1 / 60);
+          }
+          expect(Math.hypot(n.x - b.x, n.z - b.z), `spawn ${sp.x},${sp.z} → ${gx},${gy},${gz} at node ${i}`).toBeLessThan(0.6);
+          expect(Math.abs(n.y - b.y), `spawn ${sp.x},${sp.z} → ${gx},${gy},${gz} at node ${i}`).toBeLessThan(0.6);
+        }
+        expect(b.y).toBeCloseTo(gy, 3);
       }
-      expect(Math.hypot(n.x - b.x, n.z - b.z), `node ${i}`).toBeLessThan(0.6);
     }
-    expect(b.y).toBeCloseTo(p.y, 3);
   });
 
   it("cover: a node the threat can't see", () => {
-    const [threat, from] = map.id === "saltyard" ? [{ x: 0, y: 0, z: 0 }, { x: -4, y: 0, z: -3 }] : [{ x: -4, y: 0, z: -3 }, { x: 0, y: 0, z: -3 }];
+    const [threat, from] = map.id === "saltyard" ? [{ x: 0, y: 0, z: 0 }, { x: -4, y: 0, z: -3 }] : [{ x: -16, y: 0, z: 0 }, { x: -10, y: 0, z: -1 }];
     const i = nav.coverFrom(world, from, threat);
     expect(i).toBeGreaterThanOrEqual(0);
     const n = nav.nodes[i]!;

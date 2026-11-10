@@ -197,23 +197,19 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
   return t;
 }
 
-/** Ironwake's deck coating (a worn green over steel). */
-const DECK_PAINT = "rgba(70,104,88,0.9)";
+/** The floor of Ironwake's hold (worn oxide red over steel). */
+const DECK_PAINT = "rgba(112,62,48,0.88)";
 
 /**
- * What is painted on a ship's deck: weld seams between the plates, yellow
- * walkway lines inside both rails, a hazard border around every low hatch
- * cover, bay numbers down the center lane and a winching circle aft.
+ * What is painted on the hold's floor: weld seams between the plates, guide
+ * lines where the container cells go, and a number in each half.
  */
 function deckMarkings(ctx: CanvasRenderingContext2D, map: MapDef, pxPerM: number, alpha: number): void {
   const { bounds } = map;
   const X = (x: number) => (x - bounds.x0) * pxPerM;
   const Z = (z: number) => (z - bounds.z0) * pxPerM;
-  const yellow = `rgba(222,176,56,${0.8 * alpha})`;
-  const white = `rgba(236,232,222,${0.72 * alpha})`;
   ctx.save();
-  // Plate seams.
-  ctx.strokeStyle = `rgba(20,30,26,${0.3 * alpha})`;
+  ctx.strokeStyle = `rgba(24,16,12,${0.34 * alpha})`;
   ctx.lineWidth = Math.max(1, pxPerM * 0.05);
   ctx.beginPath();
   for (let x = bounds.x0 + 6; x < bounds.x1; x += 6) {
@@ -225,41 +221,31 @@ function deckMarkings(ctx: CanvasRenderingContext2D, map: MapDef, pxPerM: number
     ctx.lineTo(X(bounds.x1), Z(z));
   }
   ctx.stroke();
-  // Walkways: a pair of lines inside each rail, the length of the cargo deck.
-  ctx.strokeStyle = yellow;
-  ctx.lineWidth = pxPerM * 0.14;
+  // Cell guides: faded yellow lines a container's width apart.
+  ctx.strokeStyle = `rgba(222,176,56,${0.5 * alpha})`;
+  ctx.lineWidth = pxPerM * 0.1;
+  ctx.setLineDash([pxPerM * 1.5, pxPerM * 1]);
   ctx.beginPath();
-  for (const z of [bounds.z0 + 1.1, bounds.z0 + 4.6, bounds.z1 - 4.6, bounds.z1 - 1.1]) {
-    ctx.moveTo(X(bounds.x0 + 25), Z(z));
-    ctx.lineTo(X(bounds.x1 - 8), Z(z));
+  for (let z = -9.76; z <= 9.8; z += 2.44 * 2) {
+    ctx.moveTo(X(bounds.x0), Z(z));
+    ctx.lineTo(X(bounds.x1), Z(z));
   }
   ctx.stroke();
-  // Hazard border around the hatch covers (anything wide, flat and low).
-  const hatches = map.boxes.filter((b) => !b.ghost && b.y0 < 0.05 && b.y1 < 0.6 && b.x1 - b.x0 > 4 && b.z1 - b.z0 > 4);
-  for (const b of hatches) {
-    const m = 0.45;
-    ctx.strokeStyle = yellow;
-    ctx.lineWidth = pxPerM * 0.3;
-    ctx.setLineDash([pxPerM * 0.6, pxPerM * 0.6]);
-    ctx.strokeRect(X(b.x0 - m), Z(b.z0 - m), (b.x1 - b.x0 + m * 2) * pxPerM, (b.z1 - b.z0 + m * 2) * pxPerM);
-    ctx.setLineDash([]);
-  }
-  // Bay numbers, read from the starboard side.
-  ctx.fillStyle = white;
-  ctx.font = `800 ${Math.round(pxPerM * 1.8)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.setLineDash([]);
+  ctx.fillStyle = `rgba(236,232,222,${0.7 * alpha})`;
+  ctx.font = `800 ${Math.round(pxPerM * 2)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = "center";
-  const span = bounds.x1 - bounds.x0;
-  ["01", "02", "03"].forEach((t, i) => ctx.fillText(t, X(bounds.x0 + span * (0.335 + i * 0.215)), Z(-3.4)));
-  // The winching circle on the mooring deck.
-  ctx.strokeStyle = yellow;
-  ctx.lineWidth = pxPerM * 0.22;
-  ctx.beginPath();
-  ctx.arc(X(bounds.x0 + 5), Z(0), pxPerM * 3.2, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fillStyle = yellow;
-  ctx.font = `800 ${Math.round(pxPerM * 2.6)}px ui-sans-serif, system-ui, sans-serif`;
-  ctx.textBaseline = "middle";
-  ctx.fillText("H", X(bounds.x0 + 5), Z(0));
+  // Written across the ship, to be read walking forward.
+  for (const [label, x, z] of [
+    ["HOLD 2", -10, 1],
+    ["HOLD 1", 12, -0.4],
+  ] as const) {
+    ctx.save();
+    ctx.translate(X(x), Z(z));
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
   ctx.restore();
 }
 

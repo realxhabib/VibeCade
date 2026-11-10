@@ -345,7 +345,7 @@ export class Engine {
     let z1 = -Infinity;
     const p = new Vector3();
     // Everything that stands in the map casts (the yard's crane beams, the ship's tower and funnel).
-    const top = Math.min(32, this.game.map.boxes.reduce((m, box) => Math.max(m, box.y1), 17.5));
+    const top = Math.min(36, this.game.map.boxes.reduce((m, box) => Math.max(m, box.y1), 17.5));
     for (const x of [b.x0 - 1.5, b.x1 + 1.5]) {
       for (const z of [b.z0 - 1.5, b.z1 + 1.5]) {
         for (const y of [0, top]) {

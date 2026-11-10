@@ -2,12 +2,14 @@
  * Navmesh-lite for the bots: a waypoint graph laid over the map. Ground
  * nodes sit on a 3 m grid wherever a player fits; neighbors link when a
  * player-wide corridor between them is clear. Perches (container tops
- * reached by stairs) are extra nodes with hand-placed links. A* finds
- * paths; `coverFrom` finds the nearest node an enemy can't see.
+ * reached by stairs) are extra nodes with hand-placed links. A map on
+ * several floors (the ship) gets nodes on every walkable top instead, and
+ * routes up its staircases. A* finds paths; `coverFrom` finds the nearest
+ * node an enemy can't see.
  */
 
 import type { MapDef } from "./map";
-import { CollisionWorld, lineOfSight, PLAYER_R, STEP, type Vec3 } from "./physics";
+import { CollisionWorld, groundBelow, lineOfSight, PLAYER_R, STEP, type Vec3 } from "./physics";
 
 export interface NavNode {
   x: number;
@@ -146,8 +148,114 @@ function corridorClear(world: CollisionWorld, ax: number, az: number, bx: number
   return true;
 }
 
+/** Whether you can walk from a to b: the corridor is clear and the floor never steps more than a stride. */
+function walkable(world: CollisionWorld, ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
+  const len = Math.hypot(bx - ax, bz - az);
+  const steps = Math.max(1, Math.ceil(len / 0.3));
+  let y = ay;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = ax + (bx - ax) * t;
+    const z = az + (bz - az) * t;
+    // The floor right under the point (not what a foot's width would catch): a staircase met from its side is no way up.
+    const floor = groundBelow(world, x, z, y + STEP, 0.05);
+    if (y - floor > STEP) return false;
+    if (!corridorClear(world, x, z, x, z, floor)) return false;
+    y = floor;
+  }
+  return Math.abs(y - by) < 0.05;
+}
+
+/**
+ * The graph for a map on several floors (`map.routes`): grid nodes on every
+ * surface a player can stand on (the ground and the tops of boxes), linked
+ * where you can simply walk between them, plus the routes (staircases) that
+ * join one floor to the next. Whatever can't be reached from the first spawn
+ * (the top of a tall stack) is dropped.
+ */
+function buildLevels(map: MapDef, world: CollisionWorld, spacing: number): NavGraph {
+  const { bounds } = map;
+  const pad = 1;
+  const cols = Math.floor((bounds.x1 - bounds.x0 - pad * 2) / spacing) + 1;
+  const rows = Math.floor((bounds.z1 - bounds.z0 - pad * 2) / spacing) + 1;
+  let nodes: NavNode[] = [];
+  /** Per grid cell: the nodes stacked there. */
+  const cells: number[][] = Array.from({ length: cols * rows }, () => []);
+  const standable = (x: number, z: number, y: number) => Math.abs(groundBelow(world, x, z, y + 0.01) - y) < 0.01 && corridorClear(world, x, z, x, z, y);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = bounds.x0 + pad + c * spacing;
+      const z = bounds.z0 + pad + r * spacing;
+      const heights = new Set<number>([0]);
+      world.near(x, z, x, z, (box) => {
+        if (x >= box.x0 && x <= box.x1 && z >= box.z0 && z <= box.z1) heights.add(box.y1);
+      });
+      for (const y of [...heights].sort((p, q) => p - q)) {
+        if (!standable(x, z, y)) continue;
+        cells[r * cols + c]!.push(nodes.length);
+        nodes.push({ x, y, z, links: [] });
+      }
+    }
+  }
+  const link = (a: number, b: number) => {
+    if (a === b) return;
+    if (!nodes[a]!.links.includes(b)) nodes[a]!.links.push(b);
+    if (!nodes[b]!.links.includes(a)) nodes[b]!.links.push(a);
+  };
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      for (const [dc, dr] of [
+        [1, 0],
+        [0, 1],
+        [1, 1],
+        [1, -1],
+      ] as const) {
+        const c2 = c + dc;
+        const r2 = r + dr;
+        if (c2 >= cols || r2 < 0 || r2 >= rows) continue;
+        for (const a of cells[r * cols + c]!) {
+          for (const b of cells[r2 * cols + c2]!) {
+            const p = nodes[a]!;
+            const q = nodes[b]!;
+            // Both ways: a walk that only works downhill (a ledge) is not a link.
+            if (walkable(world, p.x, p.y, p.z, q.x, q.y, q.z) && walkable(world, q.x, q.y, q.z, p.x, p.y, p.z)) link(a, b);
+          }
+        }
+      }
+    }
+  }
+  const grid = nodes.length;
+  for (const route of map.routes ?? []) {
+    let prev = -1;
+    route.forEach(([x, y, z], k) => {
+      const at = nodes.length;
+      nodes.push({ x, y, z, links: [] });
+      if (prev >= 0) link(prev, at);
+      prev = at;
+      if (k !== 0 && k !== route.length - 1) return;
+      // Each end joins the nearest grid nodes on its own floor.
+      nodes
+        .slice(0, grid)
+        .map((n, i) => ({ i, n, d: Math.hypot(n.x - x, n.z - z) }))
+        .filter((e) => Math.abs(e.n.y - y) < 0.3 && e.d < spacing * 1.7)
+        .sort((p, q) => p.d - q.d)
+        .slice(0, 4)
+        .forEach((e) => {
+          if (walkable(world, x, y, z, e.n.x, e.n.y, e.n.z)) link(at, e.i);
+        });
+    });
+  }
+  // Keep what the first spawn can reach.
+  const all = new NavGraph(nodes);
+  const keep = [...all.reachable(all.nearest(map.spawns[0]!))].sort((p, q) => p - q);
+  const index = new Map(keep.map((old, i) => [old, i]));
+  nodes = keep.map((old) => ({ ...nodes[old]!, links: nodes[old]!.links.map((l) => index.get(l)!) }));
+  return new NavGraph(nodes);
+}
+
 /** Builds the waypoint graph for a map. */
 export function buildNav(map: MapDef, world: CollisionWorld, spacing = 3): NavGraph {
+  if (map.routes) return buildLevels(map, world, spacing);
   const { bounds } = map;
   const nodes: NavNode[] = [];
   const index = new Map<string, number>();
