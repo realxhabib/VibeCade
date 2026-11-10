@@ -40,6 +40,8 @@ export interface MapDef {
    * top, and each route (a chain of points up a staircase) joins two floors.
    */
   routes?: [number, number, number][][];
+  /** Parked aircraft (drawn as meshes; their boxes in `boxes` only collide). `yaw` turns the nose from +x toward +z. */
+  jets?: { x: number; y: number; z: number; yaw: number }[];
   /** Big decorative silhouettes outside the walls (never collide). */
   skyline: Box[];
   /** Sun direction (toward the sun), sky + fog colors. */
@@ -70,6 +72,13 @@ const PALETTE = {
   yellow: 0xe0b440,
   drum: 0x2f5f9e,
 };
+
+/** The boxes a builder call adds. */
+function stairsOf(b: Builder, build: () => void): Box[] {
+  const from = b.boxes.length;
+  build();
+  return b.boxes.slice(from);
+}
 
 class Builder {
   readonly boxes: Box[] = [];
@@ -372,6 +381,19 @@ export const SHIP_FORECASTLE_Y = SHIP_DECK_Y + 1.6;
 export const SHIP_SEA_Y = SHIP_DECK_Y - 9.5;
 /** Where the bow ramp's top deck starts (it is walkable up to the map's edge; the prow beyond is scenery). */
 export const SHIP_FORECASTLE_X = 36;
+/** The aircraft elevators that are down (their shafts are open), and the hatches over the other stairs: x0, z0, x1, z1. */
+export const SHIP_SHAFTS: readonly (readonly [number, number, number, number])[] = [
+  [-20, 1, -9, 11],
+  [11, -11, 22, -1],
+  [-20, -11, -11.4, -9.2],
+  [13.4, 9.2, 22, 11],
+];
+/** The island on the starboard side: x0, z0, x1, z1. */
+export const SHIP_ISLAND = [-3, 12.5, 11, 19] as const;
+/** The foot of the mast on the island's top. */
+export const SHIP_MAST: readonly [number, number, number] = [2, SHIP_DECK_Y + 15.4, 15.8];
+/** Where the ramp up to the forward deck starts. */
+export const SHIP_RAMP_X = SHIP_FORECASTLE_X - 4;
 /** The prow beyond the playable deck: the outline from the map's edge to the stem (x, half-beam). */
 export const SHIP_BOW: readonly (readonly [number, number])[] = [
   [44, 19.35],
@@ -383,8 +405,8 @@ export const SHIP_BOW: readonly (readonly [number, number])[] = [
 
 const SHIP = {
   /** Haze grey: the island and the hull. */
-  white: 0xa9b1b8,
-  offWhite: 0x969ea6,
+  white: 0x939ba2,
+  offWhite: 0x828a91,
   glass: 0x16232e,
   /** The flight deck's dark non-skid. */
   deck: 0x585e65,
@@ -395,7 +417,6 @@ const SHIP = {
   hullRed: 0x7a2e26,
   jet: 0x8c959d,
   jetDark: 0x41464d,
-  line: 0xe6e4dc,
 };
 
 function ironwake(): MapDef {
@@ -416,10 +437,10 @@ function ironwake(): MapDef {
   const routes: [number, number, number][][] = [];
 
   /* The flight deck around the hangar, solid down to the hangar's floor. */
-  b.box(X0, 0, -Z, HX0, D, Z, "metal", SHIP.deck);
-  b.box(HX1, 0, -Z, X1, D, Z, "metal", SHIP.deck);
-  b.box(HX0, 0, -Z, HX1, D, -HZ, "metal", SHIP.deck);
-  b.box(HX0, 0, HZ, HX1, D, Z, "metal", SHIP.deck);
+  b.box(X0, 0, -Z, HX0, D, Z, "metal", SHIP.deck, { look: "deck" });
+  b.box(HX1, 0, -Z, X1, D, Z, "metal", SHIP.deck, { look: "deck" });
+  b.box(HX0, 0, -Z, HX1, D, -HZ, "metal", SHIP.deck, { look: "deck" });
+  b.box(HX0, 0, HZ, HX1, D, Z, "metal", SHIP.deck, { look: "deck" });
   /*
    * The flight deck over the hangar. Two aircraft elevators are down at
    * hangar level, leaving their shafts open to the sky (aft to starboard,
@@ -428,19 +449,15 @@ function ironwake(): MapDef {
   const EA = { x0: HX0, x1: -9, z0: 1, z1: HZ };
   const EB = { x0: 11, x1: HX1, z0: -HZ, z1: -1 };
   const HATCH = 9.2;
-  const roof = (x0: number, z0: number, x1: number, z1: number) => b.box(x0, ROOF, z0, x1, D, z1, "metal", SHIP.deck);
+  const roof = (x0: number, z0: number, x1: number, z1: number) => b.box(x0, ROOF, z0, x1, D, z1, "metal", SHIP.deck, { look: "deck" });
   roof(HX0, -HATCH, -11.4, EA.z0);
   roof(-11.4, -HZ, EA.x1, EA.z0);
   roof(EA.x1, -HZ, EB.x0, HZ);
   roof(EB.x0, EB.z1, 13.4, HZ);
   roof(13.4, EB.z1, HX1, HATCH);
-  // The hangar's sides (scenery over the solid deck blocks), and hazard stripes around the elevator shafts.
+  // The hangar's sides (scenery over the solid deck blocks).
   for (const z of [-HZ, HZ - 0.04]) b.box(HX0, 0, z, HX1, ROOF, z + 0.04, "metal", SHIP.hold, { ghost: true, look: "plate" });
   for (const x of [HX0, HX1 - 0.04]) b.box(x, 0, -HZ, x + 0.04, ROOF, HZ, "metal", SHIP.hold, { ghost: true, look: "plate" });
-  for (const e of [EA, EB]) {
-    for (const z of [e.z0 - 0.35, e.z1 + 0.05]) b.box(e.x0 - 0.35, D, z, e.x1 + 0.35, D + 0.015, z + 0.3, "metal", PALETTE.yellow, g);
-    for (const x of [e.x0 - 0.35, e.x1 + 0.05]) b.box(x, D, e.z0, x + 0.3, D + 0.015, e.z1, "metal", PALETTE.yellow, g);
-  }
 
   /* The deck's edge: no bulwark on a carrier, just a low coaming, and a catwalk slung outside below it (scenery). */
   for (const s of [-1, 1]) {
@@ -455,29 +472,16 @@ function ironwake(): MapDef {
   b.box(X1, 0, -Z - 0.35, X1 + 0.35, FY + 0.12, Z + 0.35, "metal", SHIP.deck, g);
   // The angled deck's overhang to port, beyond where you can walk (scenery).
   b.box(-34, D - 0.7, -Z - 7, 14, D, -Z - 0.35, "metal", SHIP.deck, g);
-  b.box(-34, D, -Z - 6.6, 14, D + 0.015, -Z - 6.3, "metal", SHIP.line, g);
 
-  /* Painted lines: the landing area's edges, a dashed centerline, the catapult track to the ramp. */
-  for (const z of [-7.2, 6.9]) b.box(X0 + 1, D, z, 30, D + 0.012, z + 0.3, "metal", SHIP.line, g);
-  for (let x = X0 + 2; x < 30; x += 7) {
-    if (x + 3.5 > EA.x0 - 1 && x < EA.x1 + 1) continue;
-    b.box(x, D, -0.15, x + 3.5, D + 0.012, 0.15, "metal", PALETTE.yellow, g);
-  }
-  b.box(23, D, 2.9, FX - 2, D + 0.02, 3.1, "metal", SHIP.jetDark, g);
-
-  /* The bow: a ski-jump ramp up to the forward deck, broad steps in the middle and a narrower flight each side. */
-  b.box(FX, D, -Z, X1, FY, Z, "metal", SHIP.deck);
-  for (const [z, w] of [
-    [-13, 2.4],
-    [0, 9],
-    [13, 2.4],
-  ] as const) {
-    b.stairs(FX - 2, z, "+x", 4, (FY - D) / 4, 0.5, w, SHIP.deckGear, D);
+  /* The bow: a ski-jump ramp across the whole deck, up to the forward deck. (It is drawn as a slope; you climb low steps under it.) */
+  b.box(FX, D, -Z, X1, FY, Z, "metal", SHIP.deck, { look: "deck" });
+  const RAMP = FX - SHIP_RAMP_X;
+  for (const box of stairsOf(b, () => b.stairs(SHIP_RAMP_X, 0, "+x", 8, (FY - D) / 8, RAMP / 8, Z * 2, SHIP.deck, D))) box.hidden = true;
+  for (const z of [-13, 0, 13])
     routes.push([
-      [FX - 2.6, D, z],
+      [SHIP_RAMP_X - 0.6, D, z],
       [FX + 0.8, FY, z],
     ]);
-  }
   b.block(40.6, -7.4, 2.4, 3.4, 1.4, "metal", SHIP.deckGear, FY);
   b.block(40.6, 8.6, 2.4, 3.4, 1.4, "metal", SHIP.deckGear, FY);
   b.block(42.8, -15, 0.7, 1.6, 0.75, "metal", 0x2c2f33, FY);
@@ -491,35 +495,28 @@ function ironwake(): MapDef {
    * Aircraft. `dir` is where the nose points; a jet stands on its gear, so
    * you can't walk under it but you can see (and shoot) below the fuselage.
    */
+  const jets: NonNullable<MapDef["jets"]> = [];
   const jet = (cx: number, cz: number, dir: "+x" | "-x" | "+z" | "-z", y: number, scenery = false) => {
-    const part = (l0: number, l1: number, w0: number, w1: number, y0: number, y1: number, color: number, ghost = false) => {
-      const extra = ghost || scenery ? g : {};
-      if (dir === "+x") b.box(cx + l0, y + y0, cz + w0, cx + l1, y + y1, cz + w1, "metal", color, extra);
-      else if (dir === "-x") b.box(cx - l1, y + y0, cz - w1, cx - l0, y + y1, cz - w0, "metal", color, extra);
-      else if (dir === "+z") b.box(cx - w1, y + y0, cz + l0, cx - w0, y + y1, cz + l1, "metal", color, extra);
-      else b.box(cx + w0, y + y0, cz - l1, cx + w1, y + y1, cz - l0, "metal", color, extra);
+    jets.push({ x: cx, y, z: cz, yaw: dir === "+x" ? 0 : dir === "-x" ? Math.PI : dir === "+z" ? Math.PI / 2 : -Math.PI / 2 });
+    if (scenery) return;
+    // What you bump into (the mesh is drawn from `jets`): l along the nose, w across.
+    const part = (l0: number, l1: number, w0: number, w1: number, y0: number, y1: number) => {
+      const extra = { hidden: true } as const;
+      if (dir === "+x") b.box(cx + l0, y + y0, cz + w0, cx + l1, y + y1, cz + w1, "metal", SHIP.jet, extra);
+      else if (dir === "-x") b.box(cx - l1, y + y0, cz - w1, cx - l0, y + y1, cz - w0, "metal", SHIP.jet, extra);
+      else if (dir === "+z") b.box(cx - w1, y + y0, cz + l0, cx - w0, y + y1, cz + l1, "metal", SHIP.jet, extra);
+      else b.box(cx + w0, y + y0, cz - l1, cx + w1, y + y1, cz - l0, "metal", SHIP.jet, extra);
     };
-    part(-4.4, 2.6, -0.75, 0.75, 1, 2.15, SHIP.jet); // fuselage
-    part(-3.6, 1, -0.45, 0.45, 2.15, 2.4, SHIP.jet); // spine
-    part(2.6, 4, -0.55, 0.55, 1.1, 2.05, SHIP.jet); // forward fuselage
-    part(4, 5, -0.38, 0.38, 1.25, 1.9, SHIP.jet); // nose
-    part(5, 5.9, -0.2, 0.2, 1.42, 1.74, SHIP.jetDark); // radome
-    part(1.2, 3.6, -0.4, 0.4, 2.05, 2.62, SHIP.glass, true); // canopy
-    part(-5.1, -4.4, -0.68, -0.06, 1.2, 1.95, SHIP.jetDark); // nozzles
-    part(-5.1, -4.4, 0.06, 0.68, 1.2, 1.95, SHIP.jetDark);
+    part(-5.6, 2.9, -0.95, 0.95, 1.05, 2.3); // fuselage
+    part(2.9, 4.6, -0.55, 0.55, 1.1, 2.2); // forward fuselage
+    part(4.6, 5.9, -0.25, 0.25, 1.3, 1.85); // nose
     for (const s of [-1, 1]) {
       const w = (a: number, c: number) => [Math.min(s * a, s * c), Math.max(s * a, s * c)] as const;
-      part(0.2, 1.8, ...w(0.75, 1.02), 1.12, 1.86, SHIP.jetDark, true); // intake
-      part(0.9, 2.6, ...w(0.75, 1.5), 1.6, 1.72, SHIP.jet, true); // wing root
-      part(-2.6, 0.9, ...w(0.75, 2.5), 1.55, 1.72, SHIP.jet); // inner wing
-      part(-3, 0, ...w(2.5, 4.2), 1.57, 1.7, SHIP.jet); // outer wing, swept back
-      part(-2.6, 0.3, ...w(4.2, 4.3), 1.52, 1.76, SHIP.line, true); // wingtip missile
-      part(-5.3, -3.7, ...w(0.75, 2.5), 1.56, 1.68, SHIP.jet); // tailplane
-      part(-4.9, -3.4, ...w(0.5, 0.66), 2.15, 3.3, SHIP.jet, true); // fin
-      part(-5.2, -3.9, ...w(0.5, 0.66), 3.3, 4.2, SHIP.jet, true);
-      part(-1.7, -1.4, ...w(0.8, 1), 0, 1, SHIP.jetDark, true); // main gear
+      part(-2.8, 0.9, ...w(0.95, 2.6), 1.55, 1.8); // inner wing
+      part(-2.8, -0.6, ...w(2.6, 4.3), 1.55, 1.76); // outer wing
+      part(-5.8, -4, ...w(0.95, 2.7), 1.54, 1.7); // tailplane
+      part(-5.2, -3.2, ...w(0.7, 1.2), 2.3, 3.6); // fin
     }
-    part(2.3, 2.5, -0.1, 0.1, 0, 1.1, SHIP.jetDark, true); // nose gear
   };
   /** A yellow deck tractor. */
   const tractor = (cx: number, cz: number, along: "x" | "z", y: number) => {
@@ -605,9 +602,6 @@ function ironwake(): MapDef {
   b.box(IX0 + 0.2, BRIDGE, IZ - 1.2, IX1 - 1.7, BRIDGE + 0.2, Z - 0.3, "metal", SHIP.offWhite, g);
   b.box(IX1 - 6, BRIDGE, 14, IX1 - 2.6, BRIDGE + 5, 17.6, "metal", SHIP.offWhite, g);
   b.box(IX1 - 5.8, BRIDGE + 5, 14.2, IX1 - 2.8, BRIDGE + 5.3, 17.4, "metal", 0x1b1c1e, g);
-  b.box(1.7, BRIDGE, 15.5, 2.3, BRIDGE + 9, 16.1, "metal", SHIP.white, g);
-  b.box(1.8, BRIDGE + 5.6, 12.8, 2.2, BRIDGE + 5.9, 18.8, "metal", SHIP.white, g);
-  b.box(0.4, BRIDGE + 7, 14.6, 3.6, BRIDGE + 7.25, 17, "metal", SHIP.offWhite, g);
   b.box(-1.4, BRIDGE + 0.2, 13.6, -1, BRIDGE + 3, 18, "metal", SHIP.jetDark, g);
 
   /* Aft of the island: parked jets wingtip to wingtip, tractors and stores between them. */
@@ -635,12 +629,12 @@ function ironwake(): MapDef {
   b.crate(15.6, 13.4, 1.2, D);
 
   /* Forward: a jet on the catapult with its blast deflector up, another parked to port. */
-  jet(28.5, 3, "+x", D);
-  deflector(21.9, 0.4, 5.6);
-  jet(26.5, -14, "-x", D);
-  tractor(31, 10.6, "x", D);
+  jet(27, 3, "+x", D);
+  deflector(20.3, 0.4, 5.6);
+  jet(25.5, -14, "-x", D);
+  tractor(29.5, 10.6, "x", D);
   b.crate(24.6, -5.4, 1.2, D);
-  b.drums(32.8, -7.4, 1.3, 1.3, D);
+  b.drums(30.4, -7.4, 1.3, 1.3, D);
   b.crate(26, 15.4, 1.1, D);
   // Out on the angled deck, beyond reach.
   jet(-20, -Z - 3.4, "+x", D, true);
@@ -717,8 +711,9 @@ function ironwake(): MapDef {
   ]);
 
   // The ship's own paintwork is looked after; stores, gear and drums rust as they please.
-  const kept = new Set<number>([SHIP.white, SHIP.offWhite, SHIP.navy, SHIP.deck, SHIP.hold, SHIP.jet, SHIP.jetDark, SHIP.line, PALETTE.yellow, 0x55707f, 0x8a8f93, 0xf2efe2]);
-  for (const box of b.boxes) if (box.surface === "metal" && !box.look && kept.has(box.color)) box.look = "clean";
+  const kept = new Set<number>([SHIP.white, SHIP.offWhite, SHIP.navy, SHIP.deck, SHIP.hold, SHIP.jetDark, PALETTE.yellow, 0x55707f, 0x8a8f93, 0xf2efe2]);
+  const smooth = new Set<number>([SHIP.white, SHIP.offWhite, SHIP.jetDark, 0x55707f, 0x8a8f93, 0xf2efe2]);
+  for (const box of b.boxes) if (box.surface === "metal" && !box.look && kept.has(box.color)) box.look = smooth.has(box.color) ? "smooth" : "clean";
 
   const aft = -Math.PI / 2; // facing the bow (+x)
   const fwd = Math.PI / 2;
@@ -784,6 +779,7 @@ function ironwake(): MapDef {
     spawns,
     perches: [],
     routes,
+    jets,
     skyline: sb.boxes,
     // The same low sun as the yard (it is the HDRI's): off the starboard bow, so you fight into the light going forward.
     sun: [0.714, 0.469, 0.519],

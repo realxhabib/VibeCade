@@ -42,10 +42,11 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { AssetPack } from "./assets";
 import { Buf, hashN, rgbOf, type V3 } from "./geo";
 import type { MapDef } from "./map";
-import { CONTAINER_L, SHIP_BOW, SHIP_DECK_Y, SHIP_FORECASTLE_X, SHIP_FORECASTLE_Y, SHIP_SEA_Y } from "./map";
+import { CONTAINER_L, SHIP_BOW, SHIP_DECK_Y, SHIP_FORECASTLE_X, SHIP_FORECASTLE_Y, SHIP_MAST, SHIP_SEA_Y } from "./map";
 import { patchMaterial, worldMaterials, type WorldMaterials } from "./materials";
 import type { Box } from "./physics";
-import { BRANDS, LOGO_COLS, LOGO_ROWS, fenceTexture, weedTexture, groundLayers, groundTexture, logoAtlas, softDot, waterNormals } from "./textures";
+import { BRANDS, LOGO_COLS, LOGO_ROWS, fenceTexture, flightDeckTexture, weedTexture, groundLayers, groundTexture, logoAtlas, softDot, waterNormals } from "./textures";
+import { carrierGeometry, deckFrame, deckGeometry, radarGeometry } from "./carrier";
 
 export interface WorldView {
   group: Group;
@@ -70,7 +71,7 @@ type Key = "container" | "painted" | "clean" | "concrete" | "planks" | "plate" |
 
 function keyOf(b: Box): Key {
   if (b.look === "cladding") return "cladding";
-  if (b.look === "clean") return "clean";
+  if (b.look === "clean" || b.look === "deck") return "clean";
   if (b.look === "plate") return "plate";
   if (b.surface === "container") return "container";
   if (b.surface === "wood") return "planks";
@@ -219,6 +220,30 @@ function shipHull(buf: Buf, map: MapDef, scale: number): void {
   }
 }
 
+/**
+ * The carrier's own meshes: its jets and mast (one mesh, vertex colors), the
+ * turning radar, the painted flight deck, and everything in fresh paint
+ * (`look: "smooth"`). Four draw calls.
+ */
+function carrierDressing(map: MapDef, own: Owned, group: Group, opts: WorldOptions, pbr: boolean, pxPerM: number, smooth: Buf): { meshes: Mesh[]; radar: Mesh; deck: Mesh } {
+  const paint = own.mat(pbr ? new MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.25 }) : new MeshLambertMaterial({ vertexColors: true }));
+  const jets = new Mesh(own.geo(carrierGeometry(map)), paint);
+  const radar = new Mesh(own.geo(radarGeometry()), paint);
+  radar.position.set(SHIP_MAST[0], SHIP_MAST[1] + 6.4, SHIP_MAST[2]);
+  const tex = own.tex(flightDeckTexture(deckFrame(map), pxPerM));
+  const extra = { map: tex, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 };
+  const deck = new Mesh(own.geo(deckGeometry(map)), own.mat(pbr ? new MeshStandardMaterial({ ...extra, roughness: 0.86, metalness: 0.08 }) : new MeshLambertMaterial(extra)));
+  const meshes = [jets, radar, deck];
+  if (!smooth.empty) meshes.push(new Mesh(own.geo(smooth.geometry()), paint));
+  for (const m of meshes) {
+    m.castShadow = opts.shadows && m !== deck;
+    m.receiveShadow = opts.shadows;
+    if (m !== radar) m.matrixAutoUpdate = false;
+    group.add(m);
+  }
+  return { meshes, radar, deck };
+}
+
 /** Open water out to the horizon (a plain colour on the low tier). */
 const SEA_SIZE = 1400;
 
@@ -247,8 +272,14 @@ function buildLite(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView 
     }
     return b;
   };
+  const smooth = new Buf();
   map.boxes.forEach((b, i) => {
     const k = b.surface === "container" ? "container" : b.surface === "wood" ? "wood" : b.surface === "metal" ? "metal" : "concrete";
+    if (b.hidden) return;
+    if (b.look === "smooth") {
+      smooth.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, rgbOf(b.color, vary(i + 1)), { scale: 1, ao: 0.82 });
+      return;
+    }
     if (liteProp(b, bufFor("metal"), bufFor("wood"), i)) return;
     const grounded = b.y0 < 0.05;
     bufFor(k).box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, rgbOf(b.color, vary(i + 1)), { scale: scaleOf[k], ao: grounded ? 0.7 : 0.88, skipBottom: grounded, ribs: b.ribs });
@@ -280,6 +311,9 @@ function buildLite(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView 
   apron.updateMatrix();
   apron.matrixAutoUpdate = false;
   group.add(apron);
+
+  const dress = ship ? carrierDressing(map, own, group, opts, false, opts.groundPx, smooth) : null;
+  if (dress) solids.push(...dress.meshes.filter((m) => m !== dress.deck));
 
   // Skyline.
   const skyBuf = new Buf();
@@ -330,7 +364,9 @@ function buildLite(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView 
     setSkyline(on: boolean) {
       skyline.visible = on;
     },
-    update() {},
+    update(t: number) {
+      if (dress) dress.radar.rotation.y = t * 0.9;
+    },
     dispose() {
       own.dispose();
     },
@@ -746,14 +782,21 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     tarp: new Buf("grimeUv"),
     fence: new Buf(),
   };
+  /** Fresh untextured paint (the carrier's island): drawn with the jets' material. */
+  const smooth = new Buf();
   map.boxes.forEach((b, i) => {
     const seed = i + 1;
+    if (b.hidden) return;
     if (b.look === "drums") return drums(B, b, seed);
     if (b.look === "pallets") return pallets(B, b, seed);
     if (b.look === "wreck") return wreck(B, b);
     if (b.surface === "metal" && !b.ghost && b.x1 - b.x0 < 0.4 && b.z1 - b.z0 < 0.4 && b.y1 > 6) return lightPole(B, b);
     if (b.surface === "container") return container(B, b, seed, true);
     if (b.surface === "wood" && !b.look && Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) <= 3.4) return crate(B, b, seed);
+    if (b.look === "smooth") {
+      smooth.box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, rgbOf(b.color, vary(seed)), { scale: 1, ao: 0.82 });
+      return;
+    }
     const k = keyOf(b);
     const grounded = b.y0 < 0.05;
     if (grounded && b.surface === "concrete" && b.y1 >= 3 && Math.max(b.x1 - b.x0, b.z1 - b.z0) >= 4 && Math.min(b.x1 - b.x0, b.z1 - b.z0) <= 1.2) wallRuns(B, b, seed);
@@ -938,6 +981,9 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   weeds.receiveShadow = opts.shadows;
   group.add(weeds);
 
+  const dress = ship ? carrierDressing(map, own, group, opts, true, pack.level === "hi" ? 22 : 16, smooth) : null;
+  if (dress) solids.push(...dress.meshes.filter((m) => m !== dress.deck));
+
   // Skyline: distant stacks and cranes with the same container paint.
   const skyC = new Buf("grimeUv");
   const skyM = new Buf();
@@ -960,6 +1006,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
       }
       ground.receiveShadow = on;
       apron.receiveShadow = on && !ship;
+      if (dress) dress.deck.receiveShadow = on;
       debris.receiveShadow = on;
       weeds.receiveShadow = on;
     },
@@ -969,6 +1016,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     update(t: number) {
       windT.value = t;
       seaT.value = t;
+      if (dress) dress.radar.rotation.y = t * 0.9;
     },
     dispose() {
       debris.dispose();

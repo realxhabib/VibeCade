@@ -783,7 +783,8 @@ export class SeasonFx {
 
 /** Whether snow settles on a box's top: solid, not tiny, and nothing sitting right on it or roofing it. */
 function capped(b: Box, boxes: readonly Box[]): boolean {
-  if (b.ghost || b.look === "wreck") return false;
+  // (A carrier keeps its flight deck swept; a jet's collision boxes are not what you see.)
+  if (b.ghost || b.hidden || b.look === "wreck" || b.look === "deck") return false;
   if (b.x1 - b.x0 < 0.25 || b.z1 - b.z0 < 0.25) return false;
   const cx = (b.x0 + b.x1) / 2;
   const cz = (b.z0 + b.z1) / 2;

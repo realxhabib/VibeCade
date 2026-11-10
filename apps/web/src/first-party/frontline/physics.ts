@@ -30,9 +30,13 @@ export interface Box {
   /**
    * Render hint only (collision ignores it): how the renderer dresses the box.
    * `drums` / `pallets` / `wreck` draw props filling the box's volume;
-   * `clean` is kept-up paint (a ship's superstructure) instead of rusting sheet.
+   * `clean` is kept-up paint (a ship's superstructure) instead of rusting sheet;
+   * `smooth` is fresh paint with no texture at all (a warship's grey);
+   * `deck` is a carrier's flight deck (its top carries the painted markings).
    */
-  look?: "cladding" | "plate" | "clean" | "drums" | "pallets" | "wreck";
+  look?: "cladding" | "plate" | "clean" | "smooth" | "deck" | "drums" | "pallets" | "wreck";
+  /** Collides but is not drawn: something else draws what stands here (a jet's own mesh). */
+  hidden?: boolean;
 }
 
 export interface Vec3 {
