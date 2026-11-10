@@ -147,8 +147,7 @@ describe("rays", () => {
   });
 });
 
-describe("Saltyard", () => {
-  const map = MAPS.saltyard;
+describe.each(Object.values(MAPS))("$name", (map) => {
   const world = new CollisionWorld(map.boxes, map.bounds);
   const nav = buildNav(map, world);
 
@@ -197,11 +196,10 @@ describe("Saltyard", () => {
   });
 
   it("cover: a node the threat can't see", () => {
-    const threat = { x: 0, y: 0, z: 0 };
-    const from = { x: -4, y: 0, z: -3 };
+    const [threat, from] = map.id === "saltyard" ? [{ x: 0, y: 0, z: 0 }, { x: -4, y: 0, z: -3 }] : [{ x: -4, y: 0, z: -3 }, { x: 0, y: 0, z: -3 }];
     const i = nav.coverFrom(world, from, threat);
     expect(i).toBeGreaterThanOrEqual(0);
     const n = nav.nodes[i]!;
-    expect(lineOfSight(world, { x: 0, y: 1.5, z: 0 }, { x: n.x, y: n.y + 1.1, z: n.z })).toBe(false);
+    expect(lineOfSight(world, { x: threat.x, y: 1.5, z: threat.z }, { x: n.x, y: n.y + 1.1, z: n.z })).toBe(false);
   });
 });

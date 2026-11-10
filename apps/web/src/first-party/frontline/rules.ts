@@ -36,6 +36,8 @@ export interface MatchDoc {
   end: { r: EndReason; at: number } | null;
   /** The season the match is played in (so a player who reconnects gets the same one). */
   s?: string;
+  /** The map it is played on (missing = Saltyard, the only map there was). */
+  m?: string;
   /**
    * Gun game: kills per weapon on the ladder (1 in free for all, the team
    * size in team play, where the team climbs together). The limit is then
@@ -54,7 +56,7 @@ export function teamLimit(teamSize: number): number {
   return teamSize <= 1 ? FFA_LIMIT : teamSize === 2 ? 30 : 40;
 }
 
-export function newDoc(now: number, teams: number, seats: number, overrides: { dur?: number; lim?: number; s?: string; gg?: boolean } = {}): MatchDoc {
+export function newDoc(now: number, teams: number, seats: number, overrides: { dur?: number; lim?: number; s?: string; m?: string; gg?: boolean } = {}): MatchDoc {
   const teamSize = teams >= 2 ? Math.ceil(seats / teams) : 1;
   const per = overrides.gg ? Math.max(1, teamSize) : 0;
   return {
@@ -66,6 +68,7 @@ export function newDoc(now: number, teams: number, seats: number, overrides: { d
     k: [],
     end: null,
     ...(overrides.s ? { s: overrides.s } : {}),
+    ...(overrides.m ? { m: overrides.m } : {}),
     ...(per ? { gg: per } : {}),
   };
 }
@@ -83,6 +86,7 @@ export function parseDoc(raw: unknown): MatchDoc | null {
   const end = d.end && typeof d.end === "object" && (d.end.r === "limit" || d.end.r === "time") && typeof d.end.at === "number" ? d.end : null;
   const doc: MatchDoc = { v: 1, t0: d.t0, dur: d.dur, lim: d.lim, teams: typeof d.teams === "number" ? d.teams : 0, k, end };
   if (typeof d.s === "string") doc.s = d.s;
+  if (typeof d.m === "string") doc.m = d.m;
   if (typeof d.gg === "number" && Number.isInteger(d.gg) && d.gg >= 1) doc.gg = d.gg;
   return doc;
 }

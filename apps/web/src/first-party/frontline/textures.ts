@@ -64,6 +64,11 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
     ctx.fillStyle = "rgba(40,38,36,0.18)";
     ctx.fillRect(0, 0, c.width, c.height);
   }
+  const ship = map.setting === "ship";
+  if (ship) {
+    ctx.fillStyle = DECK_PAINT;
+    ctx.fillRect(0, 0, c.width, c.height);
+  }
   // Slabs (4 m), each a slightly different shade.
   for (let x = bounds.x0; x < bounds.x1 && !asphalt; x += 4) {
     for (let z = bounds.z0; z < bounds.z1; z += 4) {
@@ -104,8 +109,9 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
     ctx.lineTo(c.width, Z(z));
   }
   ctx.stroke();
+  if (ship) deckMarkings(ctx, map, pxPerM, 0.75);
   // Painted lane lines (faded yellow) along the east lanes and around the yards.
-  ctx.strokeStyle = "rgba(226,178,60,0.55)";
+  ctx.strokeStyle = ship ? "rgba(0,0,0,0)" : "rgba(226,178,60,0.55)";
   ctx.lineWidth = pxPerM * 0.14;
   ctx.setLineDash([pxPerM * 2, pxPerM * 1.2]);
   ctx.beginPath();
@@ -120,7 +126,7 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
   ctx.stroke();
   ctx.setLineDash([]);
   // Hatched loading zones.
-  ctx.fillStyle = "rgba(226,178,60,0.35)";
+  ctx.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(226,178,60,0.35)";
   for (const [x0, z0] of [
     [-2, -3],
     [-30, -26],
@@ -135,7 +141,7 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
     }
   }
   // Bay numbers.
-  ctx.fillStyle = "rgba(250,245,235,0.55)";
+  ctx.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(250,245,235,0.55)";
   ctx.font = `800 ${Math.round(pxPerM * 1.6)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = "center";
   const bays: [string, number, number][] = [
@@ -189,6 +195,72 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
   }
   const t = finish(c, false);
   return t;
+}
+
+/** Ironwake's deck coating (a worn green over steel). */
+const DECK_PAINT = "rgba(70,104,88,0.9)";
+
+/**
+ * What is painted on a ship's deck: weld seams between the plates, yellow
+ * walkway lines inside both rails, a hazard border around every low hatch
+ * cover, bay numbers down the center lane and a winching circle aft.
+ */
+function deckMarkings(ctx: CanvasRenderingContext2D, map: MapDef, pxPerM: number, alpha: number): void {
+  const { bounds } = map;
+  const X = (x: number) => (x - bounds.x0) * pxPerM;
+  const Z = (z: number) => (z - bounds.z0) * pxPerM;
+  const yellow = `rgba(222,176,56,${0.8 * alpha})`;
+  const white = `rgba(236,232,222,${0.72 * alpha})`;
+  ctx.save();
+  // Plate seams.
+  ctx.strokeStyle = `rgba(20,30,26,${0.3 * alpha})`;
+  ctx.lineWidth = Math.max(1, pxPerM * 0.05);
+  ctx.beginPath();
+  for (let x = bounds.x0 + 6; x < bounds.x1; x += 6) {
+    ctx.moveTo(X(x), Z(bounds.z0));
+    ctx.lineTo(X(x), Z(bounds.z1));
+  }
+  for (let z = bounds.z0 + 3.8; z < bounds.z1; z += 3.8) {
+    ctx.moveTo(X(bounds.x0), Z(z));
+    ctx.lineTo(X(bounds.x1), Z(z));
+  }
+  ctx.stroke();
+  // Walkways: a pair of lines inside each rail, the length of the cargo deck.
+  ctx.strokeStyle = yellow;
+  ctx.lineWidth = pxPerM * 0.14;
+  ctx.beginPath();
+  for (const z of [bounds.z0 + 1.1, bounds.z0 + 4.6, bounds.z1 - 4.6, bounds.z1 - 1.1]) {
+    ctx.moveTo(X(bounds.x0 + 25), Z(z));
+    ctx.lineTo(X(bounds.x1 - 8), Z(z));
+  }
+  ctx.stroke();
+  // Hazard border around the hatch covers (anything wide, flat and low).
+  const hatches = map.boxes.filter((b) => !b.ghost && b.y0 < 0.05 && b.y1 < 0.6 && b.x1 - b.x0 > 4 && b.z1 - b.z0 > 4);
+  for (const b of hatches) {
+    const m = 0.45;
+    ctx.strokeStyle = yellow;
+    ctx.lineWidth = pxPerM * 0.3;
+    ctx.setLineDash([pxPerM * 0.6, pxPerM * 0.6]);
+    ctx.strokeRect(X(b.x0 - m), Z(b.z0 - m), (b.x1 - b.x0 + m * 2) * pxPerM, (b.z1 - b.z0 + m * 2) * pxPerM);
+    ctx.setLineDash([]);
+  }
+  // Bay numbers, read from the starboard side.
+  ctx.fillStyle = white;
+  ctx.font = `800 ${Math.round(pxPerM * 1.8)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  const span = bounds.x1 - bounds.x0;
+  ["01", "02", "03"].forEach((t, i) => ctx.fillText(t, X(bounds.x0 + span * (0.335 + i * 0.215)), Z(-3.4)));
+  // The winching circle on the mooring deck.
+  ctx.strokeStyle = yellow;
+  ctx.lineWidth = pxPerM * 0.22;
+  ctx.beginPath();
+  ctx.arc(X(bounds.x0 + 5), Z(0), pxPerM * 3.2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = yellow;
+  ctx.font = `800 ${Math.round(pxPerM * 2.6)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textBaseline = "middle";
+  ctx.fillText("H", X(bounds.x0 + 5), Z(0));
+  ctx.restore();
 }
 
 function convexHull(points: [number, number][]): [number, number][] {
@@ -445,6 +517,49 @@ export function fenceTexture(): Texture {
   return finish(c);
 }
 
+/**
+ * Tileable ripples for the sea: rg = the surface normal's slope, b = a
+ * height-ish noise (foam breaks up along it). Summed sines with whole-number
+ * frequencies, so it wraps without a seam.
+ */
+export function waterNormals(size = 256): Texture {
+  const [c, ctx] = canvas(size);
+  const r = rng(91);
+  const waves = Array.from({ length: 22 }, (_, i) => {
+    const f = 1 + Math.floor(r() * (i < 6 ? 3 : i < 14 ? 7 : 14));
+    const a = r() * Math.PI * 2;
+    const kx = Math.round(Math.cos(a) * f);
+    const ky = Math.round(Math.sin(a) * f);
+    return { kx, ky, amp: 1 / (1 + Math.hypot(kx, ky)), ph: r() * Math.PI * 2 };
+  }).filter((w) => w.kx !== 0 || w.ky !== 0);
+  const img = ctx.createImageData(size, size);
+  const k = (Math.PI * 2) / size;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let dx = 0;
+      let dy = 0;
+      let h = 0;
+      for (const w of waves) {
+        const p = (w.kx * x + w.ky * y) * k + w.ph;
+        // Sharpened crests: the slope of sin + a little of its second harmonic.
+        const cs = Math.cos(p) + 0.5 * Math.cos(2 * p);
+        dx += w.kx * w.amp * cs;
+        dy += w.ky * w.amp * cs;
+        h += w.amp * (Math.sin(p) + 0.25 * Math.sin(2 * p));
+      }
+      const i = (y * size + x) * 4;
+      img.data[i] = Math.max(0, Math.min(255, 128 + dx * 26));
+      img.data[i + 1] = Math.max(0, Math.min(255, 128 + dy * 26));
+      img.data[i + 2] = Math.max(0, Math.min(255, 128 + h * 62));
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = finish(c, true, false);
+  t.anisotropy = 4;
+  return t;
+}
+
 /** Noise blobs in [0,1] on a w×h canvas (for puddles and stains). */
 function blobField(w: number, h: number, count: number, r: () => number, minR: number, maxR: number, alpha: [number, number]): HTMLCanvasElement {
   const [c, ctx] = canvas(w, h);
@@ -485,6 +600,12 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
   const r = rng(23);
   const [oc, o] = canvas(cw, ch);
   o.clearRect(0, 0, cw, ch);
+  const ship = map.setting === "ship";
+  if (ship) {
+    // Deck paint over the whole floor (the tiled texture underneath gives it its grit).
+    o.fillStyle = DECK_PAINT;
+    o.fillRect(0, 0, cw, ch);
+  }
   // Oil stains and tire marks.
   for (let i = 0; i < 70; i++) {
     const x = r() * cw;
@@ -498,7 +619,7 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
   }
   o.strokeStyle = "rgba(10,10,10,0.22)";
   o.lineWidth = pxPerM * 0.28;
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 14 && !ship; i++) {
     const x = r() * cw;
     const y = r() * ch;
     const a = r() * Math.PI * 2;
@@ -510,8 +631,9 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
       o.stroke();
     }
   }
+  if (ship) deckMarkings(o, map, pxPerM, 1);
   // Lane paint (faded yellow, dashed) and loading zones, as before.
-  o.strokeStyle = "rgba(214,168,52,0.78)";
+  o.strokeStyle = ship ? "rgba(0,0,0,0)" : "rgba(214,168,52,0.78)";
   o.lineWidth = pxPerM * 0.14;
   o.setLineDash([pxPerM * 2, pxPerM * 1.2]);
   o.beginPath();
@@ -525,7 +647,7 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
   o.lineTo(X(34), Z(17.5));
   o.stroke();
   o.setLineDash([]);
-  o.fillStyle = "rgba(214,168,52,0.62)";
+  o.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(214,168,52,0.62)";
   for (const [x0, z0] of [
     [-2, -3],
     [-30, -26],
@@ -539,7 +661,7 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
       o.restore();
     }
   }
-  o.fillStyle = "rgba(235,232,222,0.7)";
+  o.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(235,232,222,0.7)";
   o.font = `800 ${Math.round(pxPerM * 1.6)}px ui-sans-serif, system-ui, sans-serif`;
   o.textAlign = "center";
   for (const [t, x, z] of [

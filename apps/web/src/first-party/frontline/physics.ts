@@ -29,9 +29,10 @@ export interface Box {
   ribs?: "x" | "z";
   /**
    * Render hint only (collision ignores it): how the renderer dresses the box.
-   * `drums` / `pallets` / `wreck` draw props filling the box's volume.
+   * `drums` / `pallets` / `wreck` draw props filling the box's volume;
+   * `clean` is kept-up paint (a ship's superstructure) instead of rusting sheet.
    */
-  look?: "cladding" | "plate" | "drums" | "pallets" | "wreck";
+  look?: "cladding" | "plate" | "clean" | "drums" | "pallets" | "wreck";
 }
 
 export interface Vec3 {

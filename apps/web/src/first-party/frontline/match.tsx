@@ -20,7 +20,7 @@ import { Engine } from "./engine";
 import { Game, type FinalRow, type SeatInfo } from "./game";
 import { Hud } from "./hud";
 import { isTouchDevice } from "./input";
-import { DEFAULT_MAP, MAPS } from "./map";
+import { MAPS, type MapId } from "./map";
 import { earnedAchievements, finalStats } from "./progress";
 import { FrontlineLoading } from "./loading";
 import { TIERS, assetsCover, detectTier, lower, type AssetLevel, type Tier } from "./quality";
@@ -77,11 +77,11 @@ function debugAim(game: Game, seat?: number): { seat: number; dist: number } | n
   return { seat: best.seat, dist: best.dist };
 }
 
-function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, settings: Settings, link: PacketLink, season: Season): Game {
+function createGame(xapps: VibeCadeClient, players: PlayerInfo[], me: PlayerInfo, spectator: boolean, settings: Settings, link: PacketLink, season: Season, map: MapId): Game {
   const humans = players.filter((p) => !p.isBot);
   const simAll = spectator && humans.length === 0;
   return new Game({
-    map: MAPS[DEFAULT_MAP],
+    map: MAPS[map],
     seats: seatsOf(players),
     meId: spectator ? null : me.id,
     spectator,
@@ -137,12 +137,12 @@ function submitResults(xapps: VibeCadeClient, game: Game, rows: FinalRow[], subm
   if (me && isWinner(me.seat, game.soldiers.map((s) => s.seat), game.finalTally(), game.teams)) xapps.ui.celebrate("big").catch(ignore);
 }
 
-export function MatchView({ settings, onSettings, season }: { settings: Settings; onSettings: (s: Settings) => void; season: Season }) {
+export function MatchView({ settings, onSettings, season, map }: { settings: Settings; onSettings: (s: Settings) => void; season: Season; map: MapId }) {
   const xapps = useVibeCade();
   const { players, me, isSpectator } = usePlayers();
   const reduce = useReducedMotion() ?? false;
   const [link] = useState(() => new PacketLink());
-  const [game] = useState(() => createGame(xapps, players, me, isSpectator, settings, link, season));
+  const [game] = useState(() => createGame(xapps, players, me, isSpectator, settings, link, season, map));
   const [touch] = useState(() => isTouchDevice());
   const [engine, setEngine] = useState<Engine | null>(null);
   const [failed, setFailed] = useState(false);
@@ -327,7 +327,7 @@ export function MatchView({ settings, onSettings, season }: { settings: Settings
       {engine && <Hud engine={engine} game={game} touch={touch} settings={settings} onSettings={onSettings} tier={tier} />}
       {(!pack || !engine) && (
         <div className="absolute inset-0 flex">
-          <FrontlineLoading progress={pack ? 1 : progress} />
+          <FrontlineLoading label={`Deploying to ${game.map.name}`} progress={pack ? 1 : progress} />
         </div>
       )}
     </div>

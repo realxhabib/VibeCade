@@ -42,10 +42,10 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { AssetPack } from "./assets";
 import { Buf, hashN, rgbOf, type V3 } from "./geo";
 import type { MapDef } from "./map";
-import { CONTAINER_L } from "./map";
+import { CONTAINER_L, SHIP_BOW, SHIP_FORECASTLE_Y, SHIP_SEA_Y } from "./map";
 import { patchMaterial, worldMaterials, type WorldMaterials } from "./materials";
 import type { Box } from "./physics";
-import { BRANDS, LOGO_COLS, LOGO_ROWS, fenceTexture, weedTexture, groundLayers, groundTexture, logoAtlas, softDot } from "./textures";
+import { BRANDS, LOGO_COLS, LOGO_ROWS, fenceTexture, weedTexture, groundLayers, groundTexture, logoAtlas, softDot, waterNormals } from "./textures";
 
 export interface WorldView {
   group: Group;
@@ -64,12 +64,13 @@ export interface WorldOptions {
 }
 
 /** Meters per texture repeat (PBR sets). */
-const SCALE = { container: 2.1, concrete: 2.6, planks: 1.4, painted: 0.9, plate: 1.1, cladding: 2.2, asphalt: 3.2 };
+const SCALE = { container: 2.1, concrete: 2.6, planks: 1.4, painted: 0.9, clean: 0.9, plate: 1.1, cladding: 2.2, asphalt: 3.2 };
 
-type Key = "container" | "painted" | "concrete" | "planks" | "plate" | "cladding";
+type Key = "container" | "painted" | "clean" | "concrete" | "planks" | "plate" | "cladding";
 
 function keyOf(b: Box): Key {
   if (b.look === "cladding") return "cladding";
+  if (b.look === "clean") return "clean";
   if (b.look === "plate") return "plate";
   if (b.surface === "container") return "container";
   if (b.surface === "wood") return "planks";
@@ -155,6 +156,73 @@ function liteProp(b: Box, metal: Buf, wood: Buf, seed: number): boolean {
   return false;
 }
 
+/**
+ * The ship's hull below the deck edge, and the raised forecastle running out
+ * to the prow beyond the playable deck. Scenery: you see it over the bow
+ * step, from a container top and when spectating.
+ */
+function shipHull(buf: Buf, map: MapDef, scale: number): void {
+  const { bounds } = map;
+  const navy = rgbOf(0x1c2735);
+  const boot = rgbOf(0x7a2e26);
+  const white = rgbOf(0xd9d6cd);
+  const deck = rgbOf(0x3f5f50);
+  const out = 0.36;
+  const x0 = bounds.x0 - out;
+  const hb = bounds.z1 + out;
+  const y0 = SHIP_SEA_Y - 0.6;
+  const yBoot = SHIP_SEA_Y + 1.5;
+  const fy = SHIP_FORECASTLE_Y;
+  const rail = fy + 1.1;
+  /** A wall from (ax, az) to (bx, bz), seen from its left side walking a → b. */
+  const wall = (ax: number, az: number, bx: number, bz: number, ya: number, yb: number, rgb: V3) => {
+    const len = Math.hypot(bx - ax, bz - az);
+    if (len < 1e-6) return;
+    const n: V3 = [-(bz - az) / len, 0, (bx - ax) / len];
+    buf.quad([ax, ya, az], [bx, ya, bz], [bx, yb, bz], [ax, yb, az], n, [
+      [0, ya / scale],
+      [len / scale, ya / scale],
+      [len / scale, yb / scale],
+      [0, yb / scale],
+    ], rgb);
+  };
+  /** Outer plating along a stretch of the starboard side (and its mirror to port): boot topping, then topsides up to `top`. */
+  const plating = (ax: number, ah: number, bx: number, bh: number, top: number) => {
+    for (const [ya, yb, rgb] of [
+      [y0, yBoot, boot],
+      [yBoot, top, navy],
+    ] as const) {
+      wall(ax, ah, bx, bh, ya, yb, rgb);
+      wall(bx, -bh, ax, -ah, ya, yb, rgb);
+    }
+  };
+  const bow = SHIP_BOW.map(([x, h], i) => [x, i === 0 ? hb : h] as const);
+  plating(x0, hb, bow[0]![0], hb, 1.15);
+  // The transom.
+  wall(x0, -hb, x0, hb, y0, yBoot, boot);
+  wall(x0, -hb, x0, hb, yBoot, 1.15, navy);
+  for (let i = 0; i + 1 < bow.length; i++) {
+    const [ax, ah] = bow[i]!;
+    const [bx, bh] = bow[i + 1]!;
+    plating(ax, ah, bx, bh, rail);
+    // The bulwark's inner face, and the forecastle deck between the two sides.
+    wall(bx, bh - 0.05, ax, ah - 0.05, fy, rail, white);
+    wall(ax, -ah + 0.05, bx, -bh + 0.05, fy, rail, white);
+    buf.quad([ax, fy, ah], [bx, fy, bh], [bx, fy, -bh], [ax, fy, -ah], [0, 1, 0], [
+      [ax / scale, ah / scale],
+      [bx / scale, bh / scale],
+      [bx / scale, -bh / scale],
+      [ax / scale, -ah / scale],
+    ], deck);
+  }
+  // Where the forecastle's side plating stands taller than the main deck's bulwark.
+  wall(bow[0]![0], hb + 0.01, bow[0]![0], bounds.z1 - 0.4, 1.15, rail, navy);
+  wall(bow[0]![0], -bounds.z1 + 0.4, bow[0]![0], -hb - 0.01, 1.15, rail, navy);
+}
+
+/** Open water out to the horizon (a plain colour on the low tier). */
+const SEA_SIZE = 1400;
+
 /* ---------------------------------------------------------------------- */
 /* Low tier                                                               */
 /* ---------------------------------------------------------------------- */
@@ -186,6 +254,7 @@ function buildLite(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView 
     const grounded = b.y0 < 0.05;
     bufFor(k).box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, rgbOf(b.color, vary(i + 1)), { scale: scaleOf[k], ao: grounded ? 0.7 : 0.88, skipBottom: grounded, ribs: b.ribs });
   });
+  if (map.setting === "ship") shipHull(bufFor("metal"), map, SCALE.painted);
   const solids: Mesh[] = [];
   for (const [k, buf] of bufs) {
     const mat = own.mat(new MeshLambertMaterial({ map: texOf[k], vertexColors: true }));
@@ -206,8 +275,9 @@ function buildLite(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView 
   ground.updateMatrix();
   ground.matrixAutoUpdate = false;
   group.add(ground);
-  const apron = new Mesh(own.geo(new PlaneGeometry(600, 600).rotateX(-Math.PI / 2)), own.mat(new MeshLambertMaterial({ color: 0x6f6a62 })));
-  apron.position.y = -0.02;
+  const ship = map.setting === "ship";
+  const apron = new Mesh(own.geo(new PlaneGeometry(ship ? SEA_SIZE : 600, ship ? SEA_SIZE : 600).rotateX(-Math.PI / 2)), own.mat(new MeshLambertMaterial({ color: ship ? 0x3a6676 : 0x6f6a62 })));
+  apron.position.y = ship ? SHIP_SEA_Y : -0.02;
   apron.updateMatrix();
   apron.matrixAutoUpdate = false;
   group.add(apron);
@@ -275,6 +345,7 @@ function buildLite(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView 
 interface PbrBufs {
   container: Buf;
   painted: Buf;
+  clean: Buf;
   concrete: Buf;
   planks: Buf;
   plate: Buf;
@@ -632,6 +703,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   const B: PbrBufs = {
     container: new Buf("grimeUv"),
     painted: new Buf(),
+    clean: new Buf(),
     concrete: new Buf(),
     planks: new Buf(),
     plate: new Buf(),
@@ -645,7 +717,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     if (b.look === "drums") return drums(B, b, seed);
     if (b.look === "pallets") return pallets(B, b, seed);
     if (b.look === "wreck") return wreck(B, b);
-    if (b.surface === "metal" && b.x1 - b.x0 < 0.4 && b.z1 - b.z0 < 0.4 && b.y1 > 6) return lightPole(B, b);
+    if (b.surface === "metal" && !b.ghost && b.x1 - b.x0 < 0.4 && b.z1 - b.z0 < 0.4 && b.y1 > 6) return lightPole(B, b);
     if (b.surface === "container") return container(B, b, seed, true);
     const k = keyOf(b);
     const grounded = b.y0 < 0.05;
@@ -656,11 +728,16 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   // Tarps over two of the crate stacks.
   const byArea = map.boxes.filter((b) => b.surface === "wood" && !b.look && b.x1 - b.x0 > 1.8);
   byArea.slice(0, 2).forEach((b, i) => tarp(B, b, i ? 0x2f5a8a : 0x55633f, 900 + i));
-  // Chain-link on top of the perimeter walls (north, south, east) and behind the east lanes.
-  const wy = 4.6;
-  fence(B, bounds.x0 + 18, bounds.z0 - 0.5, bounds.x1, bounds.z0 - 0.5, wy, 1.8);
-  fence(B, bounds.x0, bounds.z1 + 0.5, bounds.x1, bounds.z1 + 0.5, wy, 1.8);
-  fence(B, bounds.x1 + 0.5, bounds.z0, bounds.x1 + 0.5, bounds.z1, wy, 1.8);
+  const ship = map.setting === "ship";
+  if (ship) {
+    shipHull(B.clean, map, SCALE.clean);
+  } else {
+    // Chain-link on top of the perimeter walls (north, south, east) and behind the east lanes.
+    const wy = 4.6;
+    fence(B, bounds.x0 + 18, bounds.z0 - 0.5, bounds.x1, bounds.z0 - 0.5, wy, 1.8);
+    fence(B, bounds.x0, bounds.z1 + 0.5, bounds.x1, bounds.z1 + 0.5, wy, 1.8);
+    fence(B, bounds.x1 + 0.5, bounds.z0, bounds.x1 + 0.5, bounds.z1, wy, 1.8);
+  }
 
   const solids: Mesh[] = [];
   const add = (buf: Buf, mat: Material, cast = true) => {
@@ -670,6 +747,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   };
   add(B.container, M.container);
   add(B.painted, M.painted);
+  add(B.clean, M.clean);
   add(B.concrete, M.concrete);
   add(B.planks, M.planks);
   add(B.plate, M.plate);
@@ -701,13 +779,55 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   ground.updateMatrix();
   ground.matrixAutoUpdate = false;
   group.add(ground);
-  const apronMat = own.mat(new MeshStandardMaterial({ map: pack.mats.asphalt.albedo, normalMap: pack.mats.asphalt.normal, roughness: 0.95, metalness: 0, color: new Color(0.62, 0.6, 0.57) }));
-  const apronGeo = own.geo(new PlaneGeometry(700, 700).rotateX(-Math.PI / 2));
-  const auv = apronGeo.getAttribute("uv");
-  for (let i = 0; i < auv.count; i++) auv.setXY(i, auv.getX(i) * 700 / 6, auv.getY(i) * 700 / 6);
-  const apron = new Mesh(apronGeo, apronMat);
-  apron.position.y = -0.03;
-  apron.receiveShadow = opts.shadows;
+  const seaT = { value: 0 };
+  let apron: Mesh;
+  if (ship) {
+    // The sea: one plane out to the horizon, rippled and sliding aft in the shader (the ship is under way).
+    const seaMat = own.mat(new MeshStandardMaterial({ color: new Color(0x0e2c36), roughness: 0.2, metalness: 0 }));
+    seaMat.envMapIntensity = 1.5;
+    patchMaterial(seaMat, {
+      key: "fl-sea",
+      uniforms: { seaMap: { value: own.tex(waterNormals()) }, seaT, seaHull: { value: new Vector2(bounds.x0, bounds.z1) } },
+      vertexPars: "varying vec3 vSeaPos;",
+      vertexMain: "vSeaPos = (modelMatrix * vec4(position, 1.0)).xyz;",
+      fragPars: "uniform sampler2D seaMap; uniform float seaT; uniform vec2 seaHull; varying vec3 vSeaPos; float fFoam;",
+      afterColor: `
+      {
+        // Foam along the hull and in the wake astern, torn up by the ripple texture.
+        vec2 q = vSeaPos.xz + vec2(seaT * 7.0, 0.0);
+        float beam = seaHull.y * clamp((${(SHIP_BOW[SHIP_BOW.length - 1]![0]).toFixed(1)} - vSeaPos.x) / 28.0, 0.0, 1.0);
+        float side = abs(vSeaPos.z) - beam;
+        float astern = seaHull.x - vSeaPos.x;
+        float d = max(side, max(astern, vSeaPos.x - ${(SHIP_BOW[SHIP_BOW.length - 1]![0]).toFixed(1)}));
+        float wake = astern > 0.0 ? smoothstep(seaHull.y * 0.7 + astern * 0.22, seaHull.y * 0.2 + astern * 0.1, abs(vSeaPos.z)) * exp(-astern / 90.0) : 0.0;
+        float churn = texture2D(seaMap, q / 9.0).b * 0.6 + texture2D(seaMap, q / 31.0 + 0.37).b * 0.6;
+        fFoam = clamp(max(smoothstep(5.5, 0.0, d) * 0.9, wake) * smoothstep(0.42, 0.75, churn + max(smoothstep(2.0, 0.0, d), wake * 0.6) * 0.5), 0.0, 1.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.88, 0.88), fFoam);
+      }`,
+      afterRoughness: "roughnessFactor = mix(roughnessFactor, 0.9, fFoam);",
+      afterNormal: `
+      {
+        vec2 q = vSeaPos.xz + vec2(seaT * 7.0, 0.0);
+        vec2 r1 = texture2D(seaMap, q / 19.0 + vec2(0.0, seaT * 0.021)).xy * 2.0 - 1.0;
+        vec2 r2 = texture2D(seaMap, q.yx / 47.0 + vec2(seaT * 0.013, 0.0)).xy * 2.0 - 1.0;
+        vec2 r3 = texture2D(seaMap, q / 6.1 - vec2(0.0, seaT * 0.05)).xy * 2.0 - 1.0;
+        // Calmer toward the horizon, where ripples would only shimmer.
+        float calm = 1.0 / (1.0 + length(vViewPosition) * 0.006);
+        vec3 wn = normalize(vec3((r1.x + r2.x + r3.x * 0.6) * 0.3 * calm, 1.0, (r1.y + r2.y + r3.y * 0.6) * 0.3 * calm));
+        normal = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
+      }`,
+    });
+    apron = new Mesh(own.geo(new PlaneGeometry(SEA_SIZE, SEA_SIZE).rotateX(-Math.PI / 2)), seaMat);
+    apron.position.y = SHIP_SEA_Y;
+  } else {
+    const apronMat = own.mat(new MeshStandardMaterial({ map: pack.mats.asphalt.albedo, normalMap: pack.mats.asphalt.normal, roughness: 0.95, metalness: 0, color: new Color(0.62, 0.6, 0.57) }));
+    const apronGeo = own.geo(new PlaneGeometry(700, 700).rotateX(-Math.PI / 2));
+    const auv = apronGeo.getAttribute("uv");
+    for (let i = 0; i < auv.count; i++) auv.setXY(i, auv.getX(i) * 700 / 6, auv.getY(i) * 700 / 6);
+    apron = new Mesh(apronGeo, apronMat);
+    apron.position.y = -0.03;
+  }
+  apron.receiveShadow = opts.shadows && !ship;
   apron.updateMatrix();
   apron.matrixAutoUpdate = false;
   group.add(apron);
@@ -722,7 +842,8 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   let n = 0;
   const colliders = map.boxes.filter((b) => !b.ghost);
   const free = (x: number, z: number) => !colliders.some((b) => x > b.x0 - 0.2 && x < b.x1 + 0.2 && z > b.z0 - 0.2 && z < b.z1 + 0.2);
-  for (let i = 0; i < 600 && n < 160; i++) {
+  // (A ship's deck is swept: no rubble, no weeds.)
+  for (let i = 0; i < 600 && n < 160 && !ship; i++) {
     const x = bounds.x0 + 1 + hashN(i * 3 + 11) * (W - 2);
     const z = bounds.z0 + 1 + hashN(i * 5 + 7) * (H - 2);
     if (!free(x, z)) continue;
@@ -738,6 +859,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     debris.setMatrixAt(n++, dm);
   }
   debris.count = n;
+  debris.visible = n > 0;
   debris.castShadow = false;
   debris.receiveShadow = opts.shadows;
   group.add(debris);
@@ -756,7 +878,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   const weeds = new InstancedMesh(weedGeo, weedMat, 260);
   let wc = 0;
   const walls = colliders.filter((b) => b.y0 < 0.05 && b.y1 > 2.2);
-  for (let i = 0; i < 4000 && wc < 260; i++) {
+  for (let i = 0; i < 4000 && wc < 260 && !ship; i++) {
     const b = walls[Math.floor(hashN(i * 3 + 101) * walls.length)];
     if (!b) break;
     // A point just outside one of the box's four sides.
@@ -776,6 +898,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     weeds.setMatrixAt(wc++, o.matrix);
   }
   weeds.count = wc;
+  weeds.visible = wc > 0;
   weeds.castShadow = false;
   weeds.receiveShadow = opts.shadows;
   group.add(weeds);
@@ -790,7 +913,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   const skyGroup = new Group();
   group.add(skyGroup);
   own.mesh(skyC, M.container, false, skyGroup);
-  own.mesh(skyM, M.painted, false, skyGroup);
+  own.mesh(skyM, ship ? M.clean : M.painted, false, skyGroup);
   skyGroup.visible = opts.skyline;
 
   return {
@@ -801,7 +924,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
         s.receiveShadow = on;
       }
       ground.receiveShadow = on;
-      apron.receiveShadow = on;
+      apron.receiveShadow = on && !ship;
       debris.receiveShadow = on;
       weeds.receiveShadow = on;
     },
@@ -810,6 +933,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     },
     update(t: number) {
       windT.value = t;
+      seaT.value = t;
     },
     dispose() {
       debris.dispose();
