@@ -11,8 +11,8 @@
  * mapping and MSAA (or none) instead.
  */
 
-import { HalfFloatType, Uniform, Vector3, type Camera, type PerspectiveCamera, type Scene, type WebGLRenderTarget, type WebGLRenderer } from "three";
-import { BlendFunction, BloomEffect, Effect, EffectComposer, EffectPass, Pass, RenderPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode } from "postprocessing";
+import { HalfFloatType, Uniform, Vector2, Vector3, type Camera, type PerspectiveCamera, type Scene, type WebGLRenderTarget, type WebGLRenderer } from "three";
+import { BlendFunction, BloomEffect, Effect, EffectAttribute, EffectComposer, EffectPass, Pass, RenderPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode } from "postprocessing";
 import { N8AOPostPass } from "n8ao";
 
 const GRADE = /* glsl */ `
@@ -67,6 +67,71 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 }
 `;
 
+/**
+ * Light shafts: every pixel marches toward the sun on screen and counts how
+ * much open sky it crosses near the sun (the depth buffer says what is sky),
+ * so beams fan out past container edges and under the gantry. One pass, a
+ * handful of depth reads per pixel, a per-pixel jittered start instead of
+ * more samples (the grain and SMAA hide it).
+ */
+const SHAFTS = /* glsl */ `
+uniform vec2 sunUv;
+uniform vec3 tint;
+uniform float strength;
+
+float shaftHash(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
+  if (strength <= 0.001) { outputColor = inputColor; return; }
+  const int N = SHAFT_SAMPLES;
+  vec2 delta = (sunUv - uv) * (0.92 / float(N));
+  vec2 p = uv + delta * shaftHash(uv * resolution + fract(time) * 311.0);
+  float acc = 0.0;
+  float w = 1.0;
+  float total = 0.0;
+  for (int i = 0; i < N; i++) {
+    vec2 q = clamp(p, vec2(0.001), vec2(0.999));
+    float sky = step(0.99999, readDepth(q));
+    vec2 d = (p - sunUv) * vec2(aspect, 1.0);
+    float near = 1.0 - smoothstep(0.0, 0.55, length(d));
+    acc += sky * near * near * w;
+    total += w;
+    w *= 0.955;
+    p += delta;
+  }
+  float shaft = acc / total;
+  outputColor = vec4(inputColor.rgb + tint * shaft * strength, inputColor.a);
+}
+`;
+
+class ShaftsEffect extends Effect {
+  constructor(samples: number) {
+    super("ShaftsEffect", SHAFTS, {
+      blendFunction: BlendFunction.SET,
+      attributes: EffectAttribute.DEPTH,
+      defines: new Map([["SHAFT_SAMPLES", String(samples)]]),
+      uniforms: new Map<string, Uniform>([
+        ["sunUv", new Uniform(new Vector2(0.5, 0.5))],
+        ["tint", new Uniform(new Vector3(1, 0.8, 0.55))],
+        ["strength", new Uniform(0)],
+      ]),
+    });
+  }
+
+  set(u: number, v: number, strength: number): void {
+    (this.uniforms.get("sunUv")!.value as Vector2).set(u, v);
+    this.uniforms.get("strength")!.value = strength;
+  }
+
+  setTint(r: number, g: number, b: number): void {
+    (this.uniforms.get("tint")!.value as Vector3).set(r, g, b);
+  }
+}
+
 class SanitizeEffect extends Effect {
   constructor() {
     super("SanitizeEffect", SANITIZE, { blendFunction: BlendFunction.SET });
@@ -78,13 +143,13 @@ class GradeEffect extends Effect {
     super("GradeEffect", GRADE, {
       blendFunction: BlendFunction.NORMAL,
       uniforms: new Map<string, Uniform>([
-        ["lift", new Uniform(new Vector3(-0.006, -0.004, 0.004))],
+        ["lift", new Uniform(new Vector3(0.004, 0.004, 0.01))],
         ["gamma", new Uniform(new Vector3(0.94, 0.93, 0.92))],
-        ["gain", new Uniform(new Vector3(1.08, 1.04, 0.98))],
+        ["gain", new Uniform(new Vector3(1.1, 1.04, 0.96))],
         ["saturation", new Uniform(1.02)],
         ["tone", new Uniform(1)],
-        ["vignette", new Uniform(0.42)],
-        ["grain", new Uniform(0.028)],
+        ["vignette", new Uniform(0)],
+        ["grain", new Uniform(0.02)],
         ["time", new Uniform(0)],
         ["flash", new Uniform(0)],
       ]),
@@ -128,6 +193,7 @@ export class PostFx {
   private readonly ao: N8AOPostPass;
   private readonly grade = new GradeEffect();
   private readonly bloom: BloomEffect;
+  private readonly shafts = new ShaftsEffect(20);
 
   constructor(renderer: WebGLRenderer, scene: Scene, camera: PerspectiveCamera, overlay: { scene: Scene; camera: Camera; visible: () => boolean }) {
     this.composer = new EffectComposer(renderer, { frameBufferType: HalfFloatType, multisampling: 0, stencilBuffer: false });
@@ -136,7 +202,7 @@ export class PostFx {
     const cfg = this.ao.configuration;
     cfg.aoRadius = 1.6;
     cfg.distanceFalloff = 0.35;
-    cfg.intensity = 2.6;
+    cfg.intensity = 2.0;
     cfg.halfRes = true;
     cfg.depthAwareUpsampling = true;
     cfg.aoSamples = 12;
@@ -146,11 +212,20 @@ export class PostFx {
     this.composer.addPass(this.ao);
     this.composer.addPass(new OverlayPass(overlay.scene, overlay.camera, overlay.visible));
     // Its own pass: bloom reads the input buffer before its pass's shader runs.
-    this.composer.addPass(new EffectPass(camera, new SanitizeEffect()));
+    this.composer.addPass(new EffectPass(camera, new SanitizeEffect(), this.shafts));
     this.bloom = new BloomEffect({ intensity: 0.5, luminanceThreshold: 1.35, luminanceSmoothing: 0.25, mipmapBlur: true, radius: 0.6 });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
     this.composer.addPass(new EffectPass(camera, this.bloom, tone, this.grade));
     this.composer.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
+  }
+
+  /** Where the sun is on screen (uv, may be off screen) and how strong its shafts are (0 = off). */
+  setSun(u: number, v: number, strength: number): void {
+    this.shafts.set(u, v, strength);
+  }
+
+  setSunTint(r: number, g: number, b: number): void {
+    this.shafts.setTint(r, g, b);
   }
 
   setSize(w: number, h: number): void {

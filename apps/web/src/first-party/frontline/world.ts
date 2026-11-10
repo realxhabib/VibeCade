@@ -19,6 +19,7 @@ import {
   AdditiveBlending,
   BackSide,
   Color,
+  DoubleSide,
   Float32BufferAttribute,
   Group,
   InstancedMesh,
@@ -37,13 +38,14 @@ import {
   type Material,
   type Texture,
 } from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { AssetPack } from "./assets";
 import { Buf, hashN, rgbOf, type V3 } from "./geo";
 import type { MapDef } from "./map";
 import { CONTAINER_L } from "./map";
 import { patchMaterial, worldMaterials, type WorldMaterials } from "./materials";
 import type { Box } from "./physics";
-import { BRANDS, LOGO_COLS, LOGO_ROWS, fenceTexture, groundLayers, groundTexture, logoAtlas, softDot } from "./textures";
+import { BRANDS, LOGO_COLS, LOGO_ROWS, fenceTexture, weedTexture, groundLayers, groundTexture, logoAtlas, softDot } from "./textures";
 
 export interface WorldView {
   group: Group;
@@ -401,6 +403,41 @@ function container(B: PbrBufs, b: Box, seed: number, logos: boolean): void {
   }
 }
 
+/** A shipping crate: recessed plank panels inside a frame of battens, with a centre batten on wide faces. */
+function crate(B: PbrBufs, b: Box, seed: number): void {
+  const w = b.x1 - b.x0;
+  const h = b.y1 - b.y0;
+  const d = b.z1 - b.z0;
+  const t = Math.min(0.13, Math.max(0.07, Math.min(w, h, d) * 0.09));
+  const inset = 0.035;
+  // The plank albedo is a dark weathered brown: a bright, nearly neutral tint keeps crates a pale pine.
+  const v = vary(seed);
+  const base: V3 = [2.3 * v, 1.95 * v, 1.5 * v];
+  const panel: V3 = [base[0] * 0.8, base[1] * 0.78, base[2] * 0.74];
+  const frame: V3 = [base[0] * 1.05, base[1] * 1.02, base[2] * 0.96];
+  const grounded = b.y0 < 0.05;
+  const o = { scale: SCALE.planks, skipBottom: true };
+  B.planks.box(b.x0 + inset, b.y0, b.z0 + inset, b.x1 - inset, b.y1 - inset, b.z1 - inset, panel, { scale: SCALE.planks, ao: grounded ? 0.7 : 0.9, skipBottom: grounded });
+  // Corner posts.
+  for (const x of [b.x0, b.x1 - t]) for (const z of [b.z0, b.z1 - t]) B.planks.box(x, b.y0, z, x + t, b.y1, z + t, frame, o);
+  // Top and bottom rails.
+  for (const y of [b.y0, b.y1 - t]) {
+    for (const z of [b.z0, b.z1 - t]) B.planks.box(b.x0 + t, y, z, b.x1 - t, y + t, z + t, frame, o);
+    for (const x of [b.x0, b.x1 - t]) B.planks.box(x, y, b.z0 + t, x + t, y + t, b.z1 - t, frame, o);
+  }
+  // Centre battens on wide faces, and across the lid.
+  const half = t * 0.45;
+  if (w > 1.5) {
+    const xc = (b.x0 + b.x1) / 2;
+    for (const z of [b.z0 + 0.012, b.z1 - 0.012 - inset]) B.planks.box(xc - half, b.y0 + t, z, xc + half, b.y1 - t, z + inset, frame, o);
+    B.planks.box(xc - half, b.y1 - inset - 0.01, b.z0 + t, xc + half, b.y1 - 0.012, b.z1 - t, frame, o);
+  }
+  if (d > 1.5) {
+    const zc = (b.z0 + b.z1) / 2;
+    for (const x of [b.x0 + 0.012, b.x1 - 0.012 - inset]) B.planks.box(x, b.y0 + t, zc - half, x + inset, b.y1 - t, zc + half, frame, o);
+  }
+}
+
 /** Drum cluster: four 200 l drums with rims and lids. */
 function drums(B: PbrBufs, b: Box, seed: number): void {
   const colors = [0x2f5f9e, 0x2f5f9e, 0x9a3a28, 0x3b6b3a, 0x2f5f9e];
@@ -565,6 +602,39 @@ function fence(B: PbrBufs, x0: number, z0: number, x1: number, z1: number, y: nu
   B.plate.obox((x0 + x1) / 2, y + h, (z0 + z1) / 2, 0.02, 0.02, len / 2, yaw, steel, 0.5);
 }
 
+/**
+ * Service runs along a long wall, on both faces: two conduits on brackets, a
+ * junction box now and then with a drop to the ground, and a kick plate
+ * along the foot. Nothing here collides (it all sits within a hand's width
+ * of the wall).
+ */
+function wallRuns(B: PbrBufs, b: Box, seed: number): void {
+  const alongX = b.x1 - b.x0 > b.z1 - b.z0;
+  const len = alongX ? b.x1 - b.x0 : b.z1 - b.z0;
+  const mid = alongX ? (b.z0 + b.z1) / 2 : (b.x0 + b.x1) / 2;
+  const half = (alongX ? b.z1 - b.z0 : b.x1 - b.x0) / 2;
+  const c0 = alongX ? b.x0 : b.z0;
+  const yaw = alongX ? Math.PI / 2 : 0;
+  const steel = rgbOf(0x8d9296);
+  const dark = rgbOf(0x3c4044);
+  const top = Math.min(b.y1 - 0.5, 3.1);
+  /** A box `hl` half-long along the wall at `c`, `out` from the face, on side `s`. */
+  const part = (buf: Buf, c: number, y: number, s: number, out: number, hl: number, hy: number, ht: number, color: [number, number, number]) => {
+    const off = mid + s * (half + out);
+    buf.obox(alongX ? c : off, y, alongX ? off : c, ht, hy, hl, yaw, color, 0.6);
+  };
+  for (const s of [-1, 1]) {
+    part(B.plate, c0 + len / 2, top, s, 0.07, len / 2 - 0.15, 0.035, 0.035, steel);
+    part(B.plate, c0 + len / 2, top - 0.2, s, 0.06, len / 2 - 0.15, 0.025, 0.025, dark);
+    for (let c = 1; c < len - 0.5; c += 2.4) part(B.plate, c0 + c, top - 0.1, s, 0.03, 0.03, 0.17, 0.03, dark);
+    for (let c = 2.5 + hashN(seed + s) * 3; c < len - 2; c += 8.5) {
+      part(B.painted, c0 + c, top - 0.75, s, 0.09, 0.2, 0.28, 0.09, rgbOf(0x7d8388));
+      part(B.plate, c0 + c, (top - 1.03) / 2, s, 0.04, 0.025, (top - 1.03) / 2, 0.025, steel);
+    }
+    part(B.plate, c0 + len / 2, 0.11, s, 0.012, len / 2 - 0.05, 0.11, 0.012, rgbOf(0x55595d));
+  }
+}
+
 function lightPole(B: PbrBufs, b: Box): void {
   const x = (b.x0 + b.x1) / 2;
   const z = (b.z0 + b.z1) / 2;
@@ -612,8 +682,10 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     if (b.look === "wreck") return wreck(B, b);
     if (b.surface === "metal" && b.x1 - b.x0 < 0.4 && b.z1 - b.z0 < 0.4 && b.y1 > 6) return lightPole(B, b);
     if (b.surface === "container") return container(B, b, seed, true);
+    if (b.surface === "wood" && !b.look && Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) <= 3.4) return crate(B, b, seed);
     const k = keyOf(b);
     const grounded = b.y0 < 0.05;
+    if (grounded && b.surface === "concrete" && b.y1 >= 3 && Math.max(b.x1 - b.x0, b.z1 - b.z0) >= 4 && Math.min(b.x1 - b.x0, b.z1 - b.z0) <= 1.2) wallRuns(B, b, seed);
     const tint = k === "cladding" ? rgbOf(b.color, vary(seed)) : k === "concrete" ? rgbOf(b.color, vary(seed) * 1.05) : rgbOf(b.color, vary(seed));
     B[k].box(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, tint, { scale: SCALE[k], ao: grounded ? 0.7 : 0.9, skipBottom: grounded, ribs: b.ribs });
   });
@@ -706,6 +778,44 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
   debris.receiveShadow = opts.shadows;
   group.add(debris);
 
+  // Dry weeds where nobody sweeps: along the foot of walls and containers (two crossed cards each, one draw call).
+  const weedTex = own.tex(weedTexture());
+  const weedMat = own.mat(new MeshStandardMaterial({ map: weedTex, alphaTest: 0.5, side: DoubleSide, roughness: 1, metalness: 0 }));
+  const card = new PlaneGeometry(1, 1).translate(0, 0.5, 0);
+  const cardB = card.clone().rotateY(Math.PI / 2);
+  const weedGeo = own.geo(mergeGeometries([card, cardB])!);
+  card.dispose();
+  cardB.dispose();
+  // Normals straight up: lit like the ground they grow from, no dark back faces.
+  const wn = weedGeo.getAttribute("normal");
+  for (let i = 0; i < wn.count; i++) wn.setXYZ(i, 0, 1, 0);
+  const weeds = new InstancedMesh(weedGeo, weedMat, 260);
+  let wc = 0;
+  const walls = colliders.filter((b) => b.y0 < 0.05 && b.y1 > 2.2);
+  for (let i = 0; i < 4000 && wc < 260; i++) {
+    const b = walls[Math.floor(hashN(i * 3 + 101) * walls.length)];
+    if (!b) break;
+    // A point just outside one of the box's four sides.
+    const side = Math.floor(hashN(i * 7 + 5) * 4);
+    const t = hashN(i * 11 + 3);
+    const out = 0.08 + hashN(i * 13 + 9) * 0.22;
+    const x = side === 0 ? b.x0 - out : side === 1 ? b.x1 + out : b.x0 + t * (b.x1 - b.x0);
+    const z = side === 2 ? b.z0 - out : side === 3 ? b.z1 + out : b.z0 + t * (b.z1 - b.z0);
+    if (x < bounds.x0 + 0.1 || x > bounds.x1 - 0.1 || z < bounds.z0 + 0.1 || z > bounds.z1 - 0.1 || !free(x, z)) continue;
+    // They come in patches, not an even fringe.
+    if (hashN(Math.floor(x / 5) * 31 + Math.floor(z / 5) * 17) > 0.55) continue;
+    const sz = 0.2 + hashN(i * 17 + 1) * 0.3;
+    o.position.set(x, -0.02, z);
+    o.rotation.set(0, hashN(i * 19 + 2) * Math.PI, 0);
+    o.scale.set(sz * 1.25, sz, sz * 1.25);
+    o.updateMatrix();
+    weeds.setMatrixAt(wc++, o.matrix);
+  }
+  weeds.count = wc;
+  weeds.castShadow = false;
+  weeds.receiveShadow = opts.shadows;
+  group.add(weeds);
+
   // Skyline: distant stacks and cranes with the same container paint.
   const skyC = new Buf("grimeUv");
   const skyM = new Buf();
@@ -729,6 +839,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
       ground.receiveShadow = on;
       apron.receiveShadow = on;
       debris.receiveShadow = on;
+      weeds.receiveShadow = on;
     },
     setSkyline(on: boolean) {
       skyGroup.visible = on;
@@ -738,6 +849,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     },
     dispose() {
       debris.dispose();
+      weeds.dispose();
       own.dispose();
     },
   };

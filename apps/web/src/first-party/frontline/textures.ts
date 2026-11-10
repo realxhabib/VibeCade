@@ -398,6 +398,33 @@ export function logoAtlas(): Texture {
 }
 
 /** Chain-link mesh with a little rust: alpha-tested. One repeat = 1 m. */
+/** A tuft of dry weeds: thin blades fanning up from the bottom middle (alpha-tested). */
+export function weedTexture(): Texture {
+  const [c, ctx] = canvas(128);
+  ctx.clearRect(0, 0, 128, 128);
+  const tones = ["#8f8a55", "#6f7a45", "#a39a63", "#59663a", "#b8ab72"];
+  for (let i = 0; i < 46; i++) {
+    const r = (n: number) => {
+      const x = Math.sin((i + 1) * 127.1 + n * 311.7) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    const x0 = 64 + (r(1) - 0.5) * 34;
+    const lean = (r(2) - 0.5) * 90;
+    const h = 40 + r(3) * 84;
+    ctx.strokeStyle = tones[i % tones.length]!;
+    ctx.lineWidth = 1.6 + r(4) * 2.2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x0, 128);
+    ctx.quadraticCurveTo(x0 + lean * 0.25, 128 - h * 0.6, x0 + lean, 128 - h);
+    ctx.stroke();
+  }
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
 export function fenceTexture(): Texture {
   const [c, ctx] = canvas(256);
   ctx.clearRect(0, 0, 256, 256);
@@ -664,28 +691,88 @@ export function softDot(inner = 0.1, color = "255,255,255"): Texture {
 /** Four-pointed muzzle flash with a hot core. */
 export function flashTexture(): Texture {
   const [c, ctx] = canvas(128);
+  const r = rng(97);
   ctx.translate(64, 64);
-  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 40);
-  core.addColorStop(0, "rgba(255,255,235,1)");
-  core.addColorStop(0.25, "rgba(255,214,120,0.95)");
-  core.addColorStop(0.6, "rgba(255,140,40,0.4)");
-  core.addColorStop(1, "rgba(255,120,20,0)");
-  ctx.fillStyle = core;
+  // Uneven tongues of flame of different lengths, a soft orange bloom, a white-hot core.
+  const bloom = ctx.createRadialGradient(0, 0, 0, 0, 0, 58);
+  bloom.addColorStop(0, "rgba(255,190,90,0.55)");
+  bloom.addColorStop(0.5, "rgba(255,130,40,0.2)");
+  bloom.addColorStop(1, "rgba(255,110,20,0)");
+  ctx.fillStyle = bloom;
   ctx.fillRect(-64, -64, 128, 128);
-  for (let i = 0; i < 4; i++) {
+  const tongues = 7;
+  for (let i = 0; i < tongues; i++) {
     ctx.save();
-    ctx.rotate((i * Math.PI) / 2 + 0.3);
-    const g = ctx.createLinearGradient(0, 0, 60, 0);
-    g.addColorStop(0, "rgba(255,240,190,0.95)");
-    g.addColorStop(1, "rgba(255,150,40,0)");
+    ctx.rotate((i / tongues) * Math.PI * 2 + r() * 0.5);
+    const len = 30 + r() * 32;
+    const w = 5 + r() * 6;
+    const g = ctx.createLinearGradient(0, 0, len, 0);
+    g.addColorStop(0, "rgba(255,246,214,1)");
+    g.addColorStop(0.45, "rgba(255,196,96,0.85)");
+    g.addColorStop(1, "rgba(255,120,30,0)");
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.moveTo(0, -7);
-    ctx.lineTo(62, 0);
-    ctx.lineTo(0, 7);
+    ctx.moveTo(0, -w);
+    ctx.quadraticCurveTo(len * 0.5, -w * 0.7, len, (r() - 0.5) * 6);
+    ctx.quadraticCurveTo(len * 0.5, w * 0.7, 0, w);
     ctx.fill();
     ctx.restore();
   }
+  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 22);
+  core.addColorStop(0, "rgba(255,255,245,1)");
+  core.addColorStop(0.5, "rgba(255,232,170,0.8)");
+  core.addColorStop(1, "rgba(255,200,110,0)");
+  ctx.fillStyle = core;
+  ctx.fillRect(-64, -64, 128, 128);
+  return finish(c, false, false);
+}
+
+/** The muzzle flash seen from the side: a tapering jet of flame along +x from the left edge. */
+export function jetTexture(): Texture {
+  const [c, ctx] = canvas(128, 64);
+  const r = rng(113);
+  for (let i = 0; i < 5; i++) {
+    const len = 70 + r() * 56;
+    const w = 6 + r() * 12;
+    const y = 32 + (r() - 0.5) * 10;
+    const g = ctx.createLinearGradient(0, 0, len, 0);
+    g.addColorStop(0, "rgba(255,250,225,0.95)");
+    g.addColorStop(0.35, "rgba(255,206,110,0.75)");
+    g.addColorStop(1, "rgba(255,120,30,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, y - w * 0.6);
+    ctx.quadraticCurveTo(len * 0.35, y - w, len, y + (r() - 0.5) * 8);
+    ctx.quadraticCurveTo(len * 0.35, y + w, 0, y + w * 0.6);
+    ctx.fill();
+  }
+  return finish(c, false, false);
+}
+
+/** An expanding blast ring: a thin bright band, soft on the inside. */
+export function ringTexture(): Texture {
+  const S = 128;
+  const [c, ctx] = canvas(S);
+  const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0, "rgba(255,255,255,0)");
+  g.addColorStop(0.62, "rgba(255,255,255,0)");
+  g.addColorStop(0.86, "rgba(255,255,255,0.5)");
+  g.addColorStop(0.93, "rgba(255,255,255,1)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  return finish(c, false, false);
+}
+
+/** The faint line a bullet leaves in the air: even along its length, soft across. */
+export function trailTexture(): Texture {
+  const [c, ctx] = canvas(8, 16);
+  const v = ctx.createLinearGradient(0, 0, 0, 16);
+  v.addColorStop(0, "rgba(255,255,255,0)");
+  v.addColorStop(0.5, "rgba(255,255,255,1)");
+  v.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, 8, 16);
   return finish(c, false, false);
 }
 
@@ -714,10 +801,12 @@ export function holeTexture(): Texture {
 /** Tracer streak: bright core along x, fading at both ends. */
 export function streakTexture(): Texture {
   const [c, ctx] = canvas(64, 16);
+  // A long cooling tail and a white-hot head.
   const g = ctx.createLinearGradient(0, 0, 64, 0);
-  g.addColorStop(0, "rgba(255,200,120,0)");
-  g.addColorStop(0.7, "rgba(255,230,170,0.9)");
-  g.addColorStop(1, "rgba(255,255,230,1)");
+  g.addColorStop(0, "rgba(255,150,60,0)");
+  g.addColorStop(0.55, "rgba(255,196,110,0.55)");
+  g.addColorStop(0.88, "rgba(255,236,190,0.95)");
+  g.addColorStop(1, "rgba(255,255,245,1)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 16);
   const v = ctx.createLinearGradient(0, 0, 0, 16);

@@ -163,6 +163,8 @@ export function Hud({
     <div className="pointer-events-none absolute inset-0 select-none overflow-hidden text-ink-50">
       <style>{OVERLAY_CSS}</style>
       {/* Vignette + scope under everything else. */}
+      {/* Lens vignette (every tier, composited by the browser: no shader pass). */}
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at center, transparent 52%, rgb(6 8 12 / 0.38) 100%)" }} />
       <div ref={vignette} className="absolute inset-0 opacity-0" style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgb(180 20 10 / 0.55) 100%)" }} />
       <div ref={scope} className="absolute inset-0 opacity-0 transition-opacity duration-100">
         <div className="absolute inset-0" style={{ background: "radial-gradient(circle at center, transparent 0 min(34vh, 38vw), rgb(0 0 0 / 0.96) calc(min(34vh, 38vw) + 1px))" }} />

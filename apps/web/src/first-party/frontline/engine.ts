@@ -12,7 +12,7 @@
  */
 
 import {
-  ACESFilmicToneMapping,
+  CustomToneMapping,
   Color,
   DirectionalLight,
   EquirectangularReflectionMapping,
@@ -22,6 +22,7 @@ import {
   Matrix4,
   NoToneMapping,
   type Object3D,
+  type Sprite,
   PCFShadowMap,
   PerspectiveCamera,
   PMREMGenerator,
@@ -33,6 +34,7 @@ import {
   type WebGLRenderTarget,
 } from "three";
 import type { AssetPack } from "./assets";
+import { glareTexture, installGradedToneMapping, installSunFog, sunGlare } from "./atmosphere";
 import { FrontAudio } from "./audio";
 import { AvatarKit, SoldierRig } from "./avatars";
 import { PostFx } from "./post";
@@ -45,7 +47,7 @@ import { FrameGovernor, TIERS, type Tier } from "./quality";
 import type { Settings } from "./settings";
 import { AmmoFx } from "./ammofx";
 import { NadeFx } from "./nadefx";
-import { fireTexture, flashTexture, holeTexture, scorchTexture, smokeTexture, softDot, streakTexture } from "./textures";
+import { fireTexture, flashTexture, holeTexture, jetTexture, ringTexture, scorchTexture, smokeTexture, softDot, streakTexture, trailTexture } from "./textures";
 import { Vfx } from "./vfx";
 import { ViewModel } from "./viewmodel";
 import { BASE_FOV, GUN_GAME_LADDER, spreadDeg, type WeaponDef, type WeaponId } from "./weapons";
@@ -180,7 +182,8 @@ export class Engine {
     const pbr = o.pack.level !== "lo";
     this.renderer = new WebGLRenderer({ canvas: o.canvas, antialias: t.antialias, powerPreference: "high-performance", stencil: false });
     this.renderer.outputColorSpace = SRGBColorSpace;
-    this.renderer.toneMapping = t.post ? NoToneMapping : ACESFilmicToneMapping;
+    this.restoreTone = installGradedToneMapping();
+    this.renderer.toneMapping = t.post ? NoToneMapping : CustomToneMapping;
     this.renderer.toneMappingExposure = pbr ? 1.0 : 1.18;
     this.renderer.autoClear = false;
     // Count draw calls over the whole frame (world + weapon passes), not per pass.
@@ -206,11 +209,12 @@ export class Engine {
       pmrem.dispose();
       this.scene.background = sky;
       this.scene.environment = this.envTarget.texture;
-      this.scene.environmentIntensity = 0.85;
-      this.scene.backgroundIntensity = 0.85;
-      this.scene.fog = new FogExp2(0xc4c2bb, 0.0085);
-      this.hemi = new HemisphereLight(0xd6e2f2, 0x6a5f52, 0.45);
-      this.sun = new DirectionalLight(0xffd3a0, 3.3);
+      this.scene.environmentIntensity = 1.15;
+      this.scene.backgroundIntensity = 0.9;
+      this.scene.fog = new FogExp2(0xb9bcc0, 0.0095);
+      // Golden hour: a strong amber key, and shade filled by sky blue from above and warm bounce off the ground.
+      this.hemi = new HemisphereLight(0xc9d8ee, 0x9a7650, 1.5);
+      this.sun = new DirectionalLight(0xffc27e, 4.2);
     } else {
       this.scene.background = new Color(map.sky.horizon);
       this.scene.fog = new Fog(map.sky.fog, 35, t.far);
@@ -223,6 +227,15 @@ export class Engine {
     this.scene.add(this.sun, this.sun.target);
     this.configureShadows(t.shadows, t.shadowMapSize, t.shadowSoftness);
     const seasonTex = applySeasonLight(o.season, this.scene, this.hemi, this.sun);
+    // Haze that glows toward the sun (after the season has tinted the light; an overcast winter sky barely glows).
+    this.sunGlow = o.season === "winter" ? 0.3 : o.season === "spring" ? 0.8 : 1;
+    this.sunTint.copy(this.sun.color).lerp(new Color(0xffffff), 0.15);
+    const fogColor = (this.scene.fog as Fog | FogExp2).color;
+    this.restoreFog = installSunFog({ dir: this.sunDir, glow: fogColor.clone().lerp(this.sunTint, 0.75).multiplyScalar(pbr ? 1.7 : 1.15), strength: this.sunGlow });
+    const glareTex = glareTexture();
+    this.glare = sunGlare(glareTex, this.sunDir, this.sunTint, 1.4 * this.sunGlow);
+    this.glare.visible = !t.post;
+    this.scene.add(this.glare);
     this.world = buildWorld(seasonalMap(map, o.season), o.pack, { shadows: t.shadows, groundPx: o.touch || o.tier === "low" ? 12 : 22, skyline: t.skyline });
     this.scene.add(this.world.group);
     this.seasonFx = new SeasonFx(map, o.season, { budget: t.particles, reduceMotion: o.reduceMotion, shadows: t.shadows, pbr });
@@ -230,8 +243,8 @@ export class Engine {
 
     const flash = flashTexture();
     const blob = softDot(0.3, "0,0,0");
-    const fxTex = { streak: streakTexture(), dot: softDot(0.15), hole: holeTexture(), smoke: smokeTexture(), fire: fireTexture(), scorch: scorchTexture() };
-    this.textures = [flash, blob, ...Object.values(fxTex), ...seasonTex];
+    const fxTex = { streak: streakTexture(), dot: softDot(0.15), hole: holeTexture(), smoke: smokeTexture(), fire: fireTexture(), scorch: scorchTexture(), ring: ringTexture(), trail: trailTexture() };
+    this.textures = [flash, blob, glareTex, ...Object.values(fxTex), ...seasonTex];
     this.kit = new AvatarKit(blob, flash);
     this.skinKit = pbr && o.pack.soldier ? new SoldierKit(o.pack.soldier, o.pack.fabric, flash) : null;
     for (const s of this.game.soldiers) this.addRig(s, t.shadows);
@@ -241,9 +254,12 @@ export class Engine {
       const meSeat = this.game.me?.seat ?? null;
       if (holder) this.call({ kind: "crown", name: holder.name, me: holder.seat === meSeat });
     };
-    this.vm = new ViewModel(flash, pbr, this.game.season);
+    const jet = jetTexture();
+    this.textures.push(jet);
+    this.vm = new ViewModel(flash, pbr, this.game.season, jet);
     if (this.game.gunGame) this.vm.prepare(GUN_GAME_LADDER);
     if (pbr && this.envTarget) this.vm.scene.environment = this.envTarget.texture;
+    this.vm.setLightColors(this.sun.color, this.sun.intensity * (pbr ? 0.8 : 0.9), this.hemi.color, this.hemi.groundColor, this.hemi.intensity * (pbr ? 1.2 : 0.5));
     if (t.post) this.post = new PostFx(this.renderer, this.scene, this.camera, { scene: this.vm.scene, camera: this.vm.camera, visible: () => this.vmVisible });
     this.vfx = new Vfx(this.scene, fxTex, { decals: t.decals, particles: t.particles, lights: t.flashLights, ambience: t.ambience, lite: !pbr });
     if (t.ambience) this.vfx.setAmbient(map.plumes, map.fires);
@@ -264,6 +280,28 @@ export class Engine {
   }
 
   private readonly sunDir = new Vector3();
+  private readonly sunTint = new Color();
+  /** How much the sun shows through the season's sky (haze glow, glare, shafts). */
+  private sunGlow = 1;
+  private restoreFog: (() => void) | null = null;
+  private restoreTone: (() => void) | null = null;
+  private glare: Sprite;
+  /** Frames since the shadow map was drawn (tiers that redraw it every other frame). */
+  private shadowTick = 0;
+  private shadeTick = 0;
+  private inSun = 1;
+
+  /** The sun on screen for the light shafts: fades out as it leaves the view. */
+  private aimShafts(): void {
+    if (!this.post) return;
+    _v.copy(this.camera.position).addScaledVector(this.sunDir, 500).project(this.camera);
+    this.camera.getWorldDirection(_w);
+    const facing = _w.dot(this.sunDir);
+    const off = Math.max(Math.abs(_v.x), Math.abs(_v.y));
+    const k = facing <= 0.05 ? 0 : Math.min(1, (facing - 0.05) / 0.3) * Math.max(0, Math.min(1, (2.1 - off) / 0.9));
+    this.post.setSunTint(this.sunTint.r, this.sunTint.g * 0.88, this.sunTint.b * 0.7);
+    this.post.setSun(_v.x * 0.5 + 0.5, _v.y * 0.5 + 0.5, 0.85 * k * this.sunGlow);
+  }
 
   private addRig(s: Soldier, shadows: boolean): void {
     let rig: Rig;
@@ -369,7 +407,8 @@ export class Engine {
       this.post.dispose();
       this.post = null;
     }
-    this.renderer.toneMapping = this.post ? NoToneMapping : ACESFilmicToneMapping;
+    this.renderer.toneMapping = this.post ? NoToneMapping : CustomToneMapping;
+    this.glare.visible = !this.post;
     if (prev.shadows !== t.shadows || prev.shadowMapSize !== t.shadowMapSize) {
       this.renderer.shadowMap.enabled = t.shadows;
       this.configureShadows(t.shadows, t.shadowMapSize, t.shadowSoftness);
@@ -498,7 +537,13 @@ export class Engine {
   }
 
   private draw(dt: number, t: number): void {
+    // Phones redraw the sun's shadow map every other frame: nothing in it moves fast enough to show.
+    if (this.renderer.shadowMap.enabled && TIERS[this.tier].shadowEvery > 1) {
+      this.renderer.shadowMap.autoUpdate = false;
+      if (this.shadowTick++ % TIERS[this.tier].shadowEvery === 0) this.renderer.shadowMap.needsUpdate = true;
+    } else this.renderer.shadowMap.autoUpdate = true;
     if (this.post) {
+      this.aimShafts();
       this.post.render(dt, t, this.flashAmount);
     } else {
       this.renderer.setRenderTarget(null);
@@ -678,6 +723,13 @@ export class Engine {
     }
     const w = g.weapon(me);
     this.vm.setWeapon(w.id);
+    // The weapon is lit by the world's sun from where it really is, and dims when you step into shade.
+    if (this.shadeTick++ % 4 === 0) {
+      const c = this.camera.position;
+      this.inSun = raycastMap(g.world, c.x, c.y, c.z, this.sunDir.x, this.sunDir.y, this.sunDir.z, 90) ? 0 : 1;
+    }
+    _v.copy(this.sunDir).transformDirection(this.camera.matrixWorldInverse);
+    this.vm.setLight(_v, this.inSun, dt);
     const reload = me.reloadUntil > now ? (now - me.reloadStart) / Math.max(1, me.reloadUntil - me.reloadStart) : -1;
     const swap = me.swapUntil > now ? (now - me.swapStart) / Math.max(1, me.swapUntil - me.swapStart) : -1;
     const scoped = w.scope && me.ads > 0.85;
@@ -829,8 +881,10 @@ export class Engine {
       const camD = Math.hypot(mx - this.camera.position.x, mz - this.camera.position.z);
       if (camD < 45) {
         if (!w.melee) {
-          this.vfx.flash(mx, my, mz, mine ? 3.5 : 5, 55, 0xffb266);
+          this.vfx.flash(mx, my, mz, (mine ? 3.5 : 5) * (w.heavy ? 1.6 : 1), 55, 0xffb266);
           this.vfx.muzzleSmoke(mx, my, mz, !!w.heavy);
+          const aim = viewDir(s.yaw, s.pitch);
+          this.vfx.muzzleFlash(mx, my, mz, aim.x, aim.y, aim.z, !!w.heavy || w.pellets > 1, mine);
         }
         // Spent cases: not from the pump guns or the revolver (or a blade), every other one from the fast guns.
         if (!w.melee && !w.rocket && w.pellets === 1 && w.id !== "magnum" && (w.rpm < 800 || s.shotSeq % 2 === 0)) {
@@ -1166,6 +1220,9 @@ export class Engine {
     cancelAnimationFrame(this.raf);
     if (this.hiddenTimer) clearInterval(this.hiddenTimer);
     this.unvis?.();
+    this.restoreFog?.();
+    this.restoreTone?.();
+    this.glare.material.dispose();
     this.unclick?.();
     this.game.fx = null;
     this.input.dispose();
