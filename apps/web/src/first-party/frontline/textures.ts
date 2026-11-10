@@ -398,6 +398,33 @@ export function logoAtlas(): Texture {
 }
 
 /** Chain-link mesh with a little rust: alpha-tested. One repeat = 1 m. */
+/** A tuft of dry weeds: thin blades fanning up from the bottom middle (alpha-tested). */
+export function weedTexture(): Texture {
+  const [c, ctx] = canvas(128);
+  ctx.clearRect(0, 0, 128, 128);
+  const tones = ["#8f8a55", "#6f7a45", "#a39a63", "#59663a", "#b8ab72"];
+  for (let i = 0; i < 46; i++) {
+    const r = (n: number) => {
+      const x = Math.sin((i + 1) * 127.1 + n * 311.7) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    const x0 = 64 + (r(1) - 0.5) * 34;
+    const lean = (r(2) - 0.5) * 90;
+    const h = 40 + r(3) * 84;
+    ctx.strokeStyle = tones[i % tones.length]!;
+    ctx.lineWidth = 1.6 + r(4) * 2.2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x0, 128);
+    ctx.quadraticCurveTo(x0 + lean * 0.25, 128 - h * 0.6, x0 + lean, 128 - h);
+    ctx.stroke();
+  }
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
 export function fenceTexture(): Texture {
   const [c, ctx] = canvas(256);
   ctx.clearRect(0, 0, 256, 256);

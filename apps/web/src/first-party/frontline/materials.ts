@@ -113,7 +113,7 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
       // Paint takes the tint; rust keeps its own color. Vertex alpha-free: the tint is vColor.
       // Rust only where the fine mask and a coarse sample of it agree: patches, not an even speckle.
       float coarse = texture2D(map, vMapUv * 0.17 + vec2(0.37, 0.61)).a;
-      fPaint = 1.0 - (1.0 - smoothstep(0.1, 0.6, sampledDiffuseColor.a)) * smoothstep(0.45, 0.8, 1.0 - coarse);
+      fPaint = 1.0 - (1.0 - smoothstep(0.1, 0.6, sampledDiffuseColor.a)) * smoothstep(0.6, 0.88, 1.0 - coarse);
       diffuseColor.rgb = mix(sampledDiffuseColor.rgb * diffuse, diffuseColor.rgb, fPaint);
       diffuseColor.a = opacity;`,
     afterRoughness: "roughnessFactor = mix(0.92, roughnessFactor * 0.8, fPaint); metalnessFactor *= fPaint;",
@@ -149,10 +149,11 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
       diffuseColor.rgb = mix(diffuseColor.rgb, ov.rgb, ov.a);
       // Damp everywhere, darker where it's wet.
       diffuseColor.rgb *= mix(0.78, 0.36, fWet) * fAo;`,
-    afterRoughness: "roughnessFactor = mix(roughnessFactor * 0.82, 0.04, smoothstep(0.35, 0.8, fWet));",
+    // Damp asphalt glints toward a low sun; standing water is a mirror.
+    afterRoughness: "roughnessFactor = mix(roughnessFactor * 0.74, 0.04, smoothstep(0.35, 0.8, fWet));",
     afterNormal: "normal = normalize(mix(normal, nonPerturbedNormal, smoothstep(0.35, 0.75, fWet)));",
   });
-  groundMat.envMapIntensity = 1.2;
+  groundMat.envMapIntensity = 1.35;
 
   const decal = new MeshStandardMaterial({
     map: extras.logos,

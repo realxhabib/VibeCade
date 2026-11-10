@@ -28,6 +28,8 @@ export interface TierSettings {
   shadowMapSize: number;
   /** Shadow filter radius in texels (hardware PCF, Vogel disk). */
   shadowSoftness: number;
+  /** Redraw the shadow map every N frames (1 = every frame). */
+  shadowEvery: number;
   /** Fog end = draw distance (m). */
   far: number;
   /** Bullet-hole decals kept. */
@@ -45,9 +47,9 @@ export interface TierSettings {
 }
 
 export const TIERS: Record<Tier, TierSettings> = {
-  high: { dpr: 2, minDpr: 1, antialias: false, shadows: true, shadowMapSize: 4096, shadowSoftness: 2.2, far: 190, decals: 128, particles: 1, skyline: true, assets: "hi", post: true, flashLights: true, ambience: true },
-  medium: { dpr: 1.5, minDpr: 0.85, antialias: true, shadows: true, shadowMapSize: 2048, shadowSoftness: 1.6, far: 150, decals: 64, particles: 0.7, skyline: true, assets: "mid", post: false, flashLights: true, ambience: true },
-  low: { dpr: 1, minDpr: 0.6, antialias: false, shadows: false, shadowMapSize: 0, shadowSoftness: 0, far: 90, decals: 32, particles: 0.45, skyline: false, assets: "lo", post: false, flashLights: false, ambience: false },
+  high: { dpr: 2, minDpr: 1, antialias: false, shadows: true, shadowMapSize: 4096, shadowSoftness: 2.2, shadowEvery: 1, far: 190, decals: 128, particles: 1, skyline: true, assets: "hi", post: true, flashLights: true, ambience: true },
+  medium: { dpr: 1.5, minDpr: 0.85, antialias: true, shadows: true, shadowMapSize: 2048, shadowSoftness: 1.6, shadowEvery: 2, far: 150, decals: 64, particles: 0.7, skyline: true, assets: "mid", post: false, flashLights: true, ambience: true },
+  low: { dpr: 1, minDpr: 0.6, antialias: false, shadows: false, shadowMapSize: 0, shadowSoftness: 0, shadowEvery: 1, far: 90, decals: 32, particles: 0.45, skyline: false, assets: "lo", post: false, flashLights: false, ambience: false },
 };
 
 /** Whether assets loaded for `have` can render a tier that wants `want` (higher sets cover lower PBR ones, never `lo`). */

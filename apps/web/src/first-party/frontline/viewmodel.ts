@@ -20,6 +20,7 @@ import {
   AmbientLight,
   BoxGeometry,
   BufferAttribute,
+  CapsuleGeometry,
   Color,
   CylinderGeometry,
   DirectionalLight,
@@ -34,8 +35,10 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
+  Quaternion,
   Scene,
   SphereGeometry,
+  Vector3,
   type BufferGeometry,
   type Material,
   type Texture,
@@ -68,16 +71,128 @@ interface GunModel {
 
 const HIP: [number, number, number] = [0.14, -0.15, -0.42];
 
-/** Surface kinds → [roughness, metalness]. */
+type V3 = [number, number, number];
+const _ma = new Matrix4();
+const _mb = new Matrix4();
+const _va = new Vector3();
+const _vb = new Vector3();
+const _vc = new Vector3();
+const _q = new Quaternion();
+const UP = new Vector3(0, 1, 0);
+const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dist = (a: V3, b: V3): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const norm = (a: V3): V3 => {
+  const l = Math.hypot(a[0], a[1], a[2]) || 1;
+  return [a[0] / l, a[1] / l, a[2] / l];
+};
+const apply = (m: Matrix4, p: V3): V3 => {
+  _va.set(p[0], p[1], p[2]).applyMatrix4(m);
+  return [_va.x, _va.y, _va.z];
+};
+/** The transform that lays a y-axis shape (cylinder, capsule) from `a` to `b`. A fresh matrix each call. */
+function between(a: V3, b: V3): Matrix4 {
+  _vb.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize();
+  _q.setFromUnitVectors(UP, _vb);
+  return new Matrix4().makeRotationFromQuaternion(_q).setPosition((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+}
+
+/** Where the support hand holds each long gun (z along the barrel). */
+const SUPPORT: Partial<Record<WeaponId, number>> = { rpg: -0.2, smg: -0.2, shotgun: -0.36, burst: -0.3, lmg: -0.38, dmr: -0.36, autoshot: -0.3 };
+
+/**
+ * Surface kinds → [roughness, metalness, look]. `look` picks the procedural
+ * detail the shader adds (see `DETAIL`): 0 bare metal (brushed, bright worn
+ * edges), 1 polymer (stippled), 2 glove leather, 3 camo cloth, 4 wood grain,
+ * 5 none (glass).
+ */
 const SURF = {
-  steel: [0.32, 0.9],
-  parkerized: [0.55, 0.75],
-  polymer: [0.62, 0.05],
-  glove: [0.8, 0.0],
-  sleeve: [0.9, 0.0],
-  glass: [0.05, 0.2],
-  wood: [0.6, 0.0],
+  steel: [0.3, 0.92, 0],
+  parkerized: [0.46, 0.4, 0],
+  polymer: [0.58, 0.04, 1],
+  glove: [0.72, 0.0, 2],
+  sleeve: [0.92, 0.0, 3],
+  glass: [0.05, 0.2, 5],
+  wood: [0.55, 0.0, 4],
 } as const;
+
+/**
+ * What makes boxes read as a machined rifle up close, all in the one
+ * material's shader (no textures to download): a bump from 3D noise in the
+ * gun's own space (stippled polymer, brushed steel, leather grain, a cloth
+ * weave with folds), camo on the sleeves, grain in wood, and paint worn
+ * bright along every bevelled edge (found from how fast the normal turns).
+ */
+const DETAIL = {
+  vertexPars: "attribute vec3 rm; varying vec3 vRm; varying vec3 vObj;",
+  vertexMain: "vRm = rm; vObj = position;",
+  fragPars: /* glsl */ `
+    varying vec3 vRm; varying vec3 vObj;
+    float flH3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+    float flN3(vec3 x) {
+      vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mix(flH3(i), flH3(i + vec3(1, 0, 0)), f.x), mix(flH3(i + vec3(0, 1, 0)), flH3(i + vec3(1, 1, 0)), f.x), f.y),
+                 mix(mix(flH3(i + vec3(0, 0, 1)), flH3(i + vec3(1, 0, 1)), f.x), mix(flH3(i + vec3(0, 1, 1)), flH3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+    }
+    float flHeight; float flWear;
+    vec3 flBump(vec3 pos, vec3 n, float h) {
+      vec3 sx = dFdx(pos); vec3 sy = dFdy(pos);
+      vec3 r1 = cross(sy, n); vec3 r2 = cross(n, sx);
+      float det = dot(sx, r1);
+      vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+      return normalize(abs(det) * n - grad);
+    }`,
+  afterColor: /* glsl */ `
+    {
+      float look = floor(vRm.z + 0.5);
+      vec3 p = vObj;
+      flHeight = 0.0; flWear = 0.0;
+      // How sharply the surface turns here (1/m): high on bevels and corners.
+      float curv = length(fwidth(normalize(vNormal))) / max(length(fwidth(vViewPosition)), 1e-5);
+      float patchy = flN3(p * 90.0);
+      if (look < 0.5) {
+        float brushed = flN3(p * vec3(1500.0, 1500.0, 60.0));
+        flHeight = brushed * 0.00006;
+        flWear = smoothstep(90.0, 260.0, curv) * (0.2 + 0.8 * patchy * patchy);
+        diffuseColor.rgb *= 0.9 + 0.2 * flN3(p * 45.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.41, 0.4), flWear * 0.55);
+      } else if (look < 1.5) {
+        float stipple = flN3(p * 850.0);
+        flHeight = stipple * 0.00022;
+        flWear = smoothstep(60.0, 220.0, curv) * patchy * 0.5;
+        diffuseColor.rgb *= 0.88 + 0.24 * flN3(p * 30.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.9 + 0.03, flWear);
+      } else if (look < 2.5) {
+        float grain = flN3(p * 520.0) * 0.6 + flN3(p * 1300.0) * 0.4;
+        flHeight = grain * 0.0003 + flN3(p * 70.0) * 0.0006;
+        diffuseColor.rgb *= 0.8 + 0.4 * grain;
+        flWear = smoothstep(80.0, 200.0, curv) * 0.3;
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.5, flWear);
+      } else if (look < 3.5) {
+        // Camo: three earth tones in soft blotches, over a weave with folds.
+        float a = flN3(p * 13.0 + 3.7) * 0.65 + flN3(p * 31.0) * 0.35;
+        float b = flN3(p * 17.0 + 11.3);
+        vec3 camo = mix(vec3(0.028, 0.034, 0.03), vec3(0.06, 0.058, 0.045), smoothstep(0.42, 0.5, a));
+        camo = mix(camo, vec3(0.012, 0.014, 0.014), smoothstep(0.55, 0.62, b));
+        float weave = sin(p.x * 2600.0) * sin(p.z * 2600.0 + p.y * 2600.0);
+        diffuseColor.rgb = camo * (0.9 + 0.1 * weave);
+        flHeight = weave * 0.00008 + flN3(p * vec3(60.0, 60.0, 14.0)) * 0.0022;
+      } else if (look < 4.5) {
+        float grain = flN3(vec3(p.x * 160.0, p.y * 160.0, p.z * 9.0));
+        float rings = sin((p.y + grain * 0.02) * 420.0);
+        diffuseColor.rgb *= 0.72 + 0.3 * grain + 0.1 * rings;
+        flHeight = grain * 0.00012;
+      }
+    }`,
+  afterRoughness: /* glsl */ `
+    roughnessFactor = vRm.x; metalnessFactor = vRm.y;
+    {
+      float look = floor(vRm.z + 0.5);
+      if (look < 0.5) { roughnessFactor = mix(roughnessFactor + 0.12 * (flN3(vObj * 70.0) - 0.5), 0.22, flWear); metalnessFactor = mix(metalnessFactor, 1.0, flWear); }
+      else if (look < 1.5) roughnessFactor = mix(roughnessFactor + 0.1 * (flN3(vObj * 40.0) - 0.5), 0.38, flWear);
+      else if (look < 2.5) roughnessFactor -= 0.18 * flWear;
+    }`,
+  afterNormal: "normal = flBump(-vViewPosition, normal, flHeight);",
+};
 type Surf = keyof typeof SURF;
 
 export class ViewModel {
@@ -113,6 +228,32 @@ export class ViewModel {
   private tilt = 0;
   private bobT = 0;
   private readonly shared: MeshStandardMaterial | MeshLambertMaterial;
+  private readonly hemi = new HemisphereLight(0xdfe9ff, 0x6b5a45, 1.0);
+  private readonly sun = new DirectionalLight(0xffe2c0, 2.2);
+  private sunLevel = 1;
+  private sunBase = 2.2;
+
+  /**
+   * Lights the weapon like the world around it: the sun from where it really
+   * is relative to the view (`dir`, camera space: a rim along the top when you
+   * face it, full on the side when it's behind you), in the world's colors,
+   * dimmed when you stand in shade (`lit` 0…1, eased here).
+   */
+  setLight(dir: { x: number; y: number; z: number }, lit: number, dt: number): void {
+    this.sun.position.set(dir.x, dir.y, dir.z);
+    this.sunLevel += (lit - this.sunLevel) * Math.min(1, dt * 7);
+    this.sun.intensity = this.sunBase * (0.12 + 0.88 * this.sunLevel);
+    if ("envMapIntensity" in this.shared) this.shared.envMapIntensity = 0.75 + 0.35 * this.sunLevel;
+  }
+
+  /** The world's light colors (after the season's tint). */
+  setLightColors(sun: Color, sunIntensity: number, sky: Color, ground: Color, hemiIntensity: number): void {
+    this.sun.color.copy(sun);
+    this.sunBase = sunIntensity;
+    this.hemi.color.copy(sky);
+    this.hemi.groundColor.copy(ground);
+    this.hemi.intensity = hemiIntensity;
+  }
 
   /** `detail` false (low tier): plain boxes, no rail teeth / fingers / glass, Lambert shading. */
   constructor(
@@ -120,11 +261,10 @@ export class ViewModel {
     private readonly detail = true,
     private readonly season: Season | null = null,
   ) {
-    this.scene.add(new HemisphereLight(0xdfe9ff, 0x6b5a45, 1.1));
-    this.scene.add(new AmbientLight(0xffffff, 0.2));
-    const sun = new DirectionalLight(0xffe2c0, 2.2);
-    sun.position.set(0.6, 1, 0.4);
-    this.scene.add(sun);
+    this.scene.add(this.hemi);
+    this.scene.add(new AmbientLight(0xffffff, detail ? 0.2 : 0.45));
+    this.sun.position.set(0.6, 1, 0.4);
+    this.scene.add(this.sun);
     this.flashLight = new PointLight(0xffb060, 0, 2.5, 2);
     this.flashLight.position.set(0, -0.05, -0.8);
     this.scene.add(this.flashLight);
@@ -132,13 +272,7 @@ export class ViewModel {
     // One material for guns and hands: vertex colors + per-vertex roughness/metalness.
     if (detail) {
       this.shared = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 1, envMapIntensity: 0.9 });
-      patchMaterial(this.shared, {
-        key: "fl-vm",
-        vertexPars: "attribute vec2 rm; varying vec2 vRm;",
-        vertexMain: "vRm = rm;",
-        fragPars: "varying vec2 vRm;",
-        afterRoughness: "roughnessFactor = vRm.x; metalnessFactor = vRm.y;",
-      });
+      patchMaterial(this.shared, { key: "fl-vm2", ...DETAIL });
     } else {
       this.shared = new MeshLambertMaterial({ vertexColors: true });
     }
@@ -174,35 +308,42 @@ export class ViewModel {
     _col.setHex(color);
     const n = g.getAttribute("position").count;
     const col = new Float32Array(n * 3);
-    const rm = new Float32Array(n * 2);
-    const [r, m] = SURF[surf];
+    const rm = new Float32Array(n * 3);
+    const [r, m, look] = SURF[surf];
     for (let i = 0; i < n; i++) {
       col[i * 3] = _col.r;
       col[i * 3 + 1] = _col.g;
       col[i * 3 + 2] = _col.b;
-      rm[i * 2] = r;
-      rm[i * 2 + 1] = m;
+      rm[i * 3] = r;
+      rm[i * 3 + 1] = m;
+      rm[i * 3 + 2] = look;
     }
     g.setAttribute("color", new BufferAttribute(col, 3));
-    g.setAttribute("rm", new BufferAttribute(rm, 2));
+    g.setAttribute("rm", new BufferAttribute(rm, 3));
+    return g;
+  }
+
+  private placeM(geo: BufferGeometry, color: number, surf: Surf, m: Matrix4): BufferGeometry {
+    const g = this.place(geo, color, surf, 0, 0, 0);
+    g.applyMatrix4(m);
     return g;
   }
 
   private build(id: WeaponId): GunModel {
     const g = new Group();
-    const black = 0x1b1c1f;
-    const dark = 0x2b2d31;
+    const black = 0x2e2f33;
+    const dark = 0x404247;
     const steel = 0x46494e;
     const accent =
-      id === "sniper" || id === "dmr" ? 0x7a6b4b : id === "shotgun" || id === "magnum" ? 0x6b4a2e : id === "smg" || id === "mp" ? 0x2b2e33 : id === "lmg" ? 0x4a4f3a : id === "burst" ? 0x5d6166 : id === "autoshot" ? 0x3a3f46 : 0x54583f;
-    const glove = 0x2a2622;
-    const sleeve = 0x55603f;
+      id === "sniper" || id === "dmr" ? 0x5e5340 : id === "shotgun" || id === "magnum" ? 0x5a3b22 : id === "smg" || id === "mp" ? 0x25272b : id === "lmg" ? 0x3a3f30 : id === "burst" ? 0x4a4d52 : id === "autoshot" ? 0x30343a : 0x26282c;
+    const glove = 0x4d473c;
+    const sleeve = 0x3b4230;
     const parts: BufferGeometry[] = [];
     const detail = this.detail;
     const rbox = (w: number, h: number, d: number, x: number, y: number, z: number, color: number, surf: Surf, rx = 0, rad = 0.004) =>
       parts.push(this.place(detail ? new RoundedBoxGeometry(w, h, d, 2, Math.min(rad, w / 2.2, h / 2.2, d / 2.2)) : new BoxGeometry(w, h, d), color, surf, x, y, z, rx));
     const box = (w: number, h: number, d: number, x: number, y: number, z: number, color: number, surf: Surf, rx = 0) => parts.push(this.place(new BoxGeometry(w, h, d), color, surf, x, y, z, rx));
-    const cyl = (r: number, len: number, x: number, y: number, z: number, color: number, surf: Surf, seg = 14, r2 = r) => parts.push(this.place(new CylinderGeometry(r2, r, len, seg).rotateX(Math.PI / 2), color, surf, x, y, z));
+    const cyl = (r: number, len: number, x: number, y: number, z: number, color: number, surf: Surf, seg = detail ? 20 : 10, r2 = r) => parts.push(this.place(new CylinderGeometry(r2, r, len, seg).rotateX(Math.PI / 2), color, surf, x, y, z));
     const rail = (z0: number, z1: number, y: number) => {
       box(0.022, 0.007, z1 - z0, 0, y, (z0 + z1) / 2, black, "parkerized");
       if (detail) for (let z = z0 + 0.006; z < z1; z += 0.01) box(0.026, 0.005, 0.005, 0, y + 0.006, z, black, "parkerized");
@@ -222,6 +363,27 @@ export class ViewModel {
       g.add(m);
       return m;
     };
+    /** A pin or screw head showing on both sides of a `w`-wide body. */
+    const pin = (y: number, z: number, w: number, r = 0.0035) => {
+      if (detail) parts.push(this.place(new CylinderGeometry(r, r, w + 0.003, 10).rotateZ(Math.PI / 2), steel, "steel", 0, y, z));
+    };
+    /** Lightening slots down both sides (and the bottom) of a `w`-wide handguard. */
+    const slots = (z0: number, z1: number, y: number, w: number, step = 0.042) => {
+      if (!detail) return;
+      for (let z = z0; z < z1 - 0.01; z += step) {
+        rbox(w + 0.002, 0.009, 0.028, 0, y, z + 0.014, 0x0c0d0e, "polymer", 0, 0.004);
+        rbox(0.009, w + 0.002, 0.028, 0, y, z + 0.014, 0x0c0d0e, "polymer", 0, 0.004);
+      }
+    };
+    /** Trigger blade inside the guard. */
+    const trigger = (y: number, z: number) => {
+      if (detail) rbox(0.006, 0.022, 0.006, 0, y, z, steel, "steel", -0.3, 0.002);
+    };
+    /** A muzzle brake: a fat collar with dark ports cut across it. */
+    const brake = (y: number, z: number, r = 0.015, len = 0.055) => {
+      cyl(r, len, 0, y, z, black, "parkerized", 14);
+      if (detail) for (let k = -1; k <= 1; k++) box(r * 2 + 0.002, r * 0.7, 0.006, 0, y, z + k * 0.014, 0x08090a, "polymer");
+    };
     let mag: Mesh | null = null;
     let magY = 0;
     let muzzle: [number, number, number] = [0, 0.02, -0.6];
@@ -234,7 +396,10 @@ export class ViewModel {
     const front = (y0: number, top: number, z: number) => box(0.005, top - y0, 0.008, 0, (y0 + top) / 2, z, black, "parkerized");
     /** Red-dot sight at height `y` (dot center), `z` its center. */
     const redDot = (y: number, z: number) => {
-      rbox(0.036, 0.03, 0.07, 0, y - 0.034, z, black, "parkerized", 0, 0.003);
+      rbox(0.036, 0.03, 0.07, 0, y - 0.034, z, black, "parkerized", 0, 0.005);
+      rbox(0.044, 0.012, 0.03, 0, y - 0.05, z, black, "parkerized", 0, 0.003); // clamp
+      pin(y - 0.05, z, 0.046, 0.005);
+      if (detail) parts.push(this.place(new CylinderGeometry(0.007, 0.007, 0.012, 10), steel, "steel", 0.012, y - 0.014, z + 0.02)); // brightness dial
       // Hood: two posts and a top bar, glass between.
       rbox(0.006, 0.042, 0.05, -0.021, y - 0.002, z, black, "parkerized", 0, 0.002);
       rbox(0.006, 0.042, 0.05, 0.021, y - 0.002, z, black, "parkerized", 0, 0.002);
@@ -242,26 +407,40 @@ export class ViewModel {
     };
     let dotAt: [number, number] | null = null;
     if (id === "ar") {
-      rbox(0.05, 0.062, 0.3, 0, 0.003, -0.09, dark, "parkerized"); // upper receiver
-      rbox(0.046, 0.05, 0.2, 0, -0.045, -0.04, dark, "parkerized"); // lower
-      box(0.003, 0.018, 0.05, 0.026, 0.008, -0.08, black, "steel"); // ejection port
-      rbox(0.012, 0.01, 0.03, 0.02, 0.03, 0.045, steel, "steel"); // charging handle
-      rbox(0.058, 0.058, 0.23, 0, 0.004, -0.35, accent, "polymer", 0, 0.012); // handguard
-      if (detail) for (let z = -0.43; z < -0.27; z += 0.03) box(0.06, 0.012, 0.014, 0, 0.004, z, black, "polymer"); // vents
+      rbox(0.05, 0.062, 0.3, 0, 0.003, -0.09, dark, "parkerized", 0, 0.006); // upper receiver
+      rbox(0.046, 0.05, 0.2, 0, -0.045, -0.04, dark, "parkerized", 0, 0.006); // lower
+      rbox(0.05, 0.06, 0.07, 0, -0.05, -0.12, dark, "parkerized", 0, 0.007); // magazine well
+      rbox(0.004, 0.02, 0.055, 0.025, 0.006, -0.08, 0x0c0d0e, "polymer", 0, 0.002); // ejection port
+      rbox(0.005, 0.012, 0.06, 0.027, -0.008, -0.08, dark, "parkerized", 0, 0.002); // dust cover, open
+      rbox(0.014, 0.014, 0.02, 0.027, 0.002, -0.005, dark, "parkerized", 0, 0.004); // forward assist
+      rbox(0.03, 0.01, 0.03, 0, 0.03, 0.052, black, "parkerized", 0, 0.003); // charging handle
+      rbox(0.004, 0.018, 0.012, -0.025, -0.022, -0.085, steel, "steel", 0, 0.002); // bolt catch
+      pin(-0.03, -0.165, 0.046);
+      pin(-0.028, 0.035, 0.046);
+      pin(-0.05, -0.012, 0.046, 0.0028);
+      if (detail) parts.push(this.place(new CylinderGeometry(0.006, 0.006, 0.052, 10).rotateZ(Math.PI / 2), steel, "steel", 0, -0.03, 0.012)); // selector
+      rbox(0.052, 0.054, 0.25, 0, 0.004, -0.36, accent, "parkerized", 0, 0.014); // handguard
+      slots(-0.47, -0.25, 0.004, 0.052);
       rail(-0.22, 0.03, 0.037);
-      rail(-0.46, -0.25, 0.037);
-      cyl(0.011, 0.14, 0, 0.008, -0.53, black, "steel");
-      cyl(0.016, 0.05, 0, 0.008, -0.62, black, "steel", 8); // muzzle brake
-      rbox(0.04, 0.052, 0.13, 0, -0.012, 0.13, accent, "polymer", 0, 0.01); // stock
-      rbox(0.036, 0.075, 0.045, 0, -0.08, 0.03, black, "polymer", 0.28, 0.008); // grip
-      box(0.006, 0.02, 0.05, 0, -0.07, -0.02, black, "parkerized"); // trigger guard
-      mag = magBox(0.032, 0.13, 0.058, 0, -0.1, -0.12, dark, -0.12, 0.03);
-      magY = -0.1;
+      rail(-0.48, -0.25, 0.034);
+      cyl(0.0095, 0.16, 0, 0.008, -0.55, black, "steel");
+      cyl(0.013, 0.02, 0, 0.008, -0.492, black, "parkerized", 12); // gas block
+      brake(0.008, -0.635);
+      cyl(0.015, 0.16, 0, -0.004, 0.14, black, "parkerized", 14); // buffer tube
+      rbox(0.04, 0.05, 0.11, 0, -0.012, 0.16, accent, "polymer", 0, 0.012); // stock body
+      rbox(0.036, 0.085, 0.03, 0, -0.03, 0.215, accent, "polymer", 0.1, 0.01); // butt
+      rbox(0.03, 0.012, 0.09, 0, 0.022, 0.15, accent, "polymer", 0, 0.005); // cheek rest
+      rbox(0.036, 0.078, 0.044, 0, -0.082, 0.032, black, "polymer", 0.28, 0.01); // grip
+      if (detail) for (let k = 0; k < 4; k++) rbox(0.038, 0.004, 0.03, 0, -0.062 - k * 0.012, 0.043 + k * 0.0035, 0x0c0d0e, "polymer", 0.28, 0.001); // grip grooves
+      rbox(0.008, 0.005, 0.06, 0, -0.082, -0.022, black, "parkerized", 0, 0.002); // trigger guard
+      trigger(-0.062, -0.018);
+      mag = magBox(0.03, 0.14, 0.058, 0, -0.105, -0.12, 0x2c2e31, -0.12, 0.03);
+      magY = -0.105;
       sightY = 0.09;
       redDot(sightY, -0.07);
       dotAt = [sightY, -0.07];
-      front(0.037, 0.066, -0.44);
-      muzzle = [0, 0.008, -0.66];
+      rbox(0.012, 0.03, 0.014, 0, 0.052, -0.46, black, "parkerized", 0, 0.003); // folded front sight
+      muzzle = [0, 0.008, -0.67];
       adsZ = -0.26;
     } else if (id === "smg") {
       rbox(0.052, 0.07, 0.26, 0, 0, -0.07, dark, "parkerized");
@@ -468,34 +647,82 @@ export class ViewModel {
       adsZ = -0.34;
     }
     // Hands: the trigger hand on the grip, the support hand forward (pistol: both on the grip).
-    const hand = (x: number, y: number, z: number, rx: number, ry: number, fingersDown: boolean) => {
-      if (!detail) {
-        parts.push(this.place(new BoxGeometry(0.06, 0.06, 0.1), glove, "glove", x, y, z, rx, ry));
-        parts.push(this.place(new BoxGeometry(0.075, 0.075, 0.3), sleeve, "sleeve", x + Math.sin(ry) * 0.18, y - 0.06, z + 0.2, rx - 0.35, ry));
-        return;
-      }
-      parts.push(this.place(new RoundedBoxGeometry(0.058, 0.05, 0.085, 2, 0.014), glove, "glove", x, y, z, rx, ry));
-      // Four fingers wrapping around, a thumb along the side.
-      for (let i = 0; i < 4; i++) {
-        const fz = z - 0.03 + i * 0.019;
-        parts.push(this.place(new RoundedBoxGeometry(0.018, fingersDown ? 0.05 : 0.018, 0.018, 1, 0.006), glove, "glove", x - Math.sin(ry) * 0.03 - 0.028, y - (fingersDown ? 0.028 : 0), fz, rx, ry));
-      }
-      parts.push(this.place(new RoundedBoxGeometry(0.018, 0.018, 0.05, 1, 0.007), glove, "glove", x + 0.024, y + 0.012, z - 0.035, rx, ry + 0.2));
-      // Knuckle pads.
-      parts.push(this.place(new RoundedBoxGeometry(0.05, 0.012, 0.03, 1, 0.005), 0x1a1816, "polymer", x, y + 0.026, z - 0.015, rx, ry));
-      // Sleeve and cuff.
-      parts.push(this.place(new CylinderGeometry(0.043, 0.048, 0.3, 10).rotateX(Math.PI / 2), sleeve, "sleeve", x + Math.sin(ry) * 0.18, y - 0.06, z + 0.2, rx - 0.35, ry));
-      parts.push(this.place(new CylinderGeometry(0.035, 0.038, 0.035, 10).rotateX(Math.PI / 2), 0x3e4430, "sleeve", x + Math.sin(ry) * 0.05, y - 0.018, z + 0.065, rx - 0.35, ry));
+    const lite = (x: number, y: number, z: number, rx: number, ry: number) => {
+      parts.push(this.place(new BoxGeometry(0.06, 0.06, 0.1), glove, "glove", x, y, z, rx, ry));
+      parts.push(this.place(new BoxGeometry(0.075, 0.075, 0.3), sleeve, "sleeve", x + Math.sin(ry) * 0.18, y - 0.06, z + 0.2, rx - 0.35, ry));
     };
-    if (id === "knife") {
-      hand(0.0, -0.035, 0.0, 0.35, 0, true);
+    /**
+     * A gloved hand wrapped around something, built in the hand's own frame
+     * (the thing it holds runs along +y through the origin; the palm is on
+     * +x, the fingers cross in front at −z and come back on −x) and put in
+     * the gun's frame by `m`. `gx` / `gz` are how far out the palm and the fingers sit (a handguard is fatter
+     * than a pistol grip). The forearm runs from the wrist to `elbow` (gun
+     * frame), which is out of view below the screen.
+     */
+    const hand = (m: Matrix4, gx: number, gz: number, wrist: V3, elbow: V3) => {
+      const tan = 0x2a2b2e;
+      const pad = 0x17181a;
+      const seg = (a: V3, b: V3, r: number, color: number, surf: Surf) => {
+        const g = new CapsuleGeometry(r, Math.max(0.0005, dist(a, b)), 3, 8);
+        parts.push(this.placeM(g, color, surf, _mb.multiplyMatrices(m, between(a, b))));
+      };
+      const blk = (w: number, h: number, d: number, at: V3, rad: number, color: number, surf: Surf) =>
+        parts.push(this.placeM(new RoundedBoxGeometry(w, h, d, 2, rad), color, surf, _mb.multiplyMatrices(m, _ma.makeTranslation(at[0], at[1], at[2]))));
+      // Palm behind the grip, a tan back-of-hand panel, a hard knuckle guard.
+      blk(0.03, 0.086, 0.052 + gz * 0.3, [gx + 0.006, 0, 0.012], 0.012, glove, "glove");
+      blk(0.012, 0.07, 0.05, [gx + 0.021, 0.002, 0.012], 0.005, tan, "glove");
+      blk(0.014, 0.074, 0.016, [gx + 0.012, 0.0, -gz + 0.006], 0.005, pad, "polymer");
+      // Four fingers: along the palm side, across the front, back along the far side.
+      for (let i = 0; i < 4; i++) {
+        const y = 0.031 - i * 0.0205;
+        const r = i === 3 ? 0.0085 : 0.0098;
+        const reach = i === 0 || i === 3 ? 0.9 : 1;
+        seg([gx + 0.004, y, 0.0], [gx - 0.002, y, -gz], r, glove, "glove");
+        seg([gx - 0.002, y, -gz], [-gx - 0.002, y, -gz - 0.002], r, glove, "glove");
+        seg([-gx - 0.002, y, -gz - 0.002], [-gx - 0.004, y - 0.002, -gz + 0.03 * reach], r * 0.95, glove, "glove");
+        // A paler pad on each fingertip.
+        seg([-gx - 0.006, y - 0.002, -gz + 0.016 * reach], [-gx - 0.006, y - 0.002, -gz + 0.028 * reach], r * 0.8, tan, "glove");
+      }
+      // Thumb over the top and forward along the far side.
+      seg([gx + 0.004, 0.05, 0.026], [-gx + 0.002, 0.056, 0.012], 0.0112, glove, "glove");
+      seg([-gx + 0.002, 0.056, 0.012], [-gx - 0.004, 0.05, -0.022], 0.0102, glove, "glove");
+      // Wrist: cuff with a strap, then the sleeve to the elbow.
+      const w = apply(m, wrist);
+      const dir = norm(sub(elbow, w));
+      const at = (t: number): V3 => [w[0] + dir[0] * t, w[1] + dir[1] * t, w[2] + dir[2] * t];
+      const tube = (t0: number, t1: number, r0: number, r1: number, color: number, surf: Surf) =>
+        parts.push(this.placeM(new CylinderGeometry(r1, r0, t1 - t0, 14, 1), color, surf, _mb.copy(between(at(t0), at(t1)))));
+      tube(-0.02, 0.045, 0.031, 0.034, glove, "glove");
+      tube(0.012, 0.03, 0.0365, 0.0365, pad, "polymer");
+      tube(0.04, 0.075, 0.041, 0.043, sleeve, "sleeve");
+      tube(0.07, dist(elbow, w), 0.039, 0.055, sleeve, "sleeve");
+    };
+    /** The trigger hand on a grip at (x, y, z) leaning back by `slant`. */
+    const gripHand = (x: number, y: number, z: number, slant: number, elbow: V3 = [0.13, -0.34, z + 0.4]) =>
+      hand(new Matrix4().makeRotationX(slant).setPosition(x, y, z), 0.018, 0.033, [0.03, -0.035, 0.05], elbow);
+    /** The support hand under a handguard whose axis passes through (0, y, z): palm below, fingers up the near side. */
+    const underHand = (y: number, z: number, gx: number, gz: number) =>
+      hand(new Matrix4().makeBasis(_va.set(0, -1, 0), _vb.set(0.12, 0, -1).normalize(), _vc.set(1, 0, 0.12).normalize()).setPosition(0.002, y, z), gx, gz, [gx + 0.025, -0.06, 0.03], [-0.2, -0.36, z + 0.5]);
+    if (!detail) {
+      if (id === "knife") lite(0.0, -0.035, 0.0, 0.35, 0);
+      else if (id === "pistol" || id === "mp" || id === "magnum") {
+        lite(0.005, -0.06, id === "magnum" ? 0.06 : 0.03, 0.25, 0);
+        lite(-0.03, -0.07, id === "magnum" ? 0.05 : 0.02, 0.25, 0.4);
+      } else {
+        lite(0.005, -0.07, id === "burst" ? -0.11 : 0.03, 0.25, 0);
+        lite(-0.015, -0.035, SUPPORT[id] ?? -0.32, 0.1, 0.35);
+      }
+    } else if (id === "knife") {
+      gripHand(0.0, -0.03, 0.0, 0.35);
     } else if (id === "pistol" || id === "mp" || id === "magnum") {
-      hand(0.005, -0.06, id === "magnum" ? 0.06 : 0.03, 0.25, 0, true);
-      hand(-0.03, -0.07, id === "magnum" ? 0.05 : 0.02, 0.25, 0.4, true);
+      const z = id === "magnum" ? 0.05 : 0.012;
+      gripHand(0, -0.062, z, 0.25);
+      // The off hand cups the grip from the other side.
+      hand(new Matrix4().makeRotationX(0.25).multiply(_ma.makeRotationY(Math.PI * 0.86)).setPosition(-0.004, -0.07, z - 0.004), 0.022, 0.04, [0.03, -0.035, 0.05], [-0.24, -0.34, z + 0.38]);
     } else {
-      hand(0.005, -0.07, id === "burst" ? -0.11 : 0.03, 0.25, 0, true);
-      const support = id === "rpg" ? -0.2 : id === "smg" ? -0.2 : id === "shotgun" ? -0.36 : id === "burst" ? -0.3 : id === "lmg" ? -0.38 : id === "dmr" ? -0.36 : id === "autoshot" ? -0.3 : -0.32;
-      hand(-0.015, -0.035, support, 0.1, 0.35, true);
+      gripHand(0, -0.078, id === "burst" ? -0.11 : 0.03, 0.28);
+      const sz = SUPPORT[id] ?? -0.32;
+      underHand(id === "rpg" ? 0.03 : id === "shotgun" ? -0.014 : 0.004, sz, id === "rpg" ? 0.045 : 0.03, id === "rpg" ? 0.05 : id === "lmg" ? 0.041 : 0.038);
     }
     // Low detail: the red dot is just a bright bead in the one mesh (no glass, no extra draws).
     if (dotAt && !detail) box(0.003, 0.003, 0.003, 0, dotAt[0], dotAt[1] - 0.02, 0xff2a1a, "glass");
