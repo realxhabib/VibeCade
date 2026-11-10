@@ -213,7 +213,7 @@ export class Engine {
       this.scene.backgroundIntensity = 0.9;
       this.scene.fog = new FogExp2(0xb9bcc0, 0.0095);
       // Golden hour: a strong amber key, and shade filled by sky blue from above and warm bounce off the ground.
-      this.hemi = new HemisphereLight(0xc9d8ee, 0x9a7650, 1.25);
+      this.hemi = new HemisphereLight(0xc9d8ee, 0x9a7650, 1.5);
       this.sun = new DirectionalLight(0xffc27e, 4.2);
     } else {
       this.scene.background = new Color(map.sky.horizon);

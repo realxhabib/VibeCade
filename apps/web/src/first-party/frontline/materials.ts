@@ -108,13 +108,24 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
   const painted = std(pack, "painted", { vertexColors: true, metalness: 0.5 });
   patchMaterial(painted, {
     key: "fl-painted",
-    fragPars: "float fPaint;",
+    vertexPars: "varying float vPaintY;",
+    vertexMain: "vPaintY = (modelMatrix * vec4(position, 1.0)).y;",
+    fragPars: "float fPaint; varying float vPaintY;",
     afterColor: `
-      // Paint takes the tint; rust keeps its own color. Vertex alpha-free: the tint is vColor.
-      // Rust only where the fine mask and a coarse sample of it agree: patches, not an even speckle.
+      // Paint takes the tint; rust keeps its own (darkened) color. It gathers near the ground and in a few
+      // coarse patches higher up, so painted steel reads as weathered instead of camouflaged.
       float coarse = texture2D(map, vMapUv * 0.17 + vec2(0.37, 0.61)).a;
-      fPaint = 1.0 - (1.0 - smoothstep(0.1, 0.6, sampledDiffuseColor.a)) * smoothstep(0.6, 0.88, 1.0 - coarse);
-      diffuseColor.rgb = mix(sampledDiffuseColor.rgb * diffuse, diffuseColor.rgb, fPaint);
+      float wide = texture2D(map, vMapUv * 0.061 + vec2(0.11, 0.83)).a;
+      float low = 1.0 - smoothstep(0.0, 0.7, vPaintY);
+      float rustPatch = smoothstep(0.55, 0.9, 1.0 - coarse) * mix(smoothstep(0.55, 0.9, 1.0 - wide), 1.0, low);
+      float rustAmt = (1.0 - smoothstep(0.1, 0.6, sampledDiffuseColor.a)) * rustPatch;
+      fPaint = 1.0 - rustAmt;
+      vec3 rust = mix(sampledDiffuseColor.rgb, vec3(0.2, 0.1, 0.06), 0.5) * 0.5 * diffuse;
+      // Sun-faded paint: a slow change in tone across the surface.
+      // The albedo is rusty wherever its mask says so: paint over the rust we don't keep.
+      vec3 paintTex = mix(vec3(0.84), sampledDiffuseColor.rgb, sampledDiffuseColor.a);
+      diffuseColor.rgb = diffuse * vColor.rgb * paintTex * (0.92 + 0.12 * wide);
+      diffuseColor.rgb = mix(rust, diffuseColor.rgb, fPaint);
       diffuseColor.a = opacity;`,
     afterRoughness: "roughnessFactor = mix(0.92, roughnessFactor * 0.8, fPaint); metalnessFactor *= fPaint;",
   });
@@ -123,6 +134,8 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
   const planks = std(pack, "planks", { vertexColors: true, metalness: 0 });
   const plate = std(pack, "plate", { vertexColors: true });
   const cladding = std(pack, "cladding", { vertexColors: true });
+  // Mostly seen in shade at this sun angle: lifted so the ribs still read.
+  cladding.color.multiplyScalar(1.35);
 
   const asphalt = pack.mats.asphalt;
   const groundMat = new MeshStandardMaterial({ map: asphalt.albedo, normalMap: asphalt.normal, roughnessMap: asphalt.arm, aoMap: asphalt.arm, aoMapIntensity: 0.6, roughness: 1, metalness: 0 });
@@ -148,9 +161,9 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
       fAo = mk.r;
       diffuseColor.rgb = mix(diffuseColor.rgb, ov.rgb, ov.a);
       // Damp everywhere, darker where it's wet.
-      diffuseColor.rgb *= mix(0.78, 0.36, fWet) * fAo;`,
+      diffuseColor.rgb *= mix(0.78, 0.3, fWet) * fAo;`,
     // Damp asphalt glints toward a low sun; standing water is a mirror.
-    afterRoughness: "roughnessFactor = mix(roughnessFactor * 0.74, 0.04, smoothstep(0.35, 0.8, fWet));",
+    afterRoughness: "roughnessFactor = mix(roughnessFactor * 0.74, 0.09, smoothstep(0.5, 0.92, fWet));",
     afterNormal: "normal = normalize(mix(normal, nonPerturbedNormal, smoothstep(0.35, 0.75, fWet)));",
   });
   groundMat.envMapIntensity = 1.35;
