@@ -24,6 +24,7 @@ import {
   Color,
   CylinderGeometry,
   DirectionalLight,
+  DoubleSide,
   Euler,
   Group,
   HemisphereLight,
@@ -206,6 +207,9 @@ export class ViewModel {
   private readonly flash: Mesh;
   private readonly flashLight: PointLight;
   private flashUntil = 0;
+  private readonly jet = new Group();
+  /** This shot's flash size (heavier guns flash bigger; a suppressor barely does). */
+  private flashSize = 1;
   /** The off hand with a frag (grenade hold and throw). */
   private readonly nadeArm = new Group();
   private nadeHold = 0;
@@ -260,6 +264,7 @@ export class ViewModel {
     flashTex: Texture,
     private readonly detail = true,
     private readonly season: Season | null = null,
+    jetTex: Texture | null = null,
   ) {
     this.scene.add(this.hemi);
     this.scene.add(new AmbientLight(0xffffff, detail ? 0.2 : 0.45));
@@ -267,7 +272,7 @@ export class ViewModel {
     this.scene.add(this.sun);
     this.flashLight = new PointLight(0xffb060, 0, 2.5, 2);
     this.flashLight.position.set(0, -0.05, -0.8);
-    this.scene.add(this.flashLight);
+    this.root.add(this.flashLight);
     this.scene.add(this.root);
     // One material for guns and hands: vertex colors + per-vertex roughness/metalness.
     if (detail) {
@@ -285,6 +290,21 @@ export class ViewModel {
     this.flash.visible = false;
     this.flash.renderOrder = 5;
     this.root.add(this.flash);
+    // The flash from the side: two crossed jets of flame thrown forward out of the muzzle.
+    if (jetTex) {
+      const jetMat = new MeshBasicMaterial({ map: jetTex, blending: AdditiveBlending, transparent: true, depthWrite: false, side: DoubleSide, color: new Color(2.4, 1.8, 1.2) });
+      this.materials.push(jetMat);
+      const jetGeo = new PlaneGeometry(0.3, 0.13).translate(0.15, 0, 0).rotateY(Math.PI / 2);
+      this.geometries.push(jetGeo);
+      for (let i = 0; i < 2; i++) {
+        const m = new Mesh(jetGeo, jetMat);
+        m.rotation.z = (i * Math.PI) / 2;
+        m.renderOrder = 5;
+        this.jet.add(m);
+      }
+      this.jet.visible = false;
+      this.root.add(this.jet);
+    }
     // The standard loadout's guns up front; the gun game's others when `prepare` asks (or on first use).
     for (const id of STANDARD) this.gun(id);
     this.buildNadeArm();
@@ -979,10 +999,13 @@ export class ViewModel {
     this.kickRotV += 1.9 * strength;
     this.rollV += (Math.random() - 0.5) * 3 * strength;
     this.kickRot += 0.02 * strength;
-    this.flashUntil = now + 45;
+    this.flashUntil = now + 50;
     this.flash.rotation.z = Math.random() * Math.PI;
-    const s = 0.8 + Math.random() * 0.5;
+    this.flashSize = this.current === "smg" ? 0.45 : Math.min(1.9, 0.75 + strength * 0.45);
+    const s = (0.8 + Math.random() * 0.5) * this.flashSize;
     this.flash.scale.set(s, s, 1);
+    this.jet.rotation.z = Math.random() * Math.PI;
+    this.jet.scale.set(s * (0.8 + Math.random() * 0.4), s * (0.8 + Math.random() * 0.4), s * (0.7 + Math.random() * 0.7));
   }
 
   throwNade(now: number): void {
@@ -1117,7 +1140,11 @@ export class ViewModel {
     const flashing = o.now < this.flashUntil;
     this.flash.visible = flashing && !o.hideScoped;
     this.flash.position.set(gun.muzzle[0], gun.muzzle[1], gun.muzzle[2] - 0.02);
-    this.flashLight.intensity = flashing ? 1.2 : 0;
+    this.jet.visible = this.flash.visible;
+    this.jet.position.set(gun.muzzle[0], gun.muzzle[1], gun.muzzle[2]);
+    this.flashLight.position.set(gun.muzzle[0], gun.muzzle[1] + 0.02, gun.muzzle[2] + 0.12);
+    // The flash lights the gun and the hands, falling off within its 50 ms.
+    this.flashLight.intensity = flashing ? 2.4 * this.flashSize * Math.max(0.3, (this.flashUntil - o.now) / 50) : 0;
     this.root.visible = !o.hideScoped;
     // Aiming narrows the view model's FOV a touch too (feels like leaning into the sights).
     const fov = this.baseFov - 8 * ads;

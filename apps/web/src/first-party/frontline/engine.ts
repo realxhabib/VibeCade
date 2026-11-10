@@ -47,7 +47,7 @@ import { FrameGovernor, TIERS, type Tier } from "./quality";
 import type { Settings } from "./settings";
 import { AmmoFx } from "./ammofx";
 import { NadeFx } from "./nadefx";
-import { fireTexture, flashTexture, holeTexture, scorchTexture, smokeTexture, softDot, streakTexture } from "./textures";
+import { fireTexture, flashTexture, holeTexture, jetTexture, ringTexture, scorchTexture, smokeTexture, softDot, streakTexture, trailTexture } from "./textures";
 import { Vfx } from "./vfx";
 import { ViewModel } from "./viewmodel";
 import { BASE_FOV, GUN_GAME_LADDER, spreadDeg, type WeaponDef, type WeaponId } from "./weapons";
@@ -213,7 +213,7 @@ export class Engine {
       this.scene.backgroundIntensity = 0.9;
       this.scene.fog = new FogExp2(0xb9bcc0, 0.0095);
       // Golden hour: a strong amber key, and shade filled by sky blue from above and warm bounce off the ground.
-      this.hemi = new HemisphereLight(0xc9d8ee, 0x9a7650, 1.25);
+      this.hemi = new HemisphereLight(0xc9d8ee, 0x9a7650, 1.5);
       this.sun = new DirectionalLight(0xffc27e, 4.2);
     } else {
       this.scene.background = new Color(map.sky.horizon);
@@ -243,7 +243,7 @@ export class Engine {
 
     const flash = flashTexture();
     const blob = softDot(0.3, "0,0,0");
-    const fxTex = { streak: streakTexture(), dot: softDot(0.15), hole: holeTexture(), smoke: smokeTexture(), fire: fireTexture(), scorch: scorchTexture() };
+    const fxTex = { streak: streakTexture(), dot: softDot(0.15), hole: holeTexture(), smoke: smokeTexture(), fire: fireTexture(), scorch: scorchTexture(), ring: ringTexture(), trail: trailTexture() };
     this.textures = [flash, blob, glareTex, ...Object.values(fxTex), ...seasonTex];
     this.kit = new AvatarKit(blob, flash);
     this.skinKit = pbr && o.pack.soldier ? new SoldierKit(o.pack.soldier, o.pack.fabric, flash) : null;
@@ -254,7 +254,9 @@ export class Engine {
       const meSeat = this.game.me?.seat ?? null;
       if (holder) this.call({ kind: "crown", name: holder.name, me: holder.seat === meSeat });
     };
-    this.vm = new ViewModel(flash, pbr, this.game.season);
+    const jet = jetTexture();
+    this.textures.push(jet);
+    this.vm = new ViewModel(flash, pbr, this.game.season, jet);
     if (this.game.gunGame) this.vm.prepare(GUN_GAME_LADDER);
     if (pbr && this.envTarget) this.vm.scene.environment = this.envTarget.texture;
     this.vm.setLightColors(this.sun.color, this.sun.intensity * (pbr ? 0.8 : 0.9), this.hemi.color, this.hemi.groundColor, this.hemi.intensity * (pbr ? 1.2 : 0.5));
@@ -881,8 +883,10 @@ export class Engine {
       const camD = Math.hypot(mx - this.camera.position.x, mz - this.camera.position.z);
       if (camD < 45) {
         if (!w.melee) {
-          this.vfx.flash(mx, my, mz, mine ? 3.5 : 5, 55, 0xffb266);
+          this.vfx.flash(mx, my, mz, (mine ? 3.5 : 5) * (w.heavy ? 1.6 : 1), 55, 0xffb266);
           this.vfx.muzzleSmoke(mx, my, mz, !!w.heavy);
+          const aim = viewDir(s.yaw, s.pitch);
+          this.vfx.muzzleFlash(mx, my, mz, aim.x, aim.y, aim.z, !!w.heavy || w.pellets > 1, mine);
         }
         // Spent cases: not from the pump guns or the revolver (or a blade), every other one from the fast guns.
         if (!w.melee && !w.rocket && w.pellets === 1 && w.id !== "magnum" && (w.rpm < 800 || s.shotSeq % 2 === 0)) {

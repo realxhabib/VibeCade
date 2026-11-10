@@ -474,6 +474,41 @@ function container(B: PbrBufs, b: Box, seed: number, logos: boolean): void {
   }
 }
 
+/** A shipping crate: recessed plank panels inside a frame of battens, with a centre batten on wide faces. */
+function crate(B: PbrBufs, b: Box, seed: number): void {
+  const w = b.x1 - b.x0;
+  const h = b.y1 - b.y0;
+  const d = b.z1 - b.z0;
+  const t = Math.min(0.13, Math.max(0.07, Math.min(w, h, d) * 0.09));
+  const inset = 0.035;
+  // The plank albedo is a dark weathered brown: a bright, nearly neutral tint keeps crates a pale pine.
+  const v = vary(seed);
+  const base: V3 = [2.3 * v, 1.95 * v, 1.5 * v];
+  const panel: V3 = [base[0] * 0.8, base[1] * 0.78, base[2] * 0.74];
+  const frame: V3 = [base[0] * 1.05, base[1] * 1.02, base[2] * 0.96];
+  const grounded = b.y0 < 0.05;
+  const o = { scale: SCALE.planks, skipBottom: true };
+  B.planks.box(b.x0 + inset, b.y0, b.z0 + inset, b.x1 - inset, b.y1 - inset, b.z1 - inset, panel, { scale: SCALE.planks, ao: grounded ? 0.7 : 0.9, skipBottom: grounded });
+  // Corner posts.
+  for (const x of [b.x0, b.x1 - t]) for (const z of [b.z0, b.z1 - t]) B.planks.box(x, b.y0, z, x + t, b.y1, z + t, frame, o);
+  // Top and bottom rails.
+  for (const y of [b.y0, b.y1 - t]) {
+    for (const z of [b.z0, b.z1 - t]) B.planks.box(b.x0 + t, y, z, b.x1 - t, y + t, z + t, frame, o);
+    for (const x of [b.x0, b.x1 - t]) B.planks.box(x, y, b.z0 + t, x + t, y + t, b.z1 - t, frame, o);
+  }
+  // Centre battens on wide faces, and across the lid.
+  const half = t * 0.45;
+  if (w > 1.5) {
+    const xc = (b.x0 + b.x1) / 2;
+    for (const z of [b.z0 + 0.012, b.z1 - 0.012 - inset]) B.planks.box(xc - half, b.y0 + t, z, xc + half, b.y1 - t, z + inset, frame, o);
+    B.planks.box(xc - half, b.y1 - inset - 0.01, b.z0 + t, xc + half, b.y1 - 0.012, b.z1 - t, frame, o);
+  }
+  if (d > 1.5) {
+    const zc = (b.z0 + b.z1) / 2;
+    for (const x of [b.x0 + 0.012, b.x1 - 0.012 - inset]) B.planks.box(x, b.y0 + t, zc - half, x + inset, b.y1 - t, zc + half, frame, o);
+  }
+}
+
 /** Drum cluster: four 200 l drums with rims and lids. */
 function drums(B: PbrBufs, b: Box, seed: number): void {
   const colors = [0x2f5f9e, 0x2f5f9e, 0x9a3a28, 0x3b6b3a, 0x2f5f9e];
@@ -719,6 +754,7 @@ function buildPbr(map: MapDef, pack: AssetPack, opts: WorldOptions): WorldView {
     if (b.look === "wreck") return wreck(B, b);
     if (b.surface === "metal" && !b.ghost && b.x1 - b.x0 < 0.4 && b.z1 - b.z0 < 0.4 && b.y1 > 6) return lightPole(B, b);
     if (b.surface === "container") return container(B, b, seed, true);
+    if (b.surface === "wood" && !b.look && Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) <= 3.4) return crate(B, b, seed);
     const k = keyOf(b);
     const grounded = b.y0 < 0.05;
     if (grounded && b.surface === "concrete" && b.y1 >= 3 && Math.max(b.x1 - b.x0, b.z1 - b.z0) >= 4 && Math.min(b.x1 - b.x0, b.z1 - b.z0) <= 1.2) wallRuns(B, b, seed);
