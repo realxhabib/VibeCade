@@ -1,7 +1,10 @@
 /**
  * Pooled effects, a few draw calls in all:
  *
- *   tracers   camera-facing streaks flying along the bullet path (instanced)
+ *   tracers   camera-facing streaks flying along the bullet path, each with a
+ *             wide dim halo, and the faint line the round leaves in the air
+ *             for a third of a second (all instanced)
+ *   rings     a blast's shockwave racing out along the ground
  *   sparks    additive points with gravity (HDR hot, so they bloom on high)
  *   bits      heavier chips: concrete grit, wood splinters, asphalt, blood
  *   smoke     instanced billboards (normal blend, fogged): impact dust,
@@ -60,6 +63,31 @@ interface Tracer {
   speed: number;
   width: number;
 }
+
+/** The disturbed air behind a round: the whole path at once, fading. */
+interface Trail {
+  ox: number;
+  oy: number;
+  oz: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  len: number;
+  age: number;
+  life: number;
+  width: number;
+}
+
+interface Ring {
+  mesh: Mesh;
+  age: number;
+  life: number;
+  size: number;
+}
+
+const TRACERS = 48;
+const TRAILS = 40;
+const _c = new Color();
 
 interface Particle {
   x: number;
@@ -461,6 +489,8 @@ export interface VfxTextures {
   smoke: Texture;
   fire: Texture;
   scorch: Texture;
+  ring: Texture;
+  trail: Texture;
 }
 
 export interface VfxOptions {
@@ -495,6 +525,9 @@ const DUST: Record<string, [number, number, number]> = {
 export class Vfx {
   private readonly tracers: Tracer[] = [];
   private readonly tracerMesh: InstancedMesh;
+  private readonly trails: Trail[] = [];
+  private readonly trailMesh: InstancedMesh;
+  private readonly rings: Ring[] = [];
   private readonly sparks: PointPool;
   private readonly bits: PointPool;
   /** Low tier's impact dust. */
@@ -532,12 +565,35 @@ export class Vfx {
     this.geometries.push(quad);
     const tracerMat = new MeshBasicMaterial({ map: tex.streak, transparent: true, blending: AdditiveBlending, depthWrite: false, color: new Color(2.2, 1.7, 1.1) });
     this.materials.push(tracerMat);
-    this.tracerMesh = new InstancedMesh(quad, tracerMat, 48);
+    // Two instances per tracer: the streak and its halo (dimmed by the instance color).
+    this.tracerMesh = new InstancedMesh(quad, tracerMat, TRACERS * 2);
     this.tracerMesh.instanceMatrix.setUsage(DynamicDrawUsage);
     this.tracerMesh.count = 0;
     this.tracerMesh.frustumCulled = false;
     this.tracerMesh.renderOrder = 4;
+    for (let i = 0; i < TRACERS * 2; i++) this.tracerMesh.setColorAt(i, _c.setRGB(1, 1, 1));
     scene.add(this.tracerMesh);
+    const trailMat = new MeshBasicMaterial({ map: tex.trail, transparent: true, blending: AdditiveBlending, depthWrite: false });
+    this.materials.push(trailMat);
+    this.trailMesh = new InstancedMesh(quad, trailMat, TRAILS);
+    this.trailMesh.instanceMatrix.setUsage(DynamicDrawUsage);
+    this.trailMesh.count = 0;
+    this.trailMesh.frustumCulled = false;
+    this.trailMesh.renderOrder = 3;
+    for (let i = 0; i < TRAILS; i++) this.trailMesh.setColorAt(i, _c.setRGB(0, 0, 0));
+    scene.add(this.trailMesh);
+    // Shockwave rings (flat on the ground, additive).
+    const ringGeo = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    this.geometries.push(ringGeo);
+    for (let i = 0; i < 3; i++) {
+      const mat = new MeshBasicMaterial({ map: tex.ring, transparent: true, blending: AdditiveBlending, depthWrite: false, color: new Color(0, 0, 0) });
+      this.materials.push(mat);
+      const mesh = new Mesh(ringGeo, mat);
+      mesh.visible = false;
+      mesh.renderOrder = 3;
+      scene.add(mesh);
+      this.rings.push({ mesh, age: 1, life: 1, size: 1 });
+    }
     this.sparks = new PointPool(260, tex.dot, 0.055, true);
     this.bits = new PointPool(220, tex.dot, 0.045, false);
     scene.add(this.sparks.points, this.bits.points);
@@ -630,8 +686,31 @@ export class Vfx {
     const dz = to.z - from.z;
     const len = Math.hypot(dx, dy, dz);
     if (len < 1.5) return;
-    if (this.tracers.length >= 48) this.tracers.shift();
+    if (this.tracers.length >= TRACERS) this.tracers.shift();
     this.tracers.push({ ox: from.x, oy: from.y, oz: from.z, dx: dx / len, dy: dy / len, dz: dz / len, len, t: 0, speed: 380 + Math.random() * 60, width });
+    if (this.lite || len < 4) return;
+    if (this.trails.length >= TRAILS) this.trails.shift();
+    this.trails.push({ ox: from.x, oy: from.y, oz: from.z, dx: dx / len, dy: dy / len, dz: dz / len, len, age: 0, life: width > 0.05 ? 0.6 : 0.32, width: width * 0.55 });
+  }
+
+  /**
+   * The flash at someone's muzzle, seen from outside: a white-hot burst, a
+   * tongue of flame thrown forward, and a few sparks of unburnt powder.
+   * `own` (your gun: the first-person flash is drawn with the weapon) keeps
+   * only the sparks.
+   */
+  muzzleFlash(x: number, y: number, z: number, dx: number, dy: number, dz: number, big = false, own = false): void {
+    const k = big ? 1.6 : 1;
+    if (!own) {
+      this.glow.spawn({ x, y, z, vx: 0, vy: 0, vz: 0, life: 0.05, size0: 0.55 * k, size1: 0.3 * k, rot: Math.random() * 6, spin: 0, r: 5, g: 3.6, b: 2, a: 1, fadeIn: 0.01, drag: 0, lift: 0, hot: false });
+      if (!this.lite) this.glow.spawn({ x: x + dx * 0.18, y: y + dy * 0.18, z: z + dz * 0.18, vx: dx * 7, vy: dy * 7, vz: dz * 7, life: 0.07, size0: 0.32 * k, size1: 0.12, rot: Math.random() * 6, spin: 0, r: 4, g: 2.4, b: 1, a: 0.9, fadeIn: 0.01, drag: 10, lift: 0, hot: false });
+    }
+    if (this.lite) return;
+    const sparks = Math.ceil((big ? 5 : 2) * this.scale * (Math.random() + 0.3));
+    for (let i = 0; i < sparks; i++) {
+      const sp = 9 + Math.random() * 14;
+      this.sparks.spawn({ x, y, z, vx: dx * sp + (Math.random() - 0.5) * 4, vy: dy * sp + (Math.random() - 0.5) * 4, vz: dz * sp + (Math.random() - 0.5) * 4, life: 0.06 + Math.random() * 0.12, r: 3.4, g: 2.2, b: 0.9, a: 1, grav: 4, drag: 5 });
+    }
   }
 
   /** A little gray wisp at the muzzle after a shot. */
@@ -689,7 +768,24 @@ export class Vfx {
       const out = 0.5 + Math.random() * 0.9;
       this.smoke.spawn({ x: i.x + i.nx * 0.05, y: i.y + i.ny * 0.05, z: i.z + i.nz * 0.05, vx: i.nx * out + (Math.random() - 0.5) * 0.4, vy: i.ny * out + Math.random() * 0.3, vz: i.nz * out + (Math.random() - 0.5) * 0.4, life: 0.9 + Math.random() * 0.8, size0: 0.08, size1: hard ? 0.5 : 0.8 + Math.random() * 0.4, rot: Math.random() * 6, spin: (Math.random() - 0.5), r: dr, g: dg, b: db, a: hard ? 0.35 : 0.55, fadeIn: 0.06, drag: 3, lift: 0.15, hot: false });
     }
-    if (hard) this.glow.spawn({ x: i.x + i.nx * 0.02, y: i.y + i.ny * 0.02, z: i.z + i.nz * 0.02, vx: 0, vy: 0, vz: 0, life: 0.06, size0: 0.25, size1: 0.12, rot: Math.random() * 6, spin: 0, r: 3, g: 2.2, b: 1.2, a: 1, fadeIn: 0.01, drag: 0, lift: 0, hot: false });
+    // Every hit pops: a white flash on steel, a duller one on stone and wood.
+    this.glow.spawn({ x: i.x + i.nx * 0.02, y: i.y + i.ny * 0.02, z: i.z + i.nz * 0.02, vx: 0, vy: 0, vz: 0, life: hard ? 0.07 : 0.05, size0: hard ? 0.34 : 0.18, size1: 0.1, rot: Math.random() * 6, spin: 0, r: hard ? 3.6 : 1.6, g: hard ? 2.6 : 1.2, b: hard ? 1.4 : 0.8, a: 1, fadeIn: 0.01, drag: 0, lift: 0, hot: false });
+    if (hard) {
+      // The struck spot glows for a moment as it cools.
+      this.glow.spawn({ x: i.x + i.nx * 0.012, y: i.y + i.ny * 0.012, z: i.z + i.nz * 0.012, vx: 0, vy: 0, vz: 0, life: 0.55, size0: 0.09, size1: 0.05, rot: 0, spin: 0, r: 3, g: 1.5, b: 0.5, a: 0.9, fadeIn: 0.02, drag: 0, lift: 0, hot: true });
+      // Now and then the round skips off: a short streak leaving the surface.
+      if (Math.random() < 0.3 * n) {
+        const rx = i.nx + (Math.random() - 0.5) * 1.6;
+        const ry = i.ny + Math.random() * 0.7;
+        const rz = i.nz + (Math.random() - 0.5) * 1.6;
+        const rl = Math.hypot(rx, ry, rz) || 1;
+        const reach = 5 + Math.random() * 9;
+        if (this.tracers.length < TRACERS) this.tracers.push({ ox: i.x, oy: i.y, oz: i.z, dx: rx / rl, dy: ry / rl, dz: rz / rl, len: reach, t: 0, speed: 140 + Math.random() * 60, width: 0.02 });
+      }
+    } else {
+      // Stone and wood throw a quick jet of dust straight off the face.
+      this.smoke.spawn({ x: i.x + i.nx * 0.06, y: i.y + i.ny * 0.06, z: i.z + i.nz * 0.06, vx: i.nx * 3.2, vy: i.ny * 3.2 + 0.2, vz: i.nz * 3.2, life: 0.5, size0: 0.06, size1: 0.55, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 2, r: dr * 1.15, g: dg * 1.15, b: db * 1.15, a: 0.6, fadeIn: 0.04, drag: 5, lift: 0.1, hot: false });
+    }
     this.decal(i);
   }
 
@@ -715,6 +811,27 @@ export class Vfx {
     this.flash(x, y + 0.6, z, 60, 260, 0xffb070);
     // Core flash.
     this.glow.spawn({ x, y: y + 0.4, z, vx: 0, vy: 0, vz: 0, life: 0.14, size0: 3.5, size1: 6, rot: Math.random() * 6, spin: 0, r: 6, g: 5, b: 3.5, a: 1, fadeIn: 0.05, drag: 0, lift: 0, hot: false });
+    // The shockwave: a bright ring racing out along the ground.
+    const ring = this.rings.reduce((a, b) => (a.age / a.life > b.age / b.life ? a : b));
+    ring.age = 0;
+    ring.life = 0.42;
+    ring.size = 15;
+    ring.mesh.position.set(x, Math.max(0.05, y - 0.2), z);
+    ring.mesh.rotation.y = Math.random() * 6;
+    ring.mesh.visible = true;
+    if (!this.lite) {
+      // Burning fragments arcing out, slow to die, and a few flames left licking at the crater.
+      for (let k = 0; k < Math.ceil(16 * n); k++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 3 + Math.random() * 6;
+        this.sparks.spawn({ x, y: y + 0.4, z, vx: Math.cos(a) * sp, vy: 5 + Math.random() * 7, vz: Math.sin(a) * sp, life: 1.1 + Math.random() * 1.1, r: 3.6, g: 1.6, b: 0.4, a: 1, grav: 9, drag: 0.5 });
+      }
+      for (let k = 0; k < Math.ceil(7 * n); k++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.random() * 1.3;
+        this.glow.spawn({ x: x + Math.cos(a) * d, y: Math.max(0.15, y - 0.1), z: z + Math.sin(a) * d, vx: 0, vy: 0.5 + Math.random() * 0.5, vz: 0, life: 0.9 + Math.random() * 1.1, size0: 0.7, size1: 0.2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 2, r: 3.2, g: 2, b: 0.9, a: 0.8, fadeIn: 0.3, drag: 1, lift: 0.8, hot: true });
+      }
+    }
     // Fireball: hot billows pushed out and up.
     for (let k = 0; k < Math.ceil(14 * n); k++) {
       const a = Math.random() * Math.PI * 2;
@@ -815,6 +932,18 @@ export class Vfx {
         this.tracers.splice(i, 1);
       }
     }
+    /** Lays the unit quad along a path segment centred at `_p` (axis in `_x`), turned to face the camera. */
+    const lay = (len: number, width: number): boolean => {
+      _z.copy(_cam).sub(_p);
+      _y.crossVectors(_z, _x).normalize();
+      if (_y.lengthSq() < 1e-6) return false;
+      _z.crossVectors(_x, _y).normalize();
+      _m.makeBasis(_x, _y, _z);
+      _q.setFromRotationMatrix(_m);
+      _s.set(len, width, 1);
+      _m.compose(_p, _q, _s);
+      return true;
+    };
     for (const t of this.tracers) {
       const head = Math.min(t.len, t.t);
       const tail = Math.max(0, t.t - 7);
@@ -822,23 +951,58 @@ export class Vfx {
       if (seg <= 0.05) continue;
       const mid = (head + tail) / 2;
       _p.set(t.ox + t.dx * mid, t.oy + t.dy * mid, t.oz + t.dz * mid);
-      // Billboard around the tracer's axis.
       _x.set(t.dx, t.dy, t.dz);
-      _z.copy(_cam).sub(_p);
-      _y.crossVectors(_z, _x).normalize();
-      if (_y.lengthSq() < 1e-6) continue;
-      _z.crossVectors(_x, _y).normalize();
-      _m.makeBasis(_x, _y, _z);
-      _q.setFromRotationMatrix(_m);
-      const dist = _p.distanceTo(_cam);
-      _s.set(seg, t.width * Math.max(1, dist * 0.06), 1);
-      _m.compose(_p, _q, _s);
+      const w = t.width * Math.max(1, _p.distanceTo(_cam) * 0.06);
+      if (!lay(seg, w)) continue;
+      this.tracerMesh.setColorAt(n, _c.setRGB(1, 1, 1));
       this.tracerMesh.setMatrixAt(n++, _m);
-      if (n >= 48) break;
+      // Halo: the same streak, four times as wide and dim.
+      if (!this.lite && lay(seg, w * 4.5)) {
+        this.tracerMesh.setColorAt(n, _c.setRGB(0.2, 0.11, 0.04));
+        this.tracerMesh.setMatrixAt(n++, _m);
+      }
+      if (n >= TRACERS * 2 - 1) break;
     }
     this.tracerMesh.count = n;
     this.tracerMesh.visible = n > 0;
     this.tracerMesh.instanceMatrix.needsUpdate = true;
+    if (this.tracerMesh.instanceColor) this.tracerMesh.instanceColor.needsUpdate = true;
+    // Trails: the whole path behind the round, thinning out.
+    let tn = 0;
+    for (let i = this.trails.length - 1; i >= 0; i--) {
+      const t = this.trails[i]!;
+      t.age += dt;
+      if (t.age >= t.life) this.trails.splice(i, 1);
+    }
+    for (const t of this.trails) {
+      // It only exists where the round has already been.
+      const reached = Math.min(t.len, t.age * 400);
+      if (reached < 1) continue;
+      _p.set(t.ox + (t.dx * reached) / 2, t.oy + (t.dy * reached) / 2, t.oz + (t.dz * reached) / 2);
+      _x.set(t.dx, t.dy, t.dz);
+      const k = 1 - t.age / t.life;
+      if (!lay(reached, t.width * (1 + (1 - k) * 2.5) * Math.max(1, _p.distanceTo(_cam) * 0.04))) continue;
+      const f = 0.22 * k * k;
+      this.trailMesh.setColorAt(tn, _c.setRGB(f, f * 0.92, f * 0.8));
+      this.trailMesh.setMatrixAt(tn++, _m);
+    }
+    this.trailMesh.count = tn;
+    this.trailMesh.visible = tn > 0;
+    this.trailMesh.instanceMatrix.needsUpdate = true;
+    if (this.trailMesh.instanceColor) this.trailMesh.instanceColor.needsUpdate = true;
+    for (const r of this.rings) {
+      if (!r.mesh.visible) continue;
+      r.age += dt;
+      const k = r.age / r.life;
+      if (k >= 1) {
+        r.mesh.visible = false;
+        continue;
+      }
+      // Fast at first, slowing as it spreads.
+      r.mesh.scale.setScalar(r.size * (1 - (1 - k) * (1 - k)) + 0.5);
+      const f = (1 - k) * (1 - k) * 2.2;
+      (r.mesh.material as MeshBasicMaterial).color.setRGB(f, f * 0.8, f * 0.55);
+    }
     this.decals.visible = this.decalCount > 0;
     this.sparks.update(dt);
     this.bits.update(dt);
@@ -867,9 +1031,10 @@ export class Vfx {
     this.puffs?.points.removeFromParent();
     this.smoke.dispose();
     this.glow.dispose();
+    this.trailMesh.dispose();
     this.casings.mesh.dispose();
     this.debris.mesh.dispose();
-    for (const o of [this.tracerMesh, this.decals, this.scorches, this.sparks.points, this.bits.points, this.smoke.mesh, this.glow.mesh, this.casings.mesh, this.debris.mesh]) o.removeFromParent();
+    for (const o of [this.tracerMesh, this.trailMesh, ...this.rings.map((r) => r.mesh), this.decals, this.scorches, this.sparks.points, this.bits.points, this.smoke.mesh, this.glow.mesh, this.casings.mesh, this.debris.mesh]) o.removeFromParent();
     for (const l of this.lights) l.light.removeFromParent();
     this.fireLight?.removeFromParent();
   }
