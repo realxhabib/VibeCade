@@ -14,14 +14,14 @@ describe("match options", () => {
   });
 
   it("reads and clamps the host's choices", () => {
-    expect(parseOptions({ min: 10, kills: 30, season: "winter" })).toEqual({ minutes: 10, kills: 30, season: "winter", mode: "standard" });
+    expect(parseOptions({ min: 10, kills: 30, season: "winter" })).toEqual({ minutes: 10, kills: 30, season: "winter", mode: "standard", map: "saltyard" });
     expect(parseOptions({ min: 500, kills: 900 })).toMatchObject({ minutes: 30, kills: 200 });
     expect(parseOptions({ min: 0.2, kills: -4 })).toMatchObject({ minutes: 1, kills: 1 });
     expect(parseOptions({ kills: 0 }).kills).toBe(0);
   });
 
   it("round-trips through the settings blob", () => {
-    const o = { minutes: 15, kills: 0, season: "autumn" as const, mode: "standard" as const };
+    const o = { minutes: 15, kills: 0, season: "autumn" as const, mode: "standard" as const, map: "saltyard" as const };
     expect(parseOptions(toSettings(o))).toEqual(o);
     expect(toSettings(DEFAULT_OPTIONS)).toEqual({});
     expect(toSettings({ ...DEFAULT_OPTIONS, minutes: 7 })).toEqual({});
@@ -44,8 +44,21 @@ describe("match options", () => {
 
   it("summarizes for the challenge card", () => {
     expect(optionsSummary(DEFAULT_OPTIONS)).toBe("7 min");
-    expect(optionsSummary({ minutes: 10, kills: 30, season: "winter", mode: "standard" })).toBe("10 min · first to 30 · ❄️ Winter");
-    expect(optionsSummary({ minutes: 5, kills: 30, season: "auto", mode: "gungame" })).toBe("Gun game · 5 min");
+    expect(optionsSummary({ minutes: 10, kills: 30, season: "winter", mode: "standard", map: "saltyard" })).toBe("10 min · first to 30 · ❄️ Winter");
+    expect(optionsSummary({ minutes: 5, kills: 30, season: "auto", mode: "gungame", map: "saltyard" })).toBe("Gun game · 5 min");
+  });
+
+  it("carries the map: settings, summary, and a started match's document", () => {
+    expect(parseOptions({ map: "ironwake" }).map).toBe("ironwake");
+    expect(parseOptions({ map: "atlantis" }).map).toBe("saltyard");
+    expect(parseOptions({ map: "toString" }).map).toBe("saltyard");
+    expect(toSettings({ ...DEFAULT_OPTIONS, map: "ironwake" })).toEqual({ map: "ironwake" });
+    expect(optionsSummary({ ...DEFAULT_OPTIONS, map: "ironwake" })).toBe("Ironwake · 7 min");
+    expect(optionsFrom({ pre: { map: "ironwake" } }, {}).map).toBe("ironwake");
+    expect(optionsFrom(newDoc(0, 0, 2, { m: "ironwake" }), {}).map).toBe("ironwake");
+    // A match that started before maps could be picked has none in its document.
+    expect(optionsFrom(newDoc(0, 0, 2), { map: "ironwake" }).map).toBe("saltyard");
+    expect(parseDoc(JSON.parse(JSON.stringify(newDoc(0, 0, 2, { m: "ironwake" }))))?.m).toBe("ironwake");
   });
 
   it("follows the calendar when the host leaves the season on auto", () => {
@@ -61,11 +74,11 @@ describe("match options", () => {
 describe("options in the shared state", () => {
   it("prefers the host's loadout-screen picks, then the challenge settings", () => {
     expect(optionsFrom(null, { min: 10 })).toMatchObject({ minutes: 10 });
-    expect(optionsFrom({ pre: { min: 3, kills: 0, season: "winter" } }, { min: 10 })).toEqual({ minutes: 3, kills: 0, season: "winter", mode: "standard" });
+    expect(optionsFrom({ pre: { min: 3, kills: 0, season: "winter" } }, { min: 10 })).toEqual({ minutes: 3, kills: 0, season: "winter", mode: "standard", map: "saltyard" });
   });
   it("reads a started match from its document (a reconnect keeps the same season)", () => {
     const doc = newDoc(0, 0, 2, { ...docOverrides(parseOptions({ min: 15, kills: 0 })), s: "spring" });
-    expect(optionsFrom(doc, {})).toEqual({ minutes: 15, kills: 0, season: "spring", mode: "standard" });
+    expect(optionsFrom(doc, {})).toEqual({ minutes: 15, kills: 0, season: "spring", mode: "standard", map: "saltyard" });
   });
   it("a started gun game reads back as gun game", () => {
     const doc = newDoc(0, 0, 4, docOverrides(parseOptions({ mode: "gungame", kills: 5 })));
@@ -84,7 +97,7 @@ describe("gun game", () => {
   it("is a host option that round-trips through the settings blob", () => {
     expect(parseOptions({ mode: "gungame" }).mode).toBe("gungame");
     expect(parseOptions({ mode: "zombies" }).mode).toBe("standard");
-    expect(toSettings({ ...DEFAULT_OPTIONS, mode: "gungame" })).toEqual({ mode: "gungame" });
+    expect(toSettings({ ...DEFAULT_OPTIONS, mode: "gungame", map: "saltyard" })).toEqual({ mode: "gungame" });
     expect(parseOptions(toSettings({ ...DEFAULT_OPTIONS, mode: "gungame", minutes: 10 }))).toEqual({ ...DEFAULT_OPTIONS, mode: "gungame", minutes: 10 });
   });
 
@@ -92,14 +105,14 @@ describe("gun game", () => {
     const ffa = newDoc(0, 0, 6, docOverrides(parseOptions({ mode: "gungame", kills: 50 })));
     expect(ffa.gg).toBe(1);
     expect(ffa.lim).toBe(GUN_GAME_LADDER.length);
-    const teams = newDoc(0, 2, 6, docOverrides(parseOptions({ mode: "gungame" })));
+    const teams = newDoc(0, 2, 6, docOverrides(parseOptions({ mode: "gungame", map: "saltyard" })));
     expect(teams.gg).toBe(3);
     expect(teams.lim).toBe(GUN_GAME_LADDER.length * 3);
     expect(newDoc(0, 0, 4).gg).toBeUndefined();
   });
 
   it("ends on the kill made with the last weapon", () => {
-    let doc = newDoc(0, 0, 2, docOverrides(parseOptions({ mode: "gungame" })));
+    let doc = newDoc(0, 0, 2, docOverrides(parseOptions({ mode: "gungame", map: "saltyard" })));
     for (let life = 0; life < GUN_GAME_LADDER.length - 1; life++) doc = applyKill(doc, [1, life, 0, 0, 0, 10] as KillRec, 1)!;
     expect(doc.end).toBeNull();
     expect(gunGameWeapon(GUN_GAME_LADDER.length - 1, 1)).toBe("knife");

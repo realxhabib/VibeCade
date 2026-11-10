@@ -14,7 +14,7 @@
 
 import { BotBrain, botLevel, botSkill, botWeapon, type BotEnemy } from "./bots";
 import { GRENADE_WEAPON, NADES_PER_LIFE, NADE_FUSE_MS, aimNade, blastOn, rocketFlight, rocketMs, simulateNade, throwStart, validateBlast, type NadeFlight } from "./grenade";
-import type { MapDef } from "./map";
+import { MAPS, isMapId, type MapDef } from "./map";
 import { buildNav, type NavGraph } from "./nav";
 import { SEASONS, SEASON_RULES, type Season, type SeasonRules } from "./options";
 import { THROWABLES, type Throwable } from "./throwables";
@@ -417,9 +417,11 @@ export class Game {
   private firstBloodSeen = false;
 
   constructor(o: GameOptions) {
-    this.map = o.map;
-    this.world = new CollisionWorld(o.map.boxes, o.map.bounds);
-    this.nav = buildNav(o.map, this.world);
+    // A match already under way keeps the map it started on.
+    const startedOn = parseDoc(o.initialState)?.m;
+    this.map = isMapId(startedOn) ? MAPS[startedOn] : o.map;
+    this.world = new CollisionWorld(this.map.boxes, this.map.bounds);
+    this.nav = buildNav(this.map, this.world);
     this.meId = o.spectator ? null : o.meId;
     this.spectator = o.spectator;
     this.simAll = o.simAll;
@@ -459,7 +461,7 @@ export class Game {
     this.me = this.meId ? (this.byId.get(this.meId) ?? null) : null;
 
     const fromState = parseDoc(o.initialState);
-    this.doc = fromState ?? newDoc(Date.now(), this.teams, seats.length, { ...o.docOverrides, s: this.season });
+    this.doc = fromState ?? newDoc(Date.now(), this.teams, seats.length, { ...o.docOverrides, s: this.season, m: this.map.id });
     this.docShared = !!fromState;
     if (fromState) {
       mergeKills(this.kills, fromState.k);
@@ -472,7 +474,7 @@ export class Game {
       s.life = this.deathsOf(s.seat);
       this.spawn(s, !fromState || (fromState.k.length === 0 && Date.now() - fromState.t0 < 10_000));
     }
-    if (!fromState && this.transport.canWrite) this.initDoc({ ...o.docOverrides, s: this.season });
+    if (!fromState && this.transport.canWrite) this.initDoc({ ...o.docOverrides, s: this.season, m: this.map.id });
     if (this.me) this.log = this.logFromLedger(this.me.seat);
   }
 
@@ -623,7 +625,7 @@ export class Game {
   /* Shared doc                                                             */
   /* ---------------------------------------------------------------------- */
 
-  private initDoc(overrides?: { dur?: number; lim?: number; s?: string; gg?: boolean }): void {
+  private initDoc(overrides?: { dur?: number; lim?: number; s?: string; m?: string; gg?: boolean }): void {
     const seats = this.soldiers.length;
     this.transport
       .update((raw) => (parseDoc(raw) ? undefined : newDoc(Date.now(), this.teams, seats, overrides)))

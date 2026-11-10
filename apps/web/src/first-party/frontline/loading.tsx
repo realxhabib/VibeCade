@@ -7,7 +7,7 @@
 
 import { motion, useReducedMotion } from "motion/react";
 
-export function FrontlineLoading({ label = "Deploying to Saltyard", progress }: { label?: string; progress?: number }) {
+export function FrontlineLoading({ label = "Deploying", progress }: { label?: string; progress?: number }) {
   const reduce = useReducedMotion();
   return (
     <div className="m-auto flex flex-col items-center gap-5 px-6 text-center">

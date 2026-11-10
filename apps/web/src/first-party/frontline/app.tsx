@@ -17,7 +17,7 @@ import { useMediaQuery } from "@/first-party/shared/hooks";
 import { ease } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { GunGameLadder, LoadoutPicker, PerkPicker } from "./loadout";
-import { MAPS, DEFAULT_MAP } from "./map";
+import { MAPS, isMapId, type MapId } from "./map";
 import { MatchView } from "./match";
 import { newDoc } from "./rules";
 import { DEFAULT_OPTIONS, SEASON_ICON, SEASON_LABEL, SEASON_TWIST, docOverrides, limitLabel, minutesOf, optionsFrom, parseOptions, resolveSeason, type MatchOptions, type SeasonChoice } from "./options";
@@ -33,14 +33,16 @@ import { TEAM_COLORS } from "./avatars";
 const AUTO_READY_S = 40;
 const ignore = () => {};
 
-/** Dev only: try a season without setting up a challenge (`localStorage["frontline:debug"] = '{"season":"winter"}'`). */
-function debugSeason(): SeasonChoice | null {
-  if (process.env.NODE_ENV === "production") return null;
+/** Dev only: try a season or a map without setting up a challenge (`localStorage["frontline:debug"] = '{"season":"winter","map":"ironwake"}'`). */
+function debugPicks(): { season: SeasonChoice | null; map: MapId | null } {
+  if (process.env.NODE_ENV === "production") return { season: null, map: null };
   try {
-    const season = parseOptions(JSON.parse(window.localStorage.getItem("frontline:debug") ?? "{}")).season;
-    return season === "auto" ? null : season;
+    const raw: unknown = JSON.parse(window.localStorage.getItem("frontline:debug") ?? "{}");
+    const season = parseOptions(raw).season;
+    const map = (raw as { map?: unknown } | null)?.map;
+    return { season: season === "auto" ? null : season, map: isMapId(map) ? map : null };
   } catch {
-    return null;
+    return { season: null, map: null };
   }
 }
 
@@ -64,8 +66,9 @@ export function FrontlineApp() {
   // The host's choices (challenge setup, or the loadout screen): time and kill limits, and the season.
   const { state } = useMatchState();
   const options = optionsFrom(state, xapps.match.settings);
-  const [debug] = useState(debugSeason);
-  const season = resolveSeason(debug ?? options.season);
+  const [debug] = useState(debugPicks);
+  const season = resolveSeason(debug.season ?? options.season);
+  const mapId = debug.map ?? options.map;
   const humans = players.filter((p) => !p.isBot);
   const hostSeat = humans.length ? Math.min(...humans.map((p) => p.seat)) : -1;
   const isHost = !isSpectator && me.seat === hostSeat;
@@ -136,7 +139,7 @@ export function FrontlineApp() {
     return () => clearInterval(id);
   }, [locked, started, isSpectator, others, xapps]);
 
-  const map = MAPS[DEFAULT_MAP];
+  const map = MAPS[mapId];
   // The X post's card (and phones): everything on one screen, Deploy always in view.
   const small = useMediaQuery("(max-height: 600px), (max-width: 480px)");
   const [touch] = useState(() => isTouchDevice());
@@ -146,7 +149,7 @@ export function FrontlineApp() {
       <AnimatePresence mode="wait">
         {started ? (
           <motion.div key="match" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-            <MatchView settings={settings} onSettings={update} season={season} />
+            <MatchView settings={settings} onSettings={update} season={season} map={mapId} />
           </motion.div>
         ) : (
           <motion.div

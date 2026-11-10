@@ -7,7 +7,7 @@
  */
 
 import { CanvasTexture, ClampToEdgeWrapping, LinearMipmapLinearFilter, RepeatWrapping, SRGBColorSpace, type Texture } from "three";
-import type { MapDef } from "./map";
+import { SHIP_FORECASTLE_X, SHIP_ISLAND, SHIP_SHAFTS, type MapDef } from "./map";
 import type { Box } from "./physics";
 
 function canvas(w: number, h = w): [HTMLCanvasElement, CanvasRenderingContext2D] {
@@ -64,6 +64,11 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
     ctx.fillStyle = "rgba(40,38,36,0.18)";
     ctx.fillRect(0, 0, c.width, c.height);
   }
+  const ship = map.setting === "ship";
+  if (ship) {
+    ctx.fillStyle = DECK_PAINT;
+    ctx.fillRect(0, 0, c.width, c.height);
+  }
   // Slabs (4 m), each a slightly different shade.
   for (let x = bounds.x0; x < bounds.x1 && !asphalt; x += 4) {
     for (let z = bounds.z0; z < bounds.z1; z += 4) {
@@ -104,8 +109,9 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
     ctx.lineTo(c.width, Z(z));
   }
   ctx.stroke();
+  if (ship) deckMarkings(ctx, map, pxPerM, 0.75);
   // Painted lane lines (faded yellow) along the east lanes and around the yards.
-  ctx.strokeStyle = "rgba(226,178,60,0.55)";
+  ctx.strokeStyle = ship ? "rgba(0,0,0,0)" : "rgba(226,178,60,0.55)";
   ctx.lineWidth = pxPerM * 0.14;
   ctx.setLineDash([pxPerM * 2, pxPerM * 1.2]);
   ctx.beginPath();
@@ -120,7 +126,7 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
   ctx.stroke();
   ctx.setLineDash([]);
   // Hatched loading zones.
-  ctx.fillStyle = "rgba(226,178,60,0.35)";
+  ctx.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(226,178,60,0.35)";
   for (const [x0, z0] of [
     [-2, -3],
     [-30, -26],
@@ -135,7 +141,7 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
     }
   }
   // Bay numbers.
-  ctx.fillStyle = "rgba(250,245,235,0.55)";
+  ctx.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(250,245,235,0.55)";
   ctx.font = `800 ${Math.round(pxPerM * 1.6)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = "center";
   const bays: [string, number, number][] = [
@@ -189,6 +195,58 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
   }
   const t = finish(c, false);
   return t;
+}
+
+/** The floor of Ironwake's hangar (worn grey-green deck paint over steel). */
+const DECK_PAINT = "rgba(84,96,92,0.9)";
+
+/**
+ * What is painted on the hangar's floor: weld seams between the plates,
+ * taxi lines, and each bay's name.
+ */
+function deckMarkings(ctx: CanvasRenderingContext2D, map: MapDef, pxPerM: number, alpha: number): void {
+  const { bounds } = map;
+  const X = (x: number) => (x - bounds.x0) * pxPerM;
+  const Z = (z: number) => (z - bounds.z0) * pxPerM;
+  ctx.save();
+  ctx.strokeStyle = `rgba(24,16,12,${0.34 * alpha})`;
+  ctx.lineWidth = Math.max(1, pxPerM * 0.05);
+  ctx.beginPath();
+  for (let x = bounds.x0 + 6; x < bounds.x1; x += 6) {
+    ctx.moveTo(X(x), Z(bounds.z0));
+    ctx.lineTo(X(x), Z(bounds.z1));
+  }
+  for (let z = bounds.z0 + 3.8; z < bounds.z1; z += 3.8) {
+    ctx.moveTo(X(bounds.x0), Z(z));
+    ctx.lineTo(X(bounds.x1), Z(z));
+  }
+  ctx.stroke();
+  // Taxi lines: faded yellow dashes.
+  ctx.strokeStyle = `rgba(222,176,56,${0.5 * alpha})`;
+  ctx.lineWidth = pxPerM * 0.1;
+  ctx.setLineDash([pxPerM * 1.5, pxPerM * 1]);
+  ctx.beginPath();
+  for (let z = -9.76; z <= 9.8; z += 2.44 * 2) {
+    ctx.moveTo(X(bounds.x0), Z(z));
+    ctx.lineTo(X(bounds.x1), Z(z));
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = `rgba(236,232,222,${0.7 * alpha})`;
+  ctx.font = `800 ${Math.round(pxPerM * 2)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  // Written across the ship, to be read walking forward.
+  for (const [label, x, z] of [
+    ["BAY 2", -10, 0.5],
+    ["BAY 1", 12, 0.5],
+  ] as const) {
+    ctx.save();
+    ctx.translate(X(x), Z(z));
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 function convexHull(points: [number, number][]): [number, number][] {
@@ -445,6 +503,49 @@ export function fenceTexture(): Texture {
   return finish(c);
 }
 
+/**
+ * Tileable ripples for the sea: rg = the surface normal's slope, b = a
+ * height-ish noise (foam breaks up along it). Summed sines with whole-number
+ * frequencies, so it wraps without a seam.
+ */
+export function waterNormals(size = 256): Texture {
+  const [c, ctx] = canvas(size);
+  const r = rng(91);
+  const waves = Array.from({ length: 22 }, (_, i) => {
+    const f = 1 + Math.floor(r() * (i < 6 ? 3 : i < 14 ? 7 : 14));
+    const a = r() * Math.PI * 2;
+    const kx = Math.round(Math.cos(a) * f);
+    const ky = Math.round(Math.sin(a) * f);
+    return { kx, ky, amp: 1 / (1 + Math.hypot(kx, ky)), ph: r() * Math.PI * 2 };
+  }).filter((w) => w.kx !== 0 || w.ky !== 0);
+  const img = ctx.createImageData(size, size);
+  const k = (Math.PI * 2) / size;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let dx = 0;
+      let dy = 0;
+      let h = 0;
+      for (const w of waves) {
+        const p = (w.kx * x + w.ky * y) * k + w.ph;
+        // Sharpened crests: the slope of sin + a little of its second harmonic.
+        const cs = Math.cos(p) + 0.5 * Math.cos(2 * p);
+        dx += w.kx * w.amp * cs;
+        dy += w.ky * w.amp * cs;
+        h += w.amp * (Math.sin(p) + 0.25 * Math.sin(2 * p));
+      }
+      const i = (y * size + x) * 4;
+      img.data[i] = Math.max(0, Math.min(255, 128 + dx * 26));
+      img.data[i + 1] = Math.max(0, Math.min(255, 128 + dy * 26));
+      img.data[i + 2] = Math.max(0, Math.min(255, 128 + h * 62));
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = finish(c, true, false);
+  t.anisotropy = 4;
+  return t;
+}
+
 /** Noise blobs in [0,1] on a w×h canvas (for puddles and stains). */
 function blobField(w: number, h: number, count: number, r: () => number, minR: number, maxR: number, alpha: [number, number]): HTMLCanvasElement {
   const [c, ctx] = canvas(w, h);
@@ -485,6 +586,12 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
   const r = rng(23);
   const [oc, o] = canvas(cw, ch);
   o.clearRect(0, 0, cw, ch);
+  const ship = map.setting === "ship";
+  if (ship) {
+    // Deck paint over the whole floor (the tiled texture underneath gives it its grit).
+    o.fillStyle = DECK_PAINT;
+    o.fillRect(0, 0, cw, ch);
+  }
   // Oil stains and tire marks.
   for (let i = 0; i < 70; i++) {
     const x = r() * cw;
@@ -498,7 +605,7 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
   }
   o.strokeStyle = "rgba(10,10,10,0.22)";
   o.lineWidth = pxPerM * 0.28;
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 14 && !ship; i++) {
     const x = r() * cw;
     const y = r() * ch;
     const a = r() * Math.PI * 2;
@@ -510,8 +617,9 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
       o.stroke();
     }
   }
+  if (ship) deckMarkings(o, map, pxPerM, 1);
   // Lane paint (faded yellow, dashed) and loading zones, as before.
-  o.strokeStyle = "rgba(214,168,52,0.78)";
+  o.strokeStyle = ship ? "rgba(0,0,0,0)" : "rgba(214,168,52,0.78)";
   o.lineWidth = pxPerM * 0.14;
   o.setLineDash([pxPerM * 2, pxPerM * 1.2]);
   o.beginPath();
@@ -525,7 +633,7 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
   o.lineTo(X(34), Z(17.5));
   o.stroke();
   o.setLineDash([]);
-  o.fillStyle = "rgba(214,168,52,0.62)";
+  o.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(214,168,52,0.62)";
   for (const [x0, z0] of [
     [-2, -3],
     [-30, -26],
@@ -539,7 +647,7 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
       o.restore();
     }
   }
-  o.fillStyle = "rgba(235,232,222,0.7)";
+  o.fillStyle = ship ? "rgba(0,0,0,0)" : "rgba(235,232,222,0.7)";
   o.font = `800 ${Math.round(pxPerM * 1.6)}px ui-sans-serif, system-ui, sans-serif`;
   o.textAlign = "center";
   for (const [t, x, z] of [
@@ -583,7 +691,8 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
     out.data[i] = ad[i]!;
     // A soft threshold turns blobs into puddles with a damp rim.
     const v = wd[i]! / 255;
-    out.data[i + 1] = Math.round(255 * Math.min(1, Math.max(0, (v - 0.18) * 1.6)));
+    // (None under the carrier's flight deck.)
+    out.data[i + 1] = ship ? 0 : Math.round(255 * Math.min(1, Math.max(0, (v - 0.18) * 1.6)));
     out.data[i + 2] = 0;
     out.data[i + 3] = 255;
   }
@@ -591,6 +700,174 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
   const overlay = finish(oc, false);
   const mask = finish(mc, false, false);
   return { overlay, mask };
+}
+
+/**
+ * The carrier's flight deck, seen from above (x across the canvas, z down):
+ * dark non-skid with its wear, the angled landing area, catapult tracks,
+ * hazard borders around the elevator shafts, tie-downs, the ship's number.
+ * `frame` is the world rectangle it covers.
+ */
+export function flightDeckTexture(frame: { x0: number; z0: number; w: number; h: number }, pxPerM: number): Texture {
+  const [c, ctx] = canvas(Math.round(frame.w * pxPerM), Math.round(frame.h * pxPerM));
+  const X = (x: number) => (x - frame.x0) * pxPerM;
+  const Z = (z: number) => (z - frame.z0) * pxPerM;
+  const m = pxPerM;
+  const r = rng(907);
+  ctx.fillStyle = "#3b3f44";
+  ctx.fillRect(0, 0, c.width, c.height);
+  // Non-skid: a fine speckle, lighter where it has worn, darker where it is fresh.
+  for (let i = 0; i < frame.w * frame.h * 14; i++) {
+    const v = r();
+    ctx.fillStyle = v > 0.5 ? `rgba(120,126,132,${0.05 + r() * 0.1})` : `rgba(12,13,15,${0.06 + r() * 0.12})`;
+    const s = (0.04 + r() * 0.1) * m;
+    ctx.fillRect(r() * c.width, r() * c.height, s, s);
+  }
+  // Repainted patches, and the seams between deck plates.
+  for (let i = 0; i < 26; i++) {
+    ctx.fillStyle = r() > 0.5 ? `rgba(70,75,80,${0.12 + r() * 0.14})` : `rgba(24,26,29,${0.12 + r() * 0.14})`;
+    ctx.fillRect(r() * c.width, r() * c.height, (3 + r() * 9) * m, (2 + r() * 5) * m);
+  }
+  ctx.strokeStyle = "rgba(15,16,18,0.3)";
+  ctx.lineWidth = Math.max(1, 0.035 * m);
+  ctx.beginPath();
+  for (let x = frame.x0 + 4; x < frame.x0 + frame.w; x += 8) {
+    ctx.moveTo(X(x), 0);
+    ctx.lineTo(X(x), c.height);
+  }
+  for (let z = frame.z0 + 3; z < frame.z0 + frame.h; z += 6) {
+    ctx.moveTo(0, Z(z));
+    ctx.lineTo(c.width, Z(z));
+  }
+  ctx.stroke();
+
+  // The angled landing area: from the stern toward the port bow.
+  const A = { x: -49.5, z: 1.5 };
+  const B = { x: 26, z: -10.5 };
+  const L = Math.hypot(B.x - A.x, B.z - A.z);
+  const ux = (B.x - A.x) / L;
+  const uz = (B.z - A.z) / L;
+  const along = (t: number, off: number): [number, number] => [X(A.x + ux * t - uz * off), Z(A.z + uz * t + ux * off)];
+  // Tire rubber: long dark streaks, thickest where the wheels come down.
+  for (let i = 0; i < 520; i++) {
+    const t0 = 4 + r() ** 1.6 * (L * 0.75);
+    const off = (r() - 0.5) * 7.5 + (r() > 0.5 ? 1.6 : -1.6);
+    const l = 2 + r() * 11;
+    ctx.strokeStyle = `rgba(8,8,9,${0.05 + r() * 0.13})`;
+    ctx.lineWidth = (0.12 + r() * 0.3) * m;
+    ctx.beginPath();
+    ctx.moveTo(...along(t0, off));
+    ctx.lineTo(...along(t0 + l, off + (r() - 0.5) * 0.5));
+    ctx.stroke();
+  }
+  const line = (t0: number, t1: number, off: number, width: number, color: string) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width * m;
+    ctx.beginPath();
+    ctx.moveTo(...along(t0, off));
+    ctx.lineTo(...along(t1, off));
+    ctx.stroke();
+  };
+  const WHITE = "rgba(226,224,214,0.9)";
+  const YELLOW = "rgba(222,176,56,0.92)";
+  line(0, L, -5.6, 0.4, WHITE);
+  line(0, L, 5.6, 0.4, WHITE);
+  for (let t = 1; t < L; t += 6) line(t, t + 3, 0, 0.5, t % 12 < 6 ? YELLOW : WHITE);
+  // The ladder of marks at the touchdown point.
+  for (let k = 0; k < 4; k++) for (const s of [-1, 1]) line(9 + k * 3.2, 10.6 + k * 3.2, s * (1.6 + k * 0.5), 0.9, WHITE);
+
+  // The foul line down the starboard side, clear of the island: red and white.
+  for (let x = -48; x < SHIP_FORECASTLE_X - 2; x += 3) {
+    ctx.fillStyle = Math.round((x + 48) / 3) % 2 ? "rgba(176,44,36,0.9)" : WHITE;
+    ctx.fillRect(X(x), Z(9.1), 3 * m, 0.32 * m);
+  }
+  // Catapult tracks: a steel slot between white edges, a shuttle mark every few meters.
+  for (const [x0, x1, z] of [
+    [20, SHIP_FORECASTLE_X + 7.5, 3],
+    [-6, 21, -14.6],
+  ] as const) {
+    ctx.fillStyle = WHITE;
+    ctx.fillRect(X(x0), Z(z - 0.55), (x1 - x0) * m, 1.1 * m);
+    ctx.fillStyle = "#1c1e21";
+    ctx.fillRect(X(x0), Z(z - 0.4), (x1 - x0) * m, 0.8 * m);
+    ctx.fillStyle = "#6a7077";
+    ctx.fillRect(X(x0), Z(z - 0.08), (x1 - x0) * m, 0.16 * m);
+    ctx.fillStyle = YELLOW;
+    for (let x = x0 + 2; x < x1; x += 4) ctx.fillRect(X(x), Z(z - 0.9), 0.2 * m, 1.8 * m);
+  }
+  // Tie-down points: a star of slots every few meters.
+  ctx.fillStyle = "rgba(10,11,12,0.55)";
+  for (let x = frame.x0 + 2; x < frame.x0 + frame.w; x += 2.6) {
+    for (let z = frame.z0 + 1.6; z < frame.z0 + frame.h; z += 2.6) {
+      ctx.beginPath();
+      ctx.arc(X(x), Z(z), 0.09 * m, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Oil and hydraulic stains.
+  for (let i = 0; i < 70; i++) {
+    const x = r() * c.width;
+    const z = r() * c.height;
+    const rad = (0.3 + r() * 1.3) * m;
+    const g = ctx.createRadialGradient(x, z, 0, x, z, rad);
+    g.addColorStop(0, `rgba(8,8,10,${0.2 + r() * 0.25})`);
+    g.addColorStop(1, "rgba(8,8,10,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(x - rad, z - rad, rad * 2, rad * 2);
+  }
+  // Hazard borders around the open shafts and hatches: yellow and black chevrons.
+  for (const [x0, z0, x1, z1] of SHIP_SHAFTS) {
+    const wide = x1 - x0 > 9.5 && z1 - z0 > 5;
+    const t = wide ? 0.7 : 0.35;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(X(x0 - t), Z(z0 - t), (x1 - x0 + t * 2) * m, (z1 - z0 + t * 2) * m);
+    ctx.rect(X(x0), Z(z0), (x1 - x0) * m, (z1 - z0) * m);
+    ctx.clip("evenodd");
+    ctx.fillStyle = "#d9ae3a";
+    ctx.fillRect(X(x0 - t), Z(z0 - t), (x1 - x0 + t * 2) * m, (z1 - z0 + t * 2) * m);
+    ctx.strokeStyle = "#17181a";
+    ctx.lineWidth = 0.32 * m;
+    ctx.beginPath();
+    for (let d = -(z1 - z0) - 4; d < x1 - x0 + 4; d += 1) {
+      ctx.moveTo(X(x0 + d), Z(z0 - t));
+      ctx.lineTo(X(x0 + d + (z1 - z0) + t * 2), Z(z1 + t));
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  // The island's footing, and a yellow keep-clear box at each of its doors.
+  const [ix0, iz0, ix1] = SHIP_ISLAND;
+  ctx.strokeStyle = YELLOW;
+  ctx.lineWidth = 0.2 * m;
+  ctx.strokeRect(X(ix0 - 0.6), Z(iz0 - 0.6), (ix1 - ix0 + 1.2) * m, 8 * m);
+  // The deck's edge line, and the ship's number at each end.
+  ctx.strokeStyle = WHITE;
+  ctx.lineWidth = 0.28 * m;
+  ctx.strokeRect(X(-49.2), Z(-18.2), (SHIP_FORECASTLE_X + 7.4 + 49.2) * m, 36.4 * m);
+  ctx.fillStyle = "rgba(226,224,214,0.92)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (const [x, z, size, turn] of [
+    [SHIP_FORECASTLE_X + 4, -9.5, 8.5, Math.PI / 2],
+    [-44, 12.6, 5, Math.PI / 2],
+  ] as const) {
+    ctx.save();
+    ctx.translate(X(x), Z(z));
+    ctx.rotate(turn);
+    ctx.font = `900 ${Math.round(size * m)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.fillText("07", 0, 0);
+    ctx.restore();
+  }
+  // Scuffs over the paint, so the lines look walked on.
+  for (let i = 0; i < frame.w * frame.h * 3; i++) {
+    ctx.fillStyle = `rgba(52,56,60,${0.25 + r() * 0.3})`;
+    const s = (0.05 + r() * 0.16) * m;
+    ctx.fillRect(r() * c.width, r() * c.height, s * (1 + r() * 3), s);
+  }
+  const t = finish(c, false);
+  t.anisotropy = 8;
+  return t;
 }
 
 /** A billowy smoke puff (white, alpha = density): noise-carved soft disc. */

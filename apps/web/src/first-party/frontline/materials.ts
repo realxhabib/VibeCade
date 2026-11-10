@@ -70,6 +70,8 @@ export interface WorldMaterials {
   planks: MeshStandardMaterial;
   plate: MeshStandardMaterial;
   cladding: MeshStandardMaterial;
+  /** Painted metal that is looked after (`look: "clean"`). */
+  clean: MeshStandardMaterial;
   ground: MeshStandardMaterial;
   /** Logos and stencils on container sides (alpha-tested, follows the ribs). */
   decal: MeshStandardMaterial;
@@ -105,20 +107,22 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
     afterRoughness: "roughnessFactor = mix(roughnessFactor, 0.93, fGrime); metalnessFactor *= 1.0 - fGrime;",
   });
 
-  const painted = std(pack, "painted", { vertexColors: true, metalness: 0.5 });
-  patchMaterial(painted, {
-    key: "fl-painted",
-    vertexPars: "varying float vPaintY;",
-    vertexMain: "vPaintY = (modelMatrix * vec4(position, 1.0)).y;",
-    fragPars: "float fPaint; varying float vPaintY;",
-    afterColor: `
+  /** Painted metal; `rustK` scales how much of the rust shows (1 = left to weather, less = looked after). */
+  const paintedMetal = (key: string, rustK: number) => {
+    const m = std(pack, "painted", { vertexColors: true, metalness: 0.5 });
+    patchMaterial(m, {
+      key,
+      vertexPars: "varying float vPaintY;",
+      vertexMain: "vPaintY = (modelMatrix * vec4(position, 1.0)).y;",
+      fragPars: "float fPaint; varying float vPaintY;",
+      afterColor: `
       // Paint takes the tint; rust keeps its own (darkened) color. It gathers near the ground and in a few
       // coarse patches higher up, so painted steel reads as weathered instead of camouflaged.
       float coarse = texture2D(map, vMapUv * 0.17 + vec2(0.37, 0.61)).a;
       float wide = texture2D(map, vMapUv * 0.061 + vec2(0.11, 0.83)).a;
       float low = 1.0 - smoothstep(0.0, 0.7, vPaintY);
       float rustPatch = smoothstep(0.55, 0.9, 1.0 - coarse) * mix(smoothstep(0.55, 0.9, 1.0 - wide), 1.0, low);
-      float rustAmt = (1.0 - smoothstep(0.1, 0.6, sampledDiffuseColor.a)) * rustPatch;
+      float rustAmt = (1.0 - smoothstep(0.1, 0.6, sampledDiffuseColor.a)) * rustPatch * ${rustK.toFixed(2)};
       fPaint = 1.0 - rustAmt;
       vec3 rust = mix(sampledDiffuseColor.rgb, vec3(0.2, 0.1, 0.06), 0.5) * 0.5 * diffuse;
       // Sun-faded paint: a slow change in tone across the surface.
@@ -127,8 +131,14 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
       diffuseColor.rgb = diffuse * vColor.rgb * paintTex * (0.92 + 0.12 * wide);
       diffuseColor.rgb = mix(rust, diffuseColor.rgb, fPaint);
       diffuseColor.a = opacity;`,
-    afterRoughness: "roughnessFactor = mix(0.92, roughnessFactor * 0.8, fPaint); metalnessFactor *= fPaint;",
-  });
+      afterRoughness: "roughnessFactor = mix(0.92, roughnessFactor * 0.8, fPaint); metalnessFactor *= fPaint;",
+    });
+    return m;
+  };
+  const painted = paintedMetal("fl-painted", 1);
+  // Kept-up paint (the ship's own plating and superstructure): the odd rust bleed only.
+  const clean = paintedMetal("fl-clean", 0.4);
+  clean.metalness = 0.25;
 
   const concrete = std(pack, "concrete", { vertexColors: true, metalness: 0 });
   const planks = std(pack, "planks", { vertexColors: true, metalness: 0 });
@@ -190,6 +200,6 @@ export function worldMaterials(pack: AssetPack, ground: GroundMaps, extras: { lo
 
   const fence = new MeshStandardMaterial({ map: extras.fence, alphaTest: 0.5, side: DoubleSide, roughness: 0.55, metalness: 0.7, color: new Color(0.75, 0.76, 0.78) });
 
-  const all: Material[] = [container, painted, concrete, planks, plate, cladding, groundMat, decal, tarp, fence];
-  return { container, painted, concrete, planks, plate, cladding, ground: groundMat, decal, tarp, fence, all };
+  const all: Material[] = [container, painted, clean, concrete, planks, plate, cladding, groundMat, decal, tarp, fence];
+  return { container, painted, clean, concrete, planks, plate, cladding, ground: groundMat, decal, tarp, fence, all };
 }

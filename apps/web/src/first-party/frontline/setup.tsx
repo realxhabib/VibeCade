@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Challenge setup (purpose "setup"): the host picks the mode (standard or
+ * Challenge setup (purpose "setup"): the host picks the map, the mode (standard or
  * gun game), the match length, the kill limit and the season. Light on purpose: no three.js here (the embed
  * page loads this instead of the game when the host opens it to set up).
  */
@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { spring } from "@/lib/motion";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
+import { MAPS, MAP_IDS, type MapId } from "./map";
 import { FFA_LIMIT } from "./rules";
 import { CustomNumber } from "./custom-number";
 import {
@@ -70,6 +71,10 @@ export function FrontlineSetup() {
         <h1 className="font-display text-[26px] font-extrabold uppercase italic leading-none tracking-tight">
           Set up the <span className="bg-[linear-gradient(100deg,var(--accent-from),var(--accent-to))] bg-clip-text pr-1 text-transparent">fight</span>
         </h1>
+
+        <Section title="Map" hint={MAPS[opts.map].blurb}>
+          <Segmented<MapId> id="map" label="Map" value={opts.map} onChange={(map) => set({ map })} options={MAP_IDS.map((id) => ({ value: id, label: MAPS[id].name }))} />
+        </Section>
 
         <Section title="Mode" hint={MODE_BLURB[opts.mode]}>
           <Segmented<Mode> id="mode" label="Mode" value={opts.mode} onChange={(mode) => set({ mode })} options={MODES.map((m) => ({ value: m, label: MODE_LABEL[m] }))} />

@@ -2,7 +2,7 @@
 
 /**
  * Match options on the loadout screen: the host (the lowest-seated person)
- * can change the mode, the time limit, the kill limit and the season right up to the
+ * can change the map, the mode, the time limit, the kill limit and the season right up to the
  * start, in any match (quick matches included); everyone else sees what was
  * picked. Changes go into the shared match state as `{ pre: settings }`
  * (see `optionsFrom`), which the match document replaces when the fight
@@ -15,6 +15,7 @@ import type { Json } from "vibecade-sdk";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 import { CustomNumber } from "./custom-number";
+import { MAPS, MAP_IDS } from "./map";
 import { KILLS_RANGE, MINUTES_RANGE, MODES, MODE_LABEL, killChoices, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
 import { parseDoc } from "./rules";
 
@@ -40,6 +41,13 @@ export function HostOptions({ options, host, standardKills, compact }: { options
         <span>Match options</span>
         <span className="normal-case tracking-normal text-ink-400">{host ? "You're the host" : "The host picks"}</span>
       </p>
+      <Row label="Map">
+        {MAP_IDS.map((id) => (
+          <Chip key={id} on={id === options.map} disabled={!host} onClick={() => change({ map: id })} title={MAPS[id].blurb}>
+            {MAPS[id].name}
+          </Chip>
+        ))}
+      </Row>
       <Row label="Mode">
         {MODES.map((m) => (
           <Chip key={m} on={m === options.mode} disabled={!host} onClick={() => change({ mode: m })}>
