@@ -364,14 +364,13 @@ function saltyard(): MapDef {
 }
 
 /**
- * Ironwake's heights. y = 0 is the floor of the open cargo hold; the main
- * deck is two containers above it, so a stack of two is a bridge at deck
- * level. Above that: the forecastle, then the gallery around the tower.
+ * Ironwake's heights. y = 0 is the hangar's floor; the flight deck is its
+ * roof. Above that: the ramp at the bow, then the gallery on the island.
  */
 export const SHIP_DECK_Y = 2 * CONTAINER_H;
 export const SHIP_FORECASTLE_Y = SHIP_DECK_Y + 1.6;
 export const SHIP_SEA_Y = SHIP_DECK_Y - 9.5;
-/** Where the raised forecastle starts (it is walkable up to the map's edge; the prow beyond is scenery). */
+/** Where the bow ramp's top deck starts (it is walkable up to the map's edge; the prow beyond is scenery). */
 export const SHIP_FORECASTLE_X = 36;
 /** The prow beyond the playable deck: the outline from the map's edge to the stem (x, half-beam). */
 export const SHIP_BOW: readonly (readonly [number, number])[] = [
@@ -383,16 +382,20 @@ export const SHIP_BOW: readonly (readonly [number, number])[] = [
 ];
 
 const SHIP = {
-  white: 0xe2dfd6,
-  offWhite: 0xcfccc3,
+  /** Haze grey: the island and the hull. */
+  white: 0xa9b1b8,
+  offWhite: 0x969ea6,
   glass: 0x16232e,
-  deck: 0x4c6e5e,
-  deckGear: 0x35584a,
-  hold: 0x6f6f68,
-  catwalk: 0x595d60,
+  /** The flight deck's dark non-skid. */
+  deck: 0x585e65,
+  deckGear: 0x3a3f45,
+  hold: 0x7b8288,
+  catwalk: 0x8a9096,
   navy: 0x22344c,
   hullRed: 0x7a2e26,
-  orange: 0xd9662b,
+  jet: 0x8c959d,
+  jetDark: 0x41464d,
+  line: 0xe6e4dc,
 };
 
 function ironwake(): MapDef {
@@ -402,221 +405,293 @@ function ironwake(): MapDef {
   const D = SHIP_DECK_Y;
   const FY = SHIP_FORECASTLE_Y;
   const FX = SHIP_FORECASTLE_X;
-  // The hold: an open pit amidships, 42 m by 22 m.
+  // The hangar: under the flight deck amidships, 42 m by 22 m.
   const HX0 = -20;
   const HX1 = 22;
   const HZ = 11;
+  const ROOF = D - 0.35;
   const b = new Builder();
   const g = { ghost: true } as const;
   const glass = { ghost: true, look: "plate" } as const;
   const routes: [number, number, number][][] = [];
 
-  /* The main deck: everything around the hold, solid down to its floor. */
+  /* The flight deck around the hangar, solid down to the hangar's floor. */
   b.box(X0, 0, -Z, HX0, D, Z, "metal", SHIP.deck);
   b.box(HX1, 0, -Z, X1, D, Z, "metal", SHIP.deck);
   b.box(HX0, 0, -Z, HX1, D, -HZ, "metal", SHIP.deck);
   b.box(HX0, 0, HZ, HX1, D, Z, "metal", SHIP.deck);
-  // Bare steel lining the hold's sides below the deck edge, and a hazard stripe around the opening (scenery).
-  for (const z of [-HZ, HZ - 0.04]) b.box(HX0, 0, z, HX1, D - 0.3, z + 0.04, "metal", SHIP.hold, { ghost: true, look: "plate" });
-  for (const x of [HX0, HX1 - 0.04]) b.box(x, 0, -HZ, x + 0.04, D - 0.3, HZ, "metal", SHIP.hold, { ghost: true, look: "plate" });
-  for (const z of [-HZ - 0.35, HZ + 0.05]) b.box(HX0 - 0.35, D, z, HX1 + 0.35, D + 0.015, z + 0.3, "metal", PALETTE.yellow, g);
-  for (const x of [HX0 - 0.35, HX1 + 0.05]) b.box(x, D, -HZ, x + 0.3, D + 0.015, HZ, "metal", PALETTE.yellow, g);
-
-  /* Bulwarks just outside the playable deck; taller around the forecastle. */
-  const BW = 1.15;
-  for (const [z0, z1] of [
-    [-Z - 0.35, -Z],
-    [Z, Z + 0.35],
-  ] as const) {
-    b.box(X0 - 0.35, 0, z0, FX, D + BW, z1, "metal", SHIP.white);
-    b.box(FX, 0, z0, X1, FY + BW, z1, "metal", SHIP.white);
+  /*
+   * The flight deck over the hangar. Two aircraft elevators are down at
+   * hangar level, leaving their shafts open to the sky (aft to starboard,
+   * forward to port), and a hatch stands open over each of the other stairs.
+   */
+  const EA = { x0: HX0, x1: -9, z0: 1, z1: HZ };
+  const EB = { x0: 11, x1: HX1, z0: -HZ, z1: -1 };
+  const HATCH = 9.2;
+  const roof = (x0: number, z0: number, x1: number, z1: number) => b.box(x0, ROOF, z0, x1, D, z1, "metal", SHIP.deck);
+  roof(HX0, -HATCH, -11.4, EA.z0);
+  roof(-11.4, -HZ, EA.x1, EA.z0);
+  roof(EA.x1, -HZ, EB.x0, HZ);
+  roof(EB.x0, EB.z1, 13.4, HZ);
+  roof(13.4, EB.z1, HX1, HATCH);
+  // The hangar's sides (scenery over the solid deck blocks), and hazard stripes around the elevator shafts.
+  for (const z of [-HZ, HZ - 0.04]) b.box(HX0, 0, z, HX1, ROOF, z + 0.04, "metal", SHIP.hold, { ghost: true, look: "plate" });
+  for (const x of [HX0, HX1 - 0.04]) b.box(x, 0, -HZ, x + 0.04, ROOF, HZ, "metal", SHIP.hold, { ghost: true, look: "plate" });
+  for (const e of [EA, EB]) {
+    for (const z of [e.z0 - 0.35, e.z1 + 0.05]) b.box(e.x0 - 0.35, D, z, e.x1 + 0.35, D + 0.015, z + 0.3, "metal", PALETTE.yellow, g);
+    for (const x of [e.x0 - 0.35, e.x1 + 0.05]) b.box(x, D, e.z0, x + 0.3, D + 0.015, e.z1, "metal", PALETTE.yellow, g);
   }
-  b.box(X0 - 0.35, 0, -Z, X0, D + BW, Z, "metal", SHIP.white);
-  b.box(X1, 0, -Z - 0.35, X1 + 0.35, FY + BW, Z + 0.35, "metal", SHIP.white, g);
 
-  /* The forecastle: a raised deck across the bow, a short flight of steps each side. */
+  /* The deck's edge: no bulwark on a carrier, just a low coaming, and a catwalk slung outside below it (scenery). */
+  for (const s of [-1, 1]) {
+    const z0 = s < 0 ? -Z - 0.35 : Z;
+    b.box(X0 - 0.35, 0, z0, FX, D + 0.12, z0 + 0.35, "metal", SHIP.deck);
+    b.box(FX, 0, z0, X1, FY + 0.12, z0 + 0.35, "metal", SHIP.deck);
+    const c0 = s < 0 ? -Z - 2 : Z + 0.35;
+    b.box(X0 + 6, D - 1.5, c0, FX - 4, D - 1.4, c0 + 1.65, "metal", SHIP.catwalk, { ghost: true, look: "plate" });
+    b.box(X0 + 6, D - 1.4, s < 0 ? c0 : c0 + 1.57, FX - 4, D - 0.4, s < 0 ? c0 + 0.08 : c0 + 1.65, "metal", SHIP.offWhite, g);
+  }
+  b.box(X0 - 0.35, 0, -Z, X0, D + 0.12, Z, "metal", SHIP.deck);
+  b.box(X1, 0, -Z - 0.35, X1 + 0.35, FY + 0.12, Z + 0.35, "metal", SHIP.deck, g);
+  // The angled deck's overhang to port, beyond where you can walk (scenery).
+  b.box(-34, D - 0.7, -Z - 7, 14, D, -Z - 0.35, "metal", SHIP.deck, g);
+  b.box(-34, D, -Z - 6.6, 14, D + 0.015, -Z - 6.3, "metal", SHIP.line, g);
+
+  /* Painted lines: the landing area's edges, a dashed centerline, the catapult track to the ramp. */
+  for (const z of [-7.2, 6.9]) b.box(X0 + 1, D, z, 30, D + 0.012, z + 0.3, "metal", SHIP.line, g);
+  for (let x = X0 + 2; x < 30; x += 7) {
+    if (x + 3.5 > EA.x0 - 1 && x < EA.x1 + 1) continue;
+    b.box(x, D, -0.15, x + 3.5, D + 0.012, 0.15, "metal", PALETTE.yellow, g);
+  }
+  b.box(23, D, 2.9, FX - 2, D + 0.02, 3.1, "metal", SHIP.jetDark, g);
+
+  /* The bow: a ski-jump ramp up to the forward deck, broad steps in the middle and a narrower flight each side. */
   b.box(FX, D, -Z, X1, FY, Z, "metal", SHIP.deck);
-  for (const z of [-13, 13]) {
-    b.stairs(FX - 2, z, "+x", 4, (FY - D) / 4, 0.5, 2.4, PALETTE.metal, D);
+  for (const [z, w] of [
+    [-13, 2.4],
+    [0, 9],
+    [13, 2.4],
+  ] as const) {
+    b.stairs(FX - 2, z, "+x", 4, (FY - D) / 4, 0.5, w, SHIP.deckGear, D);
     routes.push([
       [FX - 2.6, D, z],
       [FX + 0.8, FY, z],
     ]);
   }
-  b.block(40.6, -7, 2.4, 3.4, 1.4, "metal", SHIP.deckGear, FY);
-  b.block(40.6, 7, 2.4, 3.4, 1.4, "metal", SHIP.deckGear, FY);
-  b.box(FX + 0.1, FY, -6, FX + 0.4, FY + 1.05, 6, "metal", SHIP.white);
+  b.block(40.6, -7.4, 2.4, 3.4, 1.4, "metal", SHIP.deckGear, FY);
+  b.block(40.6, 8.6, 2.4, 3.4, 1.4, "metal", SHIP.deckGear, FY);
   b.block(42.8, -15, 0.7, 1.6, 0.75, "metal", 0x2c2f33, FY);
   b.block(42.8, 15, 0.7, 1.6, 0.75, "metal", 0x2c2f33, FY);
   b.crate(38.6, 15.8, 1.1, FY);
   b.drums(37.6, -16.6, 1.3, 1.3, FY);
-  // The foremast: its foot collides, the rest is scenery.
-  b.block(42.4, 0, 0.7, 0.7, 2.6, "metal", SHIP.white, FY);
-  b.box(42.15, FY + 2.6, -0.25, 42.65, FY + 13, 0.25, "metal", SHIP.white, g);
-  b.box(42.2, FY + 9, -2.6, 42.6, FY + 9.3, 2.6, "metal", SHIP.white, g);
-  // Windlasses out on the prow (scenery).
-  b.box(50, FY, -5.5, 53, FY + 1.5, -2.5, "metal", SHIP.deckGear, g);
-  b.box(50, FY, 2.5, 53, FY + 1.5, 5.5, "metal", SHIP.deckGear, g);
+  b.block(38.4, 5.6, 0.3, 3.2, 1.3, "metal", SHIP.offWhite, FY);
+  b.block(38.4, -4.2, 0.3, 3.2, 1.3, "metal", SHIP.offWhite, FY);
 
-  /* The tower on the aft deck (x −44…−30, z −13…13): an open ground floor, a gallery around it one deck up. */
-  const TX0 = -44;
-  const TX1 = -30;
-  const TZ = 13;
+  /*
+   * Aircraft. `dir` is where the nose points; a jet stands on its gear, so
+   * you can't walk under it but you can see (and shoot) below the fuselage.
+   */
+  const jet = (cx: number, cz: number, dir: "+x" | "-x" | "+z" | "-z", y: number, scenery = false) => {
+    const part = (l0: number, l1: number, w0: number, w1: number, y0: number, y1: number, color: number, ghost = false) => {
+      const extra = ghost || scenery ? g : {};
+      if (dir === "+x") b.box(cx + l0, y + y0, cz + w0, cx + l1, y + y1, cz + w1, "metal", color, extra);
+      else if (dir === "-x") b.box(cx - l1, y + y0, cz - w1, cx - l0, y + y1, cz - w0, "metal", color, extra);
+      else if (dir === "+z") b.box(cx - w1, y + y0, cz + l0, cx - w0, y + y1, cz + l1, "metal", color, extra);
+      else b.box(cx + w0, y + y0, cz - l1, cx + w1, y + y1, cz - l0, "metal", color, extra);
+    };
+    part(-4.4, 2.6, -0.75, 0.75, 1, 2.15, SHIP.jet); // fuselage
+    part(-3.6, 1, -0.45, 0.45, 2.15, 2.4, SHIP.jet); // spine
+    part(2.6, 4, -0.55, 0.55, 1.1, 2.05, SHIP.jet); // forward fuselage
+    part(4, 5, -0.38, 0.38, 1.25, 1.9, SHIP.jet); // nose
+    part(5, 5.9, -0.2, 0.2, 1.42, 1.74, SHIP.jetDark); // radome
+    part(1.2, 3.6, -0.4, 0.4, 2.05, 2.62, SHIP.glass, true); // canopy
+    part(-5.1, -4.4, -0.68, -0.06, 1.2, 1.95, SHIP.jetDark); // nozzles
+    part(-5.1, -4.4, 0.06, 0.68, 1.2, 1.95, SHIP.jetDark);
+    for (const s of [-1, 1]) {
+      const w = (a: number, c: number) => [Math.min(s * a, s * c), Math.max(s * a, s * c)] as const;
+      part(0.2, 1.8, ...w(0.75, 1.02), 1.12, 1.86, SHIP.jetDark, true); // intake
+      part(0.9, 2.6, ...w(0.75, 1.5), 1.6, 1.72, SHIP.jet, true); // wing root
+      part(-2.6, 0.9, ...w(0.75, 2.5), 1.55, 1.72, SHIP.jet); // inner wing
+      part(-3, 0, ...w(2.5, 4.2), 1.57, 1.7, SHIP.jet); // outer wing, swept back
+      part(-2.6, 0.3, ...w(4.2, 4.3), 1.52, 1.76, SHIP.line, true); // wingtip missile
+      part(-5.3, -3.7, ...w(0.75, 2.5), 1.56, 1.68, SHIP.jet); // tailplane
+      part(-4.9, -3.4, ...w(0.5, 0.66), 2.15, 3.3, SHIP.jet, true); // fin
+      part(-5.2, -3.9, ...w(0.5, 0.66), 3.3, 4.2, SHIP.jet, true);
+      part(-1.7, -1.4, ...w(0.8, 1), 0, 1, SHIP.jetDark, true); // main gear
+    }
+    part(2.3, 2.5, -0.1, 0.1, 0, 1.1, SHIP.jetDark, true); // nose gear
+  };
+  /** A yellow deck tractor. */
+  const tractor = (cx: number, cz: number, along: "x" | "z", y: number) => {
+    const [w, d] = along === "x" ? [2.6, 1.5] : [1.5, 2.6];
+    b.block(cx, cz, w, d, 0.95, "metal", PALETTE.yellow, y);
+    b.block(cx, cz, w * 0.45, d * 0.45, 0.35, "metal", SHIP.jetDark, y + 0.95);
+  };
+  /** A jet-blast deflector: a plate raised out of the deck. */
+  const deflector = (x: number, z0: number, z1: number) => b.box(x, D, z0, x + 0.3, D + 1.9, z1, "metal", SHIP.deckGear, { look: "plate" });
+
+  /* The island on the starboard side (x −3…11): flight control at deck level, a gallery one deck up. */
+  const IX0 = -3;
+  const IX1 = 11;
+  const IZ = 12.5;
   const WH = 3.2;
   const CEIL = D + WH;
   const DOOR = D + 2.4;
-  // Forward wall: a door near each side, two mess-room windows looking over the hold.
-  for (const [z0, z1] of [
-    [-TZ, -9.5],
-    [-6.5, -4.5],
-    [-1.5, 1.5],
-    [4.5, 6.5],
-    [9.5, TZ],
+  // The face over the flight deck: two doors and a row of windows.
+  for (const [x0, x1] of [
+    [IX0, IX0 + 1],
+    [IX0 + 3.6, IX0 + 4.6],
+    [IX1 - 4.6, IX1 - 3.6],
+    [IX1 - 1, IX1],
   ] as const)
-    b.box(TX1 - 0.5, D, z0, TX1, CEIL, z1, "metal", SHIP.white);
-  for (const z0 of [-9.5, 6.5]) b.box(TX1 - 0.5, DOOR, z0, TX1, CEIL, z0 + 3, "metal", SHIP.white);
-  for (const z0 of [-4.5, 1.5]) {
-    b.box(TX1 - 0.5, D, z0, TX1, D + 1.05, z0 + 3, "metal", SHIP.white);
-    b.box(TX1 - 0.5, D + 2.05, z0, TX1, CEIL, z0 + 3, "metal", SHIP.white);
+    b.box(x0, D, IZ, x1, CEIL, IZ + 0.5, "metal", SHIP.white);
+  for (const x0 of [IX0 + 1, IX1 - 3.6]) b.box(x0, DOOR, IZ, x0 + 2.6, CEIL, IZ + 0.5, "metal", SHIP.white);
+  b.box(IX0 + 4.6, D, IZ, IX1 - 4.6, D + 1.05, IZ + 0.5, "metal", SHIP.white);
+  b.box(IX0 + 4.6, D + 2.05, IZ, IX1 - 4.6, CEIL, IZ + 0.5, "metal", SHIP.white);
+  // Its ends: a door in each. The outboard wall is solid.
+  for (const x of [IX0, IX1 - 0.5]) {
+    b.box(x, D, IZ + 0.5, x + 0.5, CEIL, IZ + 1.4, "metal", SHIP.white);
+    b.box(x, D, IZ + 4, x + 0.5, CEIL, Z, "metal", SHIP.white);
+    b.box(x, DOOR, IZ + 1.4, x + 0.5, CEIL, IZ + 4, "metal", SHIP.white);
   }
-  // Aft wall: one door on the centerline.
-  b.box(TX0, D, -TZ, TX0 + 0.5, CEIL, -1.5, "metal", SHIP.white);
-  b.box(TX0, D, 1.5, TX0 + 0.5, CEIL, TZ, "metal", SHIP.white);
-  b.box(TX0, DOOR, -1.5, TX0 + 0.5, CEIL, 1.5, "metal", SHIP.white);
-  // Side walls: a door each (the port one further aft).
-  for (const [z0, z1, d0] of [
-    [-TZ, -TZ + 0.5, -40.5],
-    [TZ - 0.5, TZ, -36.5],
-  ] as const) {
-    b.box(TX0 + 0.5, D, z0, d0, CEIL, z1, "metal", SHIP.white);
-    b.box(d0 + 3, D, z0, TX1 - 0.5, CEIL, z1, "metal", SHIP.white);
-    b.box(d0, DOOR, z0, d0 + 3, CEIL, z1, "metal", SHIP.white);
-  }
-  // Everything above the ground floor: four more decks, solid.
-  const TOP = D + 14.6;
-  b.box(TX0, CEIL, -TZ, TX1, TOP, TZ, "metal", SHIP.white);
-  // Inside: the stair core, lockers, the galley counter, mess tables.
-  b.box(-39.5, D, -2.5, -35.5, CEIL, 2.5, "metal", SHIP.offWhite);
-  b.block(-42.9, -8, 0.9, 4.2, 2, "metal", 0x55707f, D);
-  b.block(-42.9, 8.5, 0.9, 3.2, 2, "metal", 0x55707f, D);
-  b.block(-37.5, 9.4, 3.4, 0.9, 1.05, "metal", 0x8a8f93, D);
-  b.block(-33.2, -8.6, 1.2, 2.6, 0.8, "metal", 0x8a8f93, D);
-  b.block(-33.4, 0, 1.1, 2.2, 0.8, "metal", 0x8a8f93, D);
-  b.crate(-41.6, 4.6, 1.1, D);
-  b.crate(-32.4, 11, 1.2, D);
+  b.box(IX0 + 0.5, D, Z - 0.5, IX1 - 0.5, CEIL, Z, "metal", SHIP.white);
+  // Everything above: four more levels, solid.
+  const TOP = D + 12.4;
+  b.box(IX0, CEIL, IZ, IX1, TOP, Z, "metal", SHIP.white);
+  // Inside: consoles under the windows, a plotting table, lockers.
+  b.block(4, IZ + 1.1, 3.6, 0.8, 1, "metal", 0x55707f, D);
+  b.block(4, 16.4, 2.4, 1.2, 0.85, "metal", 0x8a8f93, D);
+  b.block(IX0 + 1.2, Z - 1, 1.2, 0.9, 2, "metal", 0x55707f, D);
+  b.crate(IX1 - 1.4, Z - 1.3, 1.1, D);
 
-  // The gallery: a walkway one deck up, across the tower's face and down its starboard side, with a waist-high rail.
+  // The gallery: along the island's face over the flight deck and around its forward end, with a waist-high rail.
   const GY = CEIL + 0.2;
-  b.box(TX1, CEIL, -TZ - 2.4, TX1 + 2.8, GY, TZ + 2.4, "metal", SHIP.catwalk, { look: "plate" });
-  b.box(TX0, CEIL, TZ, TX1, GY, TZ + 2.4, "metal", SHIP.catwalk, { look: "plate" });
-  for (const [z0, z1] of [
-    [-TZ, -8],
-    [-5, 5],
-    [8, TZ + 2.4],
-  ] as const)
-    b.box(TX1 + 2.7, GY, z0, TX1 + 2.8, GY + 1.05, z1, "metal", SHIP.white);
-  b.box(TX0 + 3, GY, TZ + 2.3, TX1 + 2.8, GY + 1.05, TZ + 2.4, "metal", SHIP.white);
-  b.box(TX1, GY, -TZ - 2.4, TX1 + 0.1, GY + 1.05, -TZ - 0.1, "metal", SHIP.white, g);
-  // Two ways up: from the apron on the port side, and from the stern on the starboard side.
-  b.stairs(TX1 + 2.8 + 4.8, -TZ - 1.2, "-x", 8, (GY - D) / 8, 0.6, 2.2, PALETTE.metal, D);
+  const GX1 = IX1 + 2.4;
+  b.box(IX0, CEIL, IZ - 2.4, GX1, GY, IZ, "metal", SHIP.offWhite);
+  b.box(IX1, CEIL, IZ, GX1, GY, Z, "metal", SHIP.offWhite);
+  b.box(IX0, GY, IZ - 2.4, GX1, GY + 1.05, IZ - 2.3, "metal", SHIP.white);
+  b.box(GX1 - 0.1, GY, IZ - 2.3, GX1, GY + 1.05, 15.9, "metal", SHIP.white);
+  b.box(GX1 - 0.1, GY, 18.3, GX1, GY + 1.05, Z, "metal", SHIP.white);
+  // Two ways up: from amidships at its aft end, and from the bow side behind it.
+  b.stairs(IX0 - 4.8, IZ - 1.2, "+x", 8, (GY - D) / 8, 0.6, 2.2, PALETTE.metal, D);
   routes.push([
-    [TX1 + 8.3, D, -TZ - 1.2],
-    [TX1 + 2, GY, -TZ - 1.2],
+    [IX0 - 5.5, D, IZ - 1.2],
+    [IX0 + 0.8, GY, IZ - 1.2],
   ]);
-  b.stairs(TX0 - 4.8, TZ + 1.2, "+x", 8, (GY - D) / 8, 0.6, 2.2, PALETTE.metal, D);
+  b.stairs(GX1 + 4.8, 17.1, "-x", 8, (GY - D) / 8, 0.6, 2.2, PALETTE.metal, D);
   routes.push([
-    [TX0 - 5.5, D, TZ + 1.2],
-    [TX0 + 0.8, GY, TZ + 1.2],
+    [GX1 + 5.5, D, 17.1],
+    [GX1 - 0.9, GY, 17.1],
   ]);
 
-  // Scenery up the tower: deck edges, windows, the bridge with its wings, funnel and mast.
+  // Scenery up the island: deck edges, windows, the bridge, the funnel, the mast and its radar.
   for (let level = 1; level <= 3; level++) {
-    const y = CEIL + level * 2.84;
-    b.box(TX0 - 0.5, y, -TZ - 0.5, TX1 + 0.7, y + 0.16, TZ + 0.5, "metal", SHIP.offWhite, g);
+    const y = CEIL + level * 2.3;
+    b.box(IX0 - 0.3, y, IZ - 0.3, IX1 + 0.3, y + 0.14, Z + 0.3, "metal", SHIP.offWhite, g);
   }
   for (let level = 0; level < 4; level++) {
-    const y = CEIL + level * 2.84 + 1.15;
-    for (let i = 0; i < 8; i++) {
-      const z = -10.5 + i * 3;
-      b.box(TX1, y, z - 0.75, TX1 + 0.04, y + 0.95, z + 0.75, "metal", SHIP.glass, glass);
-      b.box(TX0 - 0.04, y, z - 0.75, TX0, y + 0.95, z + 0.75, "metal", SHIP.glass, glass);
+    const y = CEIL + level * 2.3 + 0.95;
+    for (let i = 0; i < 5; i++) {
+      const x = IX0 + 1.8 + i * 2.6;
+      b.box(x - 0.8, y, IZ - 0.04, x + 0.8, y + 0.85, IZ, "metal", SHIP.glass, glass);
     }
-    for (let i = 0; i < 4; i++) {
-      const x = -41.5 + i * 3;
-      b.box(x - 0.75, y, -TZ - 0.04, x + 0.75, y + 0.95, -TZ, "metal", SHIP.glass, glass);
-      b.box(x - 0.75, y, TZ, x + 0.75, y + 0.95, TZ + 0.04, "metal", SHIP.glass, glass);
-    }
+    for (const x of [IX0 - 0.04, IX1]) for (const z of [14.2, 16.6]) b.box(x, y, z - 0.7, x + 0.04, y + 0.85, z + 0.7, "metal", SHIP.glass, glass);
   }
-  const BRIDGE = TOP + 3;
-  b.box(TX0, TOP, -Z - 0.3, TX1 + 1, TOP + 0.3, Z + 0.3, "metal", SHIP.offWhite, g);
-  b.box(TX0 + 1, TOP + 0.3, -Z + 2.5, TX1 + 1, BRIDGE, Z - 2.5, "metal", SHIP.white, g);
-  b.box(TX1 + 1, TOP + 1.25, -Z + 3, TX1 + 1.05, BRIDGE - 0.5, Z - 3, "metal", SHIP.glass, glass);
-  b.box(TX0 + 0.6, BRIDGE, -Z + 2, TX1 + 1.5, BRIDGE + 0.22, Z - 2, "metal", SHIP.offWhite, g);
-  for (const z of [-Z - 0.3, Z + 0.2]) b.box(TX0, TOP + 0.3, z, TX1 + 1, TOP + 1.3, z + 0.1, "metal", SHIP.white, g);
-  for (const z of [-Z - 0.3, Z - 2.5]) b.box(TX1 + 0.9, TOP + 0.3, z, TX1 + 1, TOP + 1.3, z + 2.8, "metal", SHIP.white, g);
-  b.box(-43, BRIDGE, -3.2, -38.5, BRIDGE + 7, 3.2, "metal", SHIP.navy, g);
-  b.box(-43.05, BRIDGE + 4.2, -3.25, -38.45, BRIDGE + 5.5, 3.25, "metal", PALETTE.mustard, g);
-  b.box(-42.6, BRIDGE + 7, -2.8, -38.9, BRIDGE + 7.3, 2.8, "metal", 0x1b1c1e, g);
-  b.box(-34.3, BRIDGE, -0.3, -33.7, BRIDGE + 8, 0.3, "metal", SHIP.white, g);
-  b.box(-34.2, BRIDGE + 5.4, -3.4, -33.8, BRIDGE + 5.7, 3.4, "metal", SHIP.white, g);
-  b.box(-34.6, BRIDGE + 6.6, -1.6, -33.4, BRIDGE + 6.9, 1.6, "metal", 0x9aa0a6, g);
+  const BRIDGE = TOP + 2.8;
+  b.box(IX0 - 0.8, TOP, IZ - 1.4, IX1 + 0.8, TOP + 0.25, Z + 0.3, "metal", SHIP.offWhite, g);
+  b.box(IX0 + 0.5, TOP + 0.25, IZ - 0.9, IX1 - 2, BRIDGE, Z - 0.6, "metal", SHIP.white, g);
+  b.box(IX0 + 0.8, TOP + 1.1, IZ - 0.95, IX1 - 2.3, BRIDGE - 0.5, IZ - 0.9, "metal", SHIP.glass, glass);
+  b.box(IX0 + 0.45, TOP + 1.1, IZ - 0.6, IX0 + 0.5, BRIDGE - 0.5, Z - 0.9, "metal", SHIP.glass, glass);
+  b.box(IX0 + 0.2, BRIDGE, IZ - 1.2, IX1 - 1.7, BRIDGE + 0.2, Z - 0.3, "metal", SHIP.offWhite, g);
+  b.box(IX1 - 6, BRIDGE, 14, IX1 - 2.6, BRIDGE + 5, 17.6, "metal", SHIP.offWhite, g);
+  b.box(IX1 - 5.8, BRIDGE + 5, 14.2, IX1 - 2.8, BRIDGE + 5.3, 17.4, "metal", 0x1b1c1e, g);
+  b.box(1.7, BRIDGE, 15.5, 2.3, BRIDGE + 9, 16.1, "metal", SHIP.white, g);
+  b.box(1.8, BRIDGE + 5.6, 12.8, 2.2, BRIDGE + 5.9, 18.8, "metal", SHIP.white, g);
+  b.box(0.4, BRIDGE + 7, 14.6, 3.6, BRIDGE + 7.25, 17, "metal", SHIP.offWhite, g);
+  b.box(-1.4, BRIDGE + 0.2, 13.6, -1, BRIDGE + 3, 18, "metal", SHIP.jetDark, g);
 
-  /* The stern, behind the tower: mooring gear, a lifeboat in its cradle. */
-  b.block(-47.6, -9, 1.8, 3, 1.3, "metal", SHIP.deckGear, D);
-  b.block(-48.9, -15.6, 0.7, 1.6, 0.75, "metal", 0x2c2f33, D);
-  b.block(-47, 3.4, 4.4, 2, 1.9, "metal", SHIP.orange, D);
-  b.drums(-45.6, -16.8, 1.3, 1.3, D);
+  /* Aft of the island: parked jets wingtip to wingtip, tractors and stores between them. */
+  jet(-41, -11, "+z", D);
+  jet(-41, 11.4, "-z", D);
+  jet(-28, -13.2, "+x", D);
+  tractor(-33.2, 1.2, "x", D);
   b.crate(-46.2, -3.2, 1.1, D);
+  b.drums(-45.6, 17.2, 1.3, 1.3, D);
+  b.block(-34, 14.6, 2.2, 2.6, 1.4, "wood", PALETTE.wood, D);
+  b.crate(-26.4, 4.4, 1.2, D);
+  b.crate(-26.3, 4.5, 0.8, D + 1.2);
+  b.pallets(-24.4, -4.6, 5, "z", D);
+  b.block(-47.6, -9, 1.8, 3, 1.3, "metal", SHIP.deckGear, D);
 
-  /* The apron between the tower and the hold. */
-  b.block(-23.4, -3.6, 2.2, 2.6, 1.4, "wood", PALETTE.wood, D);
-  b.drums(-27, 4.4, 1.3, 1.3, D);
-  b.crate(-22.6, 7.6, 1.2, D);
-  b.crate(-22.5, 7.7, 0.8, D + 1.2);
-  b.pallets(-24.4, -9.6, 5, "z", D);
-  b.block(-21.4, 14.8, 1.1, 1.1, 1.25, "metal", SHIP.white, D);
+  /* Amidships, over the hangar: a jet waiting on the centerline, cover between the elevators. */
+  jet(1, -5, "-x", D);
+  tractor(-6.4, 6.4, "z", D);
+  b.crate(4.6, 3.6, 1.2, D);
+  b.drums(8.6, 7.6, 1.3, 1.3, D);
+  b.pallets(-3.4, -11.2, 5, "x", D);
+  b.crate(-14.6, -13.6, 1.1, D);
+  b.block(6.2, -14.8, 2.4, 2.2, 1.5, "wood", PALETTE.wood, D);
+  b.drums(-13.6, 14.4, 1.3, 1.3, D);
+  b.crate(15.6, 13.4, 1.2, D);
 
-  /* Containers. In the hold a stack of two reaches deck level; three stand a container above it. */
-  const colors = [PALETTE.rust, PALETTE.blue, PALETTE.teal, PALETTE.mustard, PALETTE.bone, PALETTE.olive, PALETTE.brick];
-  let ci = 0;
-  const stack = (cx: number, cz: number, along: "x" | "z", levels: number, base = 0) => {
-    const w = along === "x" ? CONTAINER_L : CONTAINER_W;
-    const d = along === "x" ? CONTAINER_W : CONTAINER_L;
-    for (let l = 0; l < levels; l++) {
-      const y = base + l * CONTAINER_H;
-      b.box(cx - w / 2, y, cz - d / 2, cx + w / 2, y + CONTAINER_H, cz + d / 2, "container", colors[(ci++ * 5 + l) % colors.length]!, { ribs: along });
-    }
-  };
-  // The crossing amidships: two stacks end to end, a catwalk from each to the side decks. You pass under the catwalks.
-  const CX = 1.22;
-  stack(CX, -3.05, "z", 2);
-  stack(CX, 3.05, "z", 2);
-  for (const [z0, z1] of [
-    [-HZ, -6.1],
-    [6.1, HZ],
+  /* Forward: a jet on the catapult with its blast deflector up, another parked to port. */
+  jet(28.5, 3, "+x", D);
+  deflector(21.9, 0.4, 5.6);
+  jet(26.5, -14, "-x", D);
+  tractor(31, 10.6, "x", D);
+  b.crate(24.6, -5.4, 1.2, D);
+  b.drums(32.8, -7.4, 1.3, 1.3, D);
+  b.crate(26, 15.4, 1.1, D);
+  // Out on the angled deck, beyond reach.
+  jet(-20, -Z - 3.4, "+x", D, true);
+  jet(-2, -Z - 3.6, "+x", D, true);
+
+  /* Rails at the elevator shafts: something to crouch behind, with gaps to drop in through. */
+  for (const [x0, x1, z] of [
+    [-19, -15, EA.z0 - 0.12],
+    [-12.5, -9.5, EA.z0 - 0.12],
+    [12, 15, EB.z1 + 0.02],
+    [17.5, 21, EB.z1 + 0.02],
   ] as const)
-    b.box(CX - 1.22, D - 0.18, z0, CX + 1.22, D, z1, "metal", SHIP.catwalk, { look: "plate" });
-  b.crate(CX, 0.4, 1.2, D);
-  b.crate(CX + 0.1, -4.6, 1, D);
-  // Aft half of the hold: a pier of containers out from the apron, a step down from it, cover on the floor.
-  stack(HX0 + 3.05, 4.2, "x", 2);
-  stack(HX0 + 9.15, 4.2, "x", 1);
-  stack(-13, -4.4, "z", 1);
-  stack(-6.4, -7.6, "x", 3);
+    b.box(x0, D, z, x1, D + 1.05, z + 0.1, "metal", SHIP.white);
+  for (const [z0, z1, x] of [
+    [2, 6, EA.x1 + 0.02],
+    [-9, -5, EB.x0 - 0.12],
+    [2.5, 8, HX0 - 0.12],
+    [-8.5, -3, HX1 + 0.02],
+  ] as const)
+    b.box(x, D, z0, x + 0.1, D + 1.05, z1, "metal", SHIP.white);
+
+  /* The hangar. A bulkhead with its fire door open splits it into two bays. */
+  for (const [z0, z1] of [
+    [-HZ, -4],
+    [4, HZ],
+  ] as const)
+    b.box(0.6, 0, z0, 1.8, ROOF, z1, "metal", SHIP.hold);
+  b.box(0.6, 3.4, -4, 1.8, ROOF, 4, "metal", SHIP.hold);
+  for (const z of [-4.1, 3.8]) b.box(0.5, 0, z, 1.9, 3.4, z + 0.3, "metal", PALETTE.yellow, g);
+  // Aft bay: a jet under maintenance, the lowered elevator to starboard.
+  jet(-8, -4.5, "+x", 0);
+  tractor(-15.6, 5.4, "x", 0);
   b.crate(-16.4, -1.8, 1.2);
-  b.crate(-4.6, 2.2, 1.1);
-  b.drums(-9.4, 8);
-  b.pallets(-17.6, 8.2, 5);
-  // Forward half: a pier out from the port side deck, a tall stack that stands above the deck, cover.
-  stack(8.4, -HZ + 3.05, "z", 2);
-  stack(8.4, -HZ + 9.15, "z", 1);
-  stack(16.6, 3.4, "x", 3);
-  stack(17.4, -3.2, "x", 1);
-  b.crate(5.2, 6.4, 1.2);
-  b.crate(12.6, 8.4, 1.1);
-  b.drums(19.6, -8.2);
-  b.pallets(13.4, 0.4, 4, "z");
-  // Four staircases out of the hold, one in each corner.
+  b.crate(-4.6, 2.6, 1.1);
+  b.drums(-3.4, 8.6);
+  b.pallets(-17.6, -6.4, 5);
+  b.block(-1.2, -9.6, 1, 2.4, 1.9, "metal", 0x55707f);
+  b.box(-11.2, 0, 6.2, -10.2, 1.3, 8.6, "metal", PALETTE.rust);
+  // Forward bay: another jet, the other elevator to port.
+  jet(9, 4.5, "-x", 0);
+  tractor(16.4, -4.6, "z", 0);
+  b.crate(5.2, -6.4, 1.2);
+  b.crate(5.3, -6.3, 0.8, 1.2);
+  b.crate(12.6, -8.4, 1.1);
+  b.drums(19.6, 1.2);
+  b.pallets(4.4, -1.6, 4, "z");
+  b.block(3.4, 9.8, 2.4, 1, 1.9, "metal", 0x55707f);
+  b.box(18.6, 0, 5.2, 20.8, 1.3, 6.4, "metal", PALETTE.rust);
+  // Lights along the overhead (scenery).
+  for (const x of [-15, -5, 6, 16]) for (const z of [-5.5, 5.5]) if (!(x < EA.x1 && z > EA.z0) && !(x > EB.x0 && z < EB.z1)) b.box(x - 1.2, ROOF - 0.12, z - 0.15, x + 1.2, ROOF, z + 0.15, "metal", 0xf2efe2, g);
+  // Four staircases up to the flight deck, one in each corner.
   const rise = D / 12;
   b.stairs(-12.8, -HZ + 0.9, "-x", 12, rise, 0.6, 1.8);
   routes.push([
@@ -641,109 +716,45 @@ function ironwake(): MapDef {
     [13.5, D, -HZ - 1],
   ]);
 
-  /* The side decks: a crane on each, a container, ventilators and gear for cover, a rail along parts of the hold's edge. */
-  for (const [cx, cz, dir] of [
-    [-9, -15.5, 1],
-    [11, 15.5, -1],
-  ] as const) {
-    // The pedestal collides; the cab, the lattice jib and the hook above are scenery.
-    b.block(cx, cz, 2.6, 2.6, 11, "metal", PALETTE.yellow, D);
-    const top = D + 11;
-    b.box(cx - 2, top, cz - 2, cx + 2, top + 3.2, cz + 2, "metal", PALETTE.yellow, g);
-    b.box(cx - 1.4, top + 1.2, cz - 2.05, cx + 1.4, top + 2.6, cz + 2.05, "metal", SHIP.glass, glass);
-    // The jib swings in over the hold.
-    const jz = cz - Math.sign(cz) * 9;
-    const tip = cx + dir * 22;
-    const [j0, j1] = [Math.min(cx, tip), Math.max(cx, tip)];
-    for (const y of [top + 2, top + 2.86]) for (const z of [jz - 0.7, jz + 0.56]) b.box(j0, y, z, j1, y + 0.14, z + 0.14, "metal", PALETTE.yellow, g);
-    for (let x = j0 + 0.2; x < j1; x += 2.2) {
-      for (const z of [jz - 0.68, jz + 0.58]) b.box(x, top + 2.14, z, x + 0.1, top + 2.86, z + 0.1, "metal", PALETTE.yellow, g);
-      b.box(x, top + 2.9, jz - 0.56, x + 0.1, top + 3, jz + 0.56, "metal", PALETTE.yellow, g);
-    }
-    b.box(cx - 0.6, top + 2, Math.min(cz, jz) - 0.6, cx + 0.6, top + 3, Math.max(cz, jz) + 0.6, "metal", PALETTE.yellow, g);
-    b.box(cx - 0.35, top + 3.2, cz - 0.35, cx + 0.35, top + 7.5, cz + 0.35, "metal", PALETTE.yellow, g);
-    // A container on the hook, hanging over the hold.
-    b.box(tip - dir * 2.06, top - 4.2, jz - 0.06, tip - dir * 1.94, top + 2, jz + 0.06, "metal", 0x2a2c2f, g);
-    b.box(tip - dir * 2 - CONTAINER_L / 2, top - 4.2 - CONTAINER_H, jz - CONTAINER_W / 2, tip - dir * 2 + CONTAINER_L / 2, top - 4.2, jz + CONTAINER_W / 2, "container", dir > 0 ? PALETTE.teal : PALETTE.rust, { ghost: true, ribs: "x" });
-  }
-  stack(4, -16.2, "x", 1, D);
-  stack(-4, 15.6, "x", 2, D);
-  stack(27.5, 5, "z", 1, D);
-  stack(27.5, -9.6, "z", 2, D);
-  const vent = (x: number, z: number) => {
-    b.block(x, z, 1.1, 1.1, 1.25, "metal", SHIP.white, D);
-    b.block(x, z, 1.5, 1.5, 0.3, "metal", SHIP.offWhite, D + 1.25);
-  };
-  vent(-17, -17.4);
-  vent(18.5, -17.2);
-  vent(-15, 17.6);
-  vent(19, 12.6);
-  vent(31.5, -16.5);
-  b.crate(-1.6, -12.4, 1.2, D);
-  b.drums(13.6, -13.2, 1.3, 1.3, D);
-  b.pallets(2.6, 12.6, 5, "x", D);
-  b.crate(-18.4, 13, 1.1, D);
-  b.block(24.6, 13.6, 2.2, 2.4, 1.5, "wood", PALETTE.wood, D);
-  b.drums(32.8, 9.4, 1.3, 1.3, D);
-  b.crate(30.4, -1.2, 1.2, D);
-  b.crate(24, -2.6, 1, D);
-  // Rails at the hold's edge: something to crouch behind, with gaps to drop in through.
-  for (const [x0, x1, z] of [
-    [-16, -11, -HZ - 0.12],
-    [-2, 0, -HZ - 0.12],
-    [2.5, 6, -HZ - 0.12],
-    [14.6, 20, -HZ - 0.12],
-    [-19, -13, HZ + 0.02],
-    [-6, 0, HZ + 0.02],
-    [5, 11, HZ + 0.02],
-  ] as const)
-    b.box(x0, D, z, x1, D + 1.05, z + 0.1, "metal", SHIP.white);
-  for (const [z0, z1, x] of [
-    [-7, -2, HX0 - 0.12],
-    [6, 9.5, HX0 - 0.12],
-    [-9, -4, HX1 + 0.02],
-    [1, 7, HX1 + 0.02],
-  ] as const)
-    b.box(x, D, z0, x + 0.1, D + 1.05, z1, "metal", SHIP.white);
-
-  // The ship's own paintwork is looked after; cargo, gear and drums rust as they please.
-  const kept = new Set<number>([SHIP.white, SHIP.offWhite, SHIP.navy, SHIP.deck, SHIP.orange, PALETTE.yellow, PALETTE.mustard, 0x55707f, 0x8a8f93, 0x9aa0a6]);
+  // The ship's own paintwork is looked after; stores, gear and drums rust as they please.
+  const kept = new Set<number>([SHIP.white, SHIP.offWhite, SHIP.navy, SHIP.deck, SHIP.hold, SHIP.jet, SHIP.jetDark, SHIP.line, PALETTE.yellow, 0x55707f, 0x8a8f93, 0xf2efe2]);
   for (const box of b.boxes) if (box.surface === "metal" && !box.look && kept.has(box.color)) box.look = "clean";
 
   const aft = -Math.PI / 2; // facing the bow (+x)
   const fwd = Math.PI / 2;
   const spawns: Spawn[] = [
     // The stern (facing forward).
-    { x: -47.5, y: D, z: -17, yaw: aft, side: 0 },
-    { x: -47, y: D, z: -12.5, yaw: aft, side: 0 },
+    { x: -47.5, y: D, z: -17.5, yaw: aft, side: 0 },
+    { x: -48, y: D, z: -12.5, yaw: aft, side: 0 },
     { x: -46.5, y: D, z: -5.5, yaw: aft, side: 0 },
-    { x: -46.5, y: D, z: 7, yaw: aft, side: 0 },
-    { x: -47.5, y: D, z: 10.5, yaw: aft, side: 0 },
-    { x: -48.5, y: D, z: 17.5, yaw: aft, side: 0 },
-    // The forecastle (facing aft).
+    { x: -46.5, y: D, z: 4, yaw: aft, side: 0 },
+    { x: -48, y: D, z: 10.5, yaw: aft, side: 0 },
+    { x: -48.5, y: D, z: 15, yaw: aft, side: 0 },
+    // The ramp at the bow (facing aft).
     { x: 42, y: FY, z: 17.5, yaw: fwd, side: 1 },
     { x: 38.5, y: FY, z: 11.5, yaw: fwd, side: 1 },
     { x: 42.5, y: FY, z: 3.5, yaw: fwd, side: 1 },
-    { x: 38.2, y: FY, z: -2.5, yaw: fwd, side: 1 },
+    { x: 38.2, y: FY, z: -1, yaw: fwd, side: 1 },
     { x: 38.5, y: FY, z: -11.5, yaw: fwd, side: 1 },
     { x: 42, y: FY, z: -17.5, yaw: fwd, side: 1 },
-    // Inside the tower, on the gallery, the side decks, down in the hold.
-    { x: -41.5, y: D, z: -11, yaw: aft, side: null },
-    { x: -33, y: D, z: 4.5, yaw: aft, side: null },
-    { x: TX1 + 1.4, y: GY, z: 6.5, yaw: aft, side: null },
-    { x: 1.5, y: D, z: 17.4, yaw: Math.PI, side: null },
-    { x: 9, y: D, z: -17.8, yaw: 0, side: null },
-    { x: -17.5, y: 0, z: -5.5, yaw: aft, side: null },
-    { x: 20, y: 0, z: 6.5, yaw: fwd, side: null },
+    // On the flight deck, inside the island, on its gallery, down in the hangar.
+    { x: -30, y: D, z: 7.5, yaw: aft, side: null },
+    { x: -22.5, y: D, z: -4, yaw: aft, side: null },
+    { x: IX1 + 1.2, y: GY, z: 15, yaw: 0, side: null },
+    { x: 7.5, y: D, z: 16.5, yaw: 0, side: null },
+    { x: 9, y: D, z: -17.5, yaw: 0, side: null },
+    { x: -17.5, y: 0, z: -3.5, yaw: aft, side: null },
+    { x: 20, y: 0, z: 8, yaw: fwd, side: null },
     { x: 31, y: D, z: 16, yaw: fwd, side: null },
   ];
 
   // On the horizon: a burning freighter off the starboard beam, another ship far off the port bow.
+  const colors = [PALETTE.rust, PALETTE.blue, PALETTE.teal, PALETTE.mustard, PALETTE.bone, PALETTE.olive, PALETTE.brick];
   const sb = new Builder();
   const far = (x0: number, z0: number, len: number, beam: number, hull: number, bays: number) => {
     const top = SHIP_SEA_Y + 6.5;
     sb.box(x0, SHIP_SEA_Y, z0, x0 + len, top, z0 + beam, "metal", hull, g);
-    sb.box(x0 + 4, top, z0 + 2, x0 + 16, top + 14.5, z0 + beam - 2, "metal", SHIP.white, g);
+    sb.box(x0 + 4, top, z0 + 2, x0 + 16, top + 14.5, z0 + beam - 2, "metal", 0xe2dfd6, g);
     sb.box(x0 + 7, top + 14.5, z0 + beam / 2 - 2, x0 + 11, top + 19.5, z0 + beam / 2 + 2, "metal", SHIP.navy, g);
     for (let i = 0; i < bays; i++) {
       const x = x0 + 22 + i * 13;
@@ -751,13 +762,22 @@ function ironwake(): MapDef {
       for (let l = 0; l < levels; l++) sb.box(x, top + l * CONTAINER_H, z0 + 1.5, x + 12.2, top + (l + 1) * CONTAINER_H, z0 + beam - 1.5, "container", colors[(i * 3 + l * 5) % colors.length]!, { ghost: true, ribs: "x" });
     }
   };
+  /** An escort: a grey warship's outline. */
+  const escort = (x0: number, z0: number) => {
+    const top = SHIP_SEA_Y + 5;
+    sb.box(x0, SHIP_SEA_Y, z0, x0 + 110, top, z0 + 14, "metal", SHIP.offWhite, g);
+    sb.box(x0 + 38, top, z0 + 2, x0 + 70, top + 7, z0 + 12, "metal", SHIP.white, g);
+    sb.box(x0 + 48, top + 7, z0 + 4, x0 + 58, top + 12, z0 + 10, "metal", SHIP.white, g);
+    sb.box(x0 + 52, top + 12, z0 + 6.5, x0 + 53.5, top + 24, z0 + 8, "metal", SHIP.offWhite, g);
+    sb.box(x0 + 84, top, z0 + 5, x0 + 90, top + 2.4, z0 + 9, "metal", SHIP.offWhite, g);
+  };
   far(-70, 92, 120, 20, SHIP.hullRed, 7);
-  far(120, -150, 130, 22, SHIP.navy, 7);
+  escort(110, -150);
 
   return {
     id: "ironwake",
     name: "Ironwake",
-    blurb: "A giant container ship at sea: fight from the open hold up to the tower's gallery.",
+    blurb: "An aircraft carrier at sea: fight among the jets on the flight deck, from the island's gallery, or down in the hangar.",
     setting: "ship",
     bounds: { x0: X0, z0: -Z, x1: X1, z1: Z },
     boxes: b.boxes,

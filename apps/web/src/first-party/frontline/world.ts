@@ -163,17 +163,17 @@ function liteProp(b: Box, metal: Buf, wood: Buf, seed: number): boolean {
  */
 function shipHull(buf: Buf, map: MapDef, scale: number): void {
   const { bounds } = map;
-  const navy = rgbOf(0x1c2735);
-  const boot = rgbOf(0x7a2e26);
-  const white = rgbOf(0xd9d6cd);
-  const deck = rgbOf(0x3f5f50);
+  const navy = rgbOf(0x858d95);
+  const boot = rgbOf(0x1d2024);
+  const white = rgbOf(0x969ea6);
+  const deck = rgbOf(0x585e65);
   const out = 0.36;
   const x0 = bounds.x0 - out;
   const hb = bounds.z1 + out;
   const y0 = SHIP_SEA_Y - 0.6;
   const yBoot = SHIP_SEA_Y + 1.5;
   const fy = SHIP_FORECASTLE_Y;
-  const rail = fy + 1.1;
+  const rail = fy + 0.12;
   /** A wall from (ax, az) to (bx, bz), seen from its left side walking a → b. */
   const wall = (ax: number, az: number, bx: number, bz: number, ya: number, yb: number, rgb: V3) => {
     const len = Math.hypot(bx - ax, bz - az);
@@ -197,7 +197,7 @@ function shipHull(buf: Buf, map: MapDef, scale: number): void {
     }
   };
   const bow = SHIP_BOW.map(([x, h], i) => [x, i === 0 ? hb : h] as const);
-  const sheer = SHIP_DECK_Y + 1.15;
+  const sheer = SHIP_DECK_Y + 0.12;
   plating(x0, hb, SHIP_FORECASTLE_X, hb, sheer);
   plating(SHIP_FORECASTLE_X, hb, bow[0]![0], hb, rail);
   // The transom.

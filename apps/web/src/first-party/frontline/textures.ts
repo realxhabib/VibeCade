@@ -197,12 +197,12 @@ export function groundTexture(map: MapDef, pxPerM: number, sunShadows: boolean, 
   return t;
 }
 
-/** The floor of Ironwake's hold (worn oxide red over steel). */
-const DECK_PAINT = "rgba(112,62,48,0.88)";
+/** The floor of Ironwake's hangar (worn grey-green deck paint over steel). */
+const DECK_PAINT = "rgba(84,96,92,0.9)";
 
 /**
- * What is painted on the hold's floor: weld seams between the plates, guide
- * lines where the container cells go, and a number in each half.
+ * What is painted on the hangar's floor: weld seams between the plates,
+ * taxi lines, and each bay's name.
  */
 function deckMarkings(ctx: CanvasRenderingContext2D, map: MapDef, pxPerM: number, alpha: number): void {
   const { bounds } = map;
@@ -221,7 +221,7 @@ function deckMarkings(ctx: CanvasRenderingContext2D, map: MapDef, pxPerM: number
     ctx.lineTo(X(bounds.x1), Z(z));
   }
   ctx.stroke();
-  // Cell guides: faded yellow lines a container's width apart.
+  // Taxi lines: faded yellow dashes.
   ctx.strokeStyle = `rgba(222,176,56,${0.5 * alpha})`;
   ctx.lineWidth = pxPerM * 0.1;
   ctx.setLineDash([pxPerM * 1.5, pxPerM * 1]);
@@ -237,8 +237,8 @@ function deckMarkings(ctx: CanvasRenderingContext2D, map: MapDef, pxPerM: number
   ctx.textAlign = "center";
   // Written across the ship, to be read walking forward.
   for (const [label, x, z] of [
-    ["HOLD 2", -10, 1],
-    ["HOLD 1", 12, -0.4],
+    ["BAY 2", -10, 0.5],
+    ["BAY 1", 12, 0.5],
   ] as const) {
     ctx.save();
     ctx.translate(X(x), Z(z));
@@ -691,7 +691,8 @@ export function groundLayers(map: MapDef, pxPerM: number): { overlay: Texture; m
     out.data[i] = ad[i]!;
     // A soft threshold turns blobs into puddles with a damp rim.
     const v = wd[i]! / 255;
-    out.data[i + 1] = Math.round(255 * Math.min(1, Math.max(0, (v - 0.18) * 1.6)));
+    // (None under the carrier's flight deck.)
+    out.data[i + 1] = ship ? 0 : Math.round(255 * Math.min(1, Math.max(0, (v - 0.18) * 1.6)));
     out.data[i + 2] = 0;
     out.data[i + 3] = 255;
   }
