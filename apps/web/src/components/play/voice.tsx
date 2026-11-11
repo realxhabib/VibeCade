@@ -48,8 +48,11 @@ export function useVoiceControls(matchId: string, listenOnly: boolean): VoiceCon
   };
 }
 
-/** How one person shows on their seat: talking now, in the call with the mic off, or in the call. */
-export type SeatVoice = "speaking" | "muted" | "on";
+/**
+ * How one person shows on their seat: talking now, in the call with the mic off, in the call, or
+ * muted by us (only for us).
+ */
+export type SeatVoice = "speaking" | "muted" | "on" | "silenced";
 
 export function seatVoices(voice: VoiceControls | undefined, viewerId: string): Map<string, SeatVoice> {
   const out = new Map<string, SeatVoice>();
@@ -57,17 +60,34 @@ export function seatVoices(voice: VoiceControls | undefined, viewerId: string): 
   const { snapshot } = voice;
   for (const m of snapshot.members) {
     if (!m.talk) continue;
-    out.set(m.userId, m.speaking ? "speaking" : m.muted ? "muted" : "on");
+    out.set(m.userId, m.silenced ? "silenced" : m.speaking ? "speaking" : m.muted ? "muted" : "on");
   }
   if (snapshot.joined && snapshot.talk) out.set(viewerId, snapshot.speaking ? "speaking" : snapshot.muted ? "muted" : "on");
   return out;
 }
 
-/** A glowing ring around a seat's avatar while they talk, and a small mic badge while they're in the call. */
-export function SeatVoiceMark({ state }: { state: SeatVoice | undefined }) {
+/**
+ * A glowing ring around a seat's avatar while they talk, and a small mic badge while they're in the
+ * call. With `onToggle` (we're in the call too), tapping the avatar mutes them just for us.
+ */
+export function SeatVoiceMark({ state, onToggle, handle }: { state: SeatVoice | undefined; onToggle?: () => void; handle?: string }) {
   const reduce = useReducedMotion();
+  const silenced = state === "silenced";
   return (
     <>
+      {onToggle && state && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            haptic("light");
+            onToggle();
+          }}
+          className="absolute -inset-1 z-10 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-white"
+          aria-label={silenced ? `Hear @${handle ?? "them"} again` : `Mute @${handle ?? "them"} for me`}
+          title={silenced ? "Tap to hear them again" : "Tap to mute them for you"}
+        />
+      )}
       <AnimatePresence>
         {state === "speaking" && (
           <motion.span
@@ -84,18 +104,24 @@ export function SeatVoiceMark({ state }: { state: SeatVoice | undefined }) {
       <AnimatePresence>
         {state && (
           <motion.span
-            key={state === "muted" ? "off" : "on"}
+            key={silenced ? "silenced" : state === "muted" ? "off" : "on"}
             className={cn(
-              "absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full ring-2 ring-ink-950",
-              state === "muted" ? "bg-ink-700 text-ink-200" : "bg-success text-ink-950",
+              "pointer-events-none absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full ring-2 ring-ink-950",
+              silenced ? "bg-danger text-ink-950" : state === "muted" ? "bg-ink-700 text-ink-200" : "bg-success text-ink-950",
             )}
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
             transition={spring.bouncy}
-            aria-label={state === "muted" ? "In voice, muted" : state === "speaking" ? "Talking" : "In voice"}
+            aria-label={silenced ? "Muted for you" : state === "muted" ? "In voice, muted" : state === "speaking" ? "Talking" : "In voice"}
           >
-            {state === "muted" ? <MicOff className="size-2.5" strokeWidth={3} /> : <Mic className="size-2.5" strokeWidth={3} />}
+            {silenced ? (
+              <VolumeX className="size-2.5" strokeWidth={3} />
+            ) : state === "muted" ? (
+              <MicOff className="size-2.5" strokeWidth={3} />
+            ) : (
+              <Mic className="size-2.5" strokeWidth={3} />
+            )}
           </motion.span>
         )}
       </AnimatePresence>
@@ -185,6 +211,9 @@ export function VoiceMenu({ voice, match, onDone }: { voice: VoiceControls; matc
       <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
         Voice{count > 0 && ` · ${count} in call`}
       </p>
+      {snapshot.joined && snapshot.members.some((m) => m.talk) && (
+        <p className="px-3 pb-1 text-[11px] text-ink-400">Tap someone&apos;s picture or the speaker to mute them just for you.</p>
+      )}
       {snapshot.members.length === 0 && <p className="px-3 pb-1.5 text-xs text-ink-400">{snapshot.joined ? "Just you so far." : "Nobody's talking yet."}</p>}
       {snapshot.members.map((m) => {
         const player = match.players.find((p) => p.userId === m.userId);
@@ -280,9 +309,23 @@ export function LobbyVoice({ match, viewer, listenOnly }: { match: Match; viewer
           const player = match.players.find((p) => p.userId === m.userId);
           if (!player) return null;
           return (
-            <span key={m.userId} className="relative -ml-1.5 first:ml-0" title={`@${player.profile.handle}${m.muted ? " (muted)" : ""}`}>
-              <Avatar person={player.profile} size={26} className={cn(m.muted && "opacity-60")} />
-              {m.speaking && <span aria-hidden className="absolute -inset-[3px] rounded-full border-2 border-success" />}
+            <span key={m.userId} className="relative -ml-1.5 first:ml-0">
+              <Avatar person={player.profile} size={26} className={cn((m.muted || m.silenced) && "opacity-60")} />
+              {m.speaking && !m.silenced && <span aria-hidden className="absolute -inset-[3px] rounded-full border-2 border-success" />}
+              {m.silenced && (
+                <span aria-hidden className="pointer-events-none absolute -right-1 -top-1 flex size-3.5 items-center justify-center rounded-full bg-danger text-ink-950 ring-2 ring-ink-950">
+                  <VolumeX className="size-2" strokeWidth={3} />
+                </span>
+              )}
+              {snapshot.joined && (
+                <button
+                  type="button"
+                  onClick={() => voice.silence(m.userId, !m.silenced)}
+                  className="absolute inset-0 rounded-full"
+                  aria-label={m.silenced ? `Hear @${player.profile.handle} again` : `Mute @${player.profile.handle} for me`}
+                  title={m.silenced ? `@${player.profile.handle} is muted for you: tap to hear them` : `@${player.profile.handle}: tap to mute for you`}
+                />
+              )}
             </span>
           );
         })}

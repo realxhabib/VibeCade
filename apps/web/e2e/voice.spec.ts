@@ -34,8 +34,8 @@ test("two players talk over voice chat in a live match", async ({ context }) => 
   await alice.getByRole("button", { name: new RegExp(`@bob${suffix}`) }).click();
   await alice.getByRole("button", { name: `Challenge @bob${suffix}` }).click();
   await expect(alice).toHaveURL(/\/play\//);
-  await bob.getByRole("button", { name: "View" }).click();
-  await bob.getByRole("button", { name: "Accept challenge" }).click();
+  // Bob gets a "waiting in the lobby" toast: Join takes the seat in one tap.
+  await bob.getByRole("button", { name: "Join", exact: true }).click();
   await expect(alice.frameLocator("iframe").getByRole("button", { name: "Paper" })).toBeEnabled({ timeout: 30_000 });
 
   await alice.getByRole("button", { name: "Join voice chat" }).click();
@@ -52,6 +52,12 @@ test("two players talk over voice chat in a live match", async ({ context }) => 
   await expect(alice.getByText("connecting…")).toBeHidden({ timeout: 20_000 });
   await expect(alice.getByText("can't connect")).toBeHidden();
   await alice.keyboard.press("Escape");
+
+  // Tapping Bob's picture mutes him for Alice only, and tapping again brings him back.
+  await alice.getByRole("button", { name: `Mute @bob${suffix} for me` }).first().click();
+  await expect(alice.getByLabel("Muted for you").first()).toBeVisible();
+  await alice.getByRole("button", { name: `Hear @bob${suffix} again` }).first().click();
+  await expect(alice.getByLabel("Muted for you")).toBeHidden();
 
   // Muting shows on the other side.
   await bob.getByRole("button", { name: "Mute", exact: true }).click();

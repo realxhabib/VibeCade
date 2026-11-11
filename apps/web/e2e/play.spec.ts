@@ -63,9 +63,8 @@ test("two players duel live across tabs", async ({ context }) => {
   await alice.getByRole("button", { name: `Challenge @bob${suffix}` }).click();
   await expect(alice).toHaveURL(/\/play\//);
 
-  // Bob gets a live notification and accepts.
-  await bob.getByRole("button", { name: "View" }).click();
-  await bob.getByRole("button", { name: "Accept challenge" }).click();
+  // Bob gets a "waiting in the lobby" toast: Join takes the seat in one tap.
+  await bob.getByRole("button", { name: "Join", exact: true }).click();
 
   const a = alice.frameLocator("iframe");
   const b = bob.frameLocator("iframe");
