@@ -1,0 +1,61 @@
+name: VibeCade
+options:
+  bundleIdPrefix: com.meemr
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    DEVELOPMENT_TEAM: UP938HBR8N
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  VibeCade:
+    type: application
+    platform: iOS
+    sources: [VibeCade]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.meemr.vibecade
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: VibeCade/Info.plist
+      properties:
+        CFBundleDisplayName: VibeCade
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIUserInterfaceStyle: Dark
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: true
+        ITSAppUsesNonExemptEncryption: false
+        UIRequiresFullScreen: false
+        UISupportedInterfaceOrientations:
+          [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad:
+          [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        CFBundleURLTypes:
+          - CFBundleURLName: com.meemr.vibecade
+            CFBundleURLSchemes: [vibecade]
+        NSMicrophoneUsageDescription: Some VibeCade games have voice chat. VibeCade asks before a game can hear you.
+        NSCameraUsageDescription: Some VibeCade games use the camera. VibeCade asks before a game can see you.
+  VibeCadeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [VibeCadeTests]
+    dependencies:
+      - target: VibeCade
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.meemr.vibecade.tests
+schemes:
+  VibeCade:
+    build:
+      targets:
+        VibeCade: all
+        VibeCadeTests: [test]
+    test:
+      targets: [VibeCadeTests]

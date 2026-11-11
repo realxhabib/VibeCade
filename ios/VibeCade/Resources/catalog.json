@@ -1,0 +1,1154 @@
+{
+  "featured": [
+    "starship-league",
+    "wedge-wars",
+    "four-in-a-row",
+    "starship-flap"
+  ],
+  "games": [
+    {
+      "slug": "quick-draw",
+      "name": "Reflexes",
+      "tagline": "Wait for it… wait for it… GO.",
+      "description": "A best-of-five reflex duel. Hold steady while the tension builds, then tap the instant the signal fires. Tap early and you lose the round. Reaction times are measured on each device, so lag never decides a duel.",
+      "category": "games",
+      "icon": "⚡",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#ffe14d",
+        "#ff7a1a"
+      ],
+      "modes": [
+        "live",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~45 sec",
+      "howTo": [
+        "Watch the screen. Don't touch anything while it says STEADY.",
+        "The moment it flashes GO, tap as fast as you can.",
+        "Faster reaction wins the round. First to three rounds takes the duel."
+      ],
+      "tags": [
+        "reflex",
+        "realtime",
+        "1v1"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "duel_won",
+          "name": "Fastest gun",
+          "description": "Win a Reflexes duel.",
+          "icon": "🤠",
+          "xp": 20
+        },
+        {
+          "id": "under_200",
+          "name": "Under 200 ms",
+          "description": "React to GO in under 200 milliseconds.",
+          "icon": "⚡",
+          "xp": 40
+        },
+        {
+          "id": "under_150",
+          "name": "Superhuman",
+          "description": "React to GO in under 150 ms. Are you even human?",
+          "icon": "🦾",
+          "xp": 70
+        },
+        {
+          "id": "flawless",
+          "name": "Flawless 3–0",
+          "description": "Win a duel without dropping a round.",
+          "icon": "💎",
+          "xp": 40
+        },
+        {
+          "id": "comeback",
+          "name": "Comeback",
+          "description": "Win a duel after falling 0–2 behind.",
+          "icon": "🔄",
+          "xp": 60
+        },
+        {
+          "id": "photo_finish",
+          "name": "Photo finish",
+          "description": "Win a round by 5 milliseconds or less.",
+          "icon": "📸",
+          "xp": 40
+        },
+        {
+          "id": "metronome",
+          "name": "Metronome",
+          "description": "Three clean taps in a duel, all within 30 ms.",
+          "icon": "⏱️",
+          "xp": 40
+        }
+      ]
+    },
+    {
+      "slug": "starship-flap",
+      "name": "Starship Flap",
+      "tagline": "Tap to thrust. Thread the towers. Don't explode.",
+      "description": "Flappy flying with a stainless-steel rocket. Every tap fires the engines; gravity does the rest. Thread the launch towers: the gaps get tighter and the ship faster the further you go, and a fresh course rolls out every flight. Touch anything and it's a rapid unscheduled disassembly. Fly as often as you like: your best run goes on the worldwide leaderboard, and you see where you stand after every crash.",
+      "category": "games",
+      "icon": "🚀",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#ff7a2b",
+        "#7a5cff"
+      ],
+      "modes": [
+        "live"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~1 min",
+      "howTo": [
+        "Tap (or press Space) to fire the engines. Let go and you fall.",
+        "Fly through the gaps between the launch towers. Touch a tower, the sky or the sea and you explode.",
+        "Fly again as often as you like. Your best run is ranked on the worldwide leaderboard."
+      ],
+      "tags": [
+        "arcade",
+        "one-tap",
+        "space"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "liftoff",
+          "name": "Liftoff",
+          "description": "Clear your first tower.",
+          "icon": "🚀",
+          "xp": 10
+        },
+        {
+          "id": "orbit",
+          "name": "Orbit",
+          "description": "Clear 10 towers in one flight.",
+          "icon": "🛰️",
+          "xp": 30
+        },
+        {
+          "id": "booster_catch",
+          "name": "Chopsticks",
+          "description": "Clear 25 towers in one flight.",
+          "icon": "🥢",
+          "xp": 50
+        }
+      ]
+    },
+    {
+      "slug": "four-in-a-row",
+      "name": "Four in a Row",
+      "tagline": "Drop, stack, connect. Live or over days.",
+      "description": "The timeless connect-four duel with buttery physics. Take turns dropping discs into a seven-column grid; connect four horizontally, vertically or diagonally to win. Play live on a 30-second clock, or play anytime and take your move whenever it suits you. Practice against a bot that actually thinks ahead.",
+      "category": "games",
+      "icon": "🔴",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#3d7bff",
+        "#35e0ff"
+      ],
+      "modes": [
+        "live",
+        "async",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": true,
+      "durationLabel": "~3 min",
+      "howTo": [
+        "Players alternate dropping discs into any column.",
+        "Line up four of your discs in any direction to win.",
+        "Live: 30 seconds per move. Play anytime: up to 3 days per move, and we'll tell you when it's your turn."
+      ],
+      "tags": [
+        "strategy",
+        "turn-based",
+        "classic"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_win",
+          "name": "Connected",
+          "description": "Win a game of Four in a Row.",
+          "icon": "🔴",
+          "xp": 20
+        },
+        {
+          "id": "diagonal",
+          "name": "Diagonal",
+          "description": "Win with a diagonal line.",
+          "icon": "📐",
+          "xp": 30
+        },
+        {
+          "id": "quick_four",
+          "name": "Four in 7 moves",
+          "description": "Win using seven or fewer of your own discs.",
+          "icon": "⏩",
+          "xp": 40
+        },
+        {
+          "id": "blocker",
+          "name": "Blocker",
+          "description": "Drop a disc where your opponent would have won.",
+          "icon": "🛡️",
+          "xp": 20
+        },
+        {
+          "id": "the_wall",
+          "name": "The Wall",
+          "description": "Block three would-be fours in a single game.",
+          "icon": "🧱",
+          "xp": 50
+        },
+        {
+          "id": "marathon",
+          "name": "Marathon",
+          "description": "Play a game until all 42 cells are full.",
+          "icon": "🏃",
+          "xp": 50
+        },
+        {
+          "id": "pen_pal",
+          "name": "Turn-based win",
+          "description": "Win a play-anytime game.",
+          "icon": "✉️",
+          "xp": 30
+        },
+        {
+          "id": "long_line",
+          "name": "Five alive",
+          "description": "Win with a line of five or more discs.",
+          "icon": "🖐️",
+          "xp": 50
+        }
+      ]
+    },
+    {
+      "slug": "wedge-wars",
+      "name": "Wedge Wars",
+      "tagline": "Armored wedge trucks. Spinners, flippers, fire. Last truck standing.",
+      "description": "A real-time 3D robot-combat arena for 2–4 players. Build your wedge truck in the garage — bar spinner, flipper, axe hammer or flamethrower, plus armor and paint — then brawl in a steel arena with a KO pit, pop-up saws, flame vents and a pulverizer. Ram, flip and torch your way to last truck standing before the 2:30 bell.",
+      "category": "games",
+      "icon": "🛻",
+      "iconImage": null,
+      "coverImage": "wedge-wars-cover.webp",
+      "accent": [
+        "#c6ff3d",
+        "#ff5a1f"
+      ],
+      "modes": [
+        "live",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 4,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "2:30",
+      "howTo": [
+        "Pick a weapon, an armor kit and a paint job in the garage, then lock in.",
+        "Drive with WASD or the stick, Space fires your weapon, Shift boosts, R rights a flipped truck.",
+        "Ram nose-first, land weapon hits, and shove rivals into the pit or the hazards.",
+        "Last truck standing wins; at the bell, the healthiest truck takes it. Damage dealt adds to your score."
+      ],
+      "tags": [
+        "3d",
+        "combat",
+        "multiplayer",
+        "live",
+        "physics"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_win",
+          "name": "Scrap king",
+          "description": "Win a Wedge Wars match.",
+          "icon": "🏆",
+          "xp": 20
+        },
+        {
+          "id": "first_blood",
+          "name": "First blood",
+          "description": "Land the first KO of a match.",
+          "icon": "🩸",
+          "xp": 25
+        },
+        {
+          "id": "flipped",
+          "name": "Flipped!",
+          "description": "Launch an opponent 2 m into the air with your flipper.",
+          "icon": "🤸",
+          "xp": 40
+        },
+        {
+          "id": "pit_boss",
+          "name": "Pit boss",
+          "description": "Knock an opponent into the KO pit.",
+          "icon": "🕳️",
+          "xp": 40
+        },
+        {
+          "id": "untouchable",
+          "name": "Untouchable",
+          "description": "Win with more than 75% of your hull left.",
+          "icon": "🛡️",
+          "xp": 60
+        },
+        {
+          "id": "flamed_out",
+          "name": "Flamed out",
+          "description": "Finish off an opponent with the flamethrower.",
+          "icon": "🔥",
+          "xp": 40
+        },
+        {
+          "id": "hammer_time",
+          "name": "Hammer time",
+          "description": "Land five axe-hammer blows in one match.",
+          "icon": "🔨",
+          "xp": 40
+        },
+        {
+          "id": "last_standing",
+          "name": "Last truck standing",
+          "description": "Win a full four-truck free-for-all.",
+          "icon": "👑",
+          "xp": 60
+        }
+      ]
+    },
+    {
+      "slug": "rps-showdown",
+      "name": "RPS Showdown",
+      "tagline": "Rock, paper, scissors — best of three, no mercy.",
+      "description": "A community-style example app built with nothing but one HTML file and the public SDK bundle. Open its source to see how little code a head-to-head app needs.",
+      "category": "games",
+      "icon": "✊",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#9aa4ff",
+        "#5b6bff"
+      ],
+      "modes": [
+        "live",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~30 sec",
+      "howTo": [
+        "Both players secretly pick rock, paper or scissors.",
+        "Picks are revealed at the same time.",
+        "First to two round wins takes it."
+      ],
+      "tags": [
+        "example",
+        "open-source",
+        "vanilla-js"
+      ],
+      "official": false,
+      "developer": "SDK Examples",
+      "achievements": []
+    },
+    {
+      "slug": "gregs-face",
+      "name": "Greg's Face",
+      "tagline": "Eyes, nose, mouth. Drop them where they belong.",
+      "description": "Greg has lost his face. His eyes, then his nose, then his mouth whizz back and forth across it, faster and faster, and you tap to drop each one into place. It's pure timing, and every face is fresh. Build him as many times as you like: your best face goes on the global leaderboard, so you always know exactly where you stand.",
+      "category": "games",
+      "icon": "🤪",
+      "iconImage": "gregs-face-icon.webp",
+      "coverImage": "gregs-face-cover.webp",
+      "accent": [
+        "#ff8a3d",
+        "#6f9bd1"
+      ],
+      "modes": [
+        "live"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~30 sec",
+      "howTo": [
+        "A feature slides left and right across Greg's blank face, speeding up. Tap anywhere (or press Space) to drop it.",
+        "Eyes, nose, then mouth. Only the horizontal miss counts: 100% is pixel perfect.",
+        "Go again as often as you like. Your best face is ranked on the global leaderboard."
+      ],
+      "tags": [
+        "timing",
+        "solo",
+        "silly",
+        "leaderboard"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_face",
+          "name": "Face maker",
+          "description": "Put Greg's face back together.",
+          "icon": "🧩",
+          "xp": 10
+        },
+        {
+          "id": "spitting_image",
+          "name": "Spitting image",
+          "description": "Build a face 90% right or better.",
+          "icon": "🪞",
+          "xp": 40
+        },
+        {
+          "id": "pixel_perfect",
+          "name": "Pixel perfect",
+          "description": "Drop a feature dead on target.",
+          "icon": "🎯",
+          "xp": 40
+        },
+        {
+          "id": "steady_hands",
+          "name": "Steady hands",
+          "description": "Land all three features 85% right or better.",
+          "icon": "🤲",
+          "xp": 30
+        },
+        {
+          "id": "face_factory",
+          "name": "Face factory",
+          "description": "Build 10 faces.",
+          "icon": "🏭",
+          "xp": 20
+        },
+        {
+          "id": "on_a_roll",
+          "name": "On a roll",
+          "description": "Build three faces in a row, each 90% right or better.",
+          "icon": "🔥",
+          "xp": 50
+        },
+        {
+          "id": "real_greg",
+          "name": "The real Greg",
+          "description": "Build a face 97% right or better.",
+          "icon": "🤩",
+          "xp": 70
+        },
+        {
+          "id": "show_and_tell",
+          "name": "Show and tell",
+          "description": "Share the face you built.",
+          "icon": "📣",
+          "xp": 10
+        }
+      ]
+    },
+    {
+      "slug": "perfect-circle",
+      "name": "Perfect Circle",
+      "tagline": "One stroke. Around the dot. How perfect is your circle?",
+      "description": "Draw a circle freehand around the dot in one continuous stroke and get a live accuracy score as you go: the ink glows green where you're spot on and red where you wobble. Draw as many as you like. Your best circle goes on the worldwide leaderboard, so after every one you see exactly where you stand. 98% is a perfect circle. Good luck.",
+      "category": "games",
+      "icon": "⭕",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#ffcf3d",
+        "#34e89e"
+      ],
+      "modes": [
+        "live"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~10 sec",
+      "howTo": [
+        "Put your finger (or mouse, or pen) down and draw one circle around the dot, all the way round. Too small, too slow (over 8 s) or not a full circle doesn't count.",
+        "Accuracy is how round it is around the dot. 98% or better is a perfect circle.",
+        "Go again as often as you like. Your best circle is ranked on the worldwide leaderboard."
+      ],
+      "tags": [
+        "drawing",
+        "skill",
+        "solo",
+        "leaderboard"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_circle",
+          "name": "Round one",
+          "description": "Draw your first full circle.",
+          "icon": "⭕",
+          "xp": 10
+        },
+        {
+          "id": "well_rounded",
+          "name": "Well rounded",
+          "description": "Draw a circle 90% perfect or better.",
+          "icon": "✨",
+          "xp": 20
+        },
+        {
+          "id": "steady_hand",
+          "name": "Steady hand",
+          "description": "Draw a circle 95% perfect or better.",
+          "icon": "🎯",
+          "xp": 40
+        },
+        {
+          "id": "perfect_circle",
+          "name": "Perfect circle",
+          "description": "Draw a circle 98% perfect or better.",
+          "icon": "💎",
+          "xp": 70
+        },
+        {
+          "id": "hat_trick",
+          "name": "Hat trick",
+          "description": "Draw three circles in a row, all 90% or better.",
+          "icon": "🎩",
+          "xp": 40
+        },
+        {
+          "id": "in_the_groove",
+          "name": "In the groove",
+          "description": "Draw 10 circles in one go.",
+          "icon": "🔁",
+          "xp": 20
+        },
+        {
+          "id": "century",
+          "name": "Going round in circles",
+          "description": "Draw 100 circles.",
+          "icon": "💯",
+          "xp": 40
+        },
+        {
+          "id": "show_off",
+          "name": "Show off",
+          "description": "Share one of your circles on X.",
+          "icon": "📣",
+          "xp": 10
+        }
+      ]
+    },
+    {
+      "slug": "cup-pong",
+      "name": "Cup Pong",
+      "tagline": "Flick. Arc. Plop. Clear their cups first.",
+      "description": "The party classic on a real 3D table. Flick up to throw: the swipe's speed sets the distance and its lean sets the aim. Two balls a turn, sink both for balls back, bounce one off the table to take a bonus cup, and hit three in a row to catch fire. Every player gets one re-rack. Rims rattle, cups splash, and the first to clear the other rack wins. Play live, play anytime over days, or practice against a bot on easy, medium or hard.",
+      "category": "games",
+      "icon": "🥤",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#ff3b4f",
+        "#ffb23d"
+      ],
+      "modes": [
+        "live",
+        "async",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": true,
+      "durationLabel": "~4 min",
+      "howTo": [
+        "Flick the ball up the screen: faster flicks throw further, leaning left or right aims.",
+        "Two balls a turn. Sink both and you get balls back. A bounce shot also takes a cup of your choice.",
+        "Three makes in a row sets you on fire. Once a game you can re-rack the cups you're shooting at.",
+        "Clear all ten of your opponent's cups to win."
+      ],
+      "tags": [
+        "3d",
+        "turn-based",
+        "party",
+        "physics"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_win",
+          "name": "Table champ",
+          "description": "Win a game of Cup Pong.",
+          "icon": "🏆",
+          "xp": 20
+        },
+        {
+          "id": "bounce_shot",
+          "name": "Bounce shot",
+          "description": "Sink a ball off a table bounce.",
+          "icon": "🏓",
+          "xp": 30
+        },
+        {
+          "id": "on_fire",
+          "name": "On fire",
+          "description": "Sink three in a row.",
+          "icon": "🔥",
+          "xp": 40
+        },
+        {
+          "id": "balls_back",
+          "name": "Balls back",
+          "description": "Sink both balls in one turn.",
+          "icon": "🔁",
+          "xp": 30
+        },
+        {
+          "id": "rerack_make",
+          "name": "Re-rack and roll",
+          "description": "Sink the first throw after calling a re-rack.",
+          "icon": "🔺",
+          "xp": 30
+        },
+        {
+          "id": "clutch",
+          "name": "Clutch",
+          "description": "Win with just one of your own cups left.",
+          "icon": "😅",
+          "xp": 50
+        },
+        {
+          "id": "clean_sweep",
+          "name": "Clean sweep",
+          "description": "Win without losing a single cup.",
+          "icon": "🧹",
+          "xp": 70
+        },
+        {
+          "id": "comeback",
+          "name": "Comeback",
+          "description": "Win after trailing by five cups or more.",
+          "icon": "📈",
+          "xp": 50
+        }
+      ]
+    },
+    {
+      "slug": "darts",
+      "name": "Darts",
+      "tagline": "Steady hand. Hold your breath. Flick for the treble 20.",
+      "description": "Pub darts on a regulation board, for 2–4 players. Hold to raise a dart and your hand starts to sway: steer against it, tap Breathe to steady it for a moment, then flick up to throw. Flick too soft and it drops, too hard and it sails. Everyone throws nine darts (three rounds of three) at the same time and the highest total wins. Watch rivals' darts land live, chase tons, bullseyes and the magic 180, or play anytime against friends and practice bots.",
+      "category": "games",
+      "icon": "🎯",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#42f5b0",
+        "#23a6ff"
+      ],
+      "modes": [
+        "live",
+        "async",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 4,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~1 min",
+      "howTo": [
+        "Hold anywhere to raise a dart. Your aim sways: move your finger to fight it.",
+        "Flick up to throw. A clean flick lands where you aimed; too soft drops low, too hard sails high.",
+        "Tap Breathe (or press B) once per dart to steady your hand for a moment.",
+        "Nine darts each, three rounds of three. Highest total wins. Three treble 20s is the maximum: 180!"
+      ],
+      "tags": [
+        "skill",
+        "multiplayer",
+        "async",
+        "pub"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_game",
+          "name": "Oche debut",
+          "description": "Throw all nine darts in a game.",
+          "icon": "🎯",
+          "xp": 10
+        },
+        {
+          "id": "winner",
+          "name": "Top of the board",
+          "description": "Win a table of Darts outright.",
+          "icon": "🏆",
+          "xp": 20
+        },
+        {
+          "id": "bullseye",
+          "name": "Bullseye!",
+          "description": "Hit the inner bull.",
+          "icon": "🐂",
+          "xp": 30
+        },
+        {
+          "id": "ton_up",
+          "name": "Ton up",
+          "description": "Score 100 or more with three darts.",
+          "icon": "💯",
+          "xp": 30
+        },
+        {
+          "id": "shanghai",
+          "name": "Shanghai",
+          "description": "Hit the single, double and treble of one number in the same round.",
+          "icon": "🏮",
+          "xp": 50
+        },
+        {
+          "id": "treble_century",
+          "name": "Treble century",
+          "description": "Score 300 or more with nine darts.",
+          "icon": "🔥",
+          "xp": 50
+        },
+        {
+          "id": "hat_trick",
+          "name": "Hat trick",
+          "description": "Three bulls in one round.",
+          "icon": "🎩",
+          "xp": 60
+        },
+        {
+          "id": "one_eighty",
+          "name": "One hundred and eighty!",
+          "description": "Three treble 20s in one round.",
+          "icon": "💥",
+          "xp": 100
+        }
+      ]
+    },
+    {
+      "slug": "eight-ball",
+      "name": "8-Ball Pool",
+      "tagline": "Rack 'em. Call your pocket. Sink the 8.",
+      "description": "Real 8-ball on a table with real physics: balls that roll, spin and click, cushions that grip your english, and pockets that rattle. Aim with a ghost ball and deflection lines, pull the cue back for power, and dial in follow, draw or side spin. Pot your group, then call your pocket for the 8. Play live with the cue moving in real time, play anytime over days, or practice against a bot that plays position and safeties.",
+      "category": "games",
+      "icon": "🎱",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#2fd67b",
+        "#ffd65a"
+      ],
+      "modes": [
+        "live",
+        "async",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "teams": 0,
+      "turnBased": true,
+      "durationLabel": "~6 min",
+      "howTo": [
+        "Drag on the table to aim (tap a ball to aim straight at it), and slide the fine-aim ruler for tiny adjustments.",
+        "Pull the cue down on the power bar and let go to shoot. Tap the cue ball button to add follow, draw or side spin.",
+        "Break, then the first ball you pot makes you solids or stripes. Keep shooting while you pot your own balls.",
+        "Fouls (scratch, wrong ball first, no cushion after contact) give your opponent ball in hand.",
+        "Clear your group, then tap a pocket to call the 8. Sinking it early, in another pocket or with a scratch loses."
+      ],
+      "tags": [
+        "turn-based",
+        "physics",
+        "classic",
+        "async"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_win",
+          "name": "Rack 'em up",
+          "description": "Win a game of 8-Ball.",
+          "icon": "🎱",
+          "xp": 20
+        },
+        {
+          "id": "hat_trick",
+          "name": "Hat trick",
+          "description": "Pot three balls in one visit.",
+          "icon": "🎩",
+          "xp": 30
+        },
+        {
+          "id": "double_down",
+          "name": "Double down",
+          "description": "Pot two of your balls with one shot.",
+          "icon": "✌️",
+          "xp": 30
+        },
+        {
+          "id": "bank_shot",
+          "name": "Off the rail",
+          "description": "Pot one of your balls after it hit a cushion.",
+          "icon": "↩️",
+          "xp": 40
+        },
+        {
+          "id": "break_and_run",
+          "name": "Break and run",
+          "description": "Pot on the break and clear the table without your opponent taking a shot.",
+          "icon": "🏃",
+          "xp": 100
+        },
+        {
+          "id": "whitewash",
+          "name": "Whitewash",
+          "description": "Win before your opponent pots a single ball of theirs.",
+          "icon": "🧹",
+          "xp": 60
+        },
+        {
+          "id": "comeback",
+          "name": "Comeback",
+          "description": "Win after your opponent had cleared their group.",
+          "icon": "📈",
+          "xp": 50
+        }
+      ]
+    },
+    {
+      "slug": "mini-golf",
+      "name": "Mini Golf",
+      "tagline": "Nine holes. Windmills, tubes, a jump over water. Fewest strokes wins.",
+      "description": "A 3D mini golf round for 2–4 players. Drag back from your ball to putt and watch it roll on real slopes: bank it off the rails, thread the windmill sails, ride the tubes, blast out of the sand and launch off the ramp on Big Air. Everyone plays the same nine handcrafted holes at their own pace, with rivals' balls rolling beside yours as ghosts and a scorecard after every hole. Play live, anytime over days, or practice against bots.",
+      "category": "games",
+      "icon": "⛳",
+      "iconImage": null,
+      "coverImage": null,
+      "accent": [
+        "#7ee07a",
+        "#2fb3ff"
+      ],
+      "modes": [
+        "live",
+        "async",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 4,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~6 min",
+      "howTo": [
+        "Drag back from your ball and let go to putt: the further you pull, the harder you hit. Drag anywhere else to look around, or hold to see the whole hole.",
+        "Everyone plays the same nine holes with their own ball. Other players' balls roll alongside as ghosts.",
+        "Water costs a stroke and puts you back where you were. After six strokes you pick up and score seven.",
+        "Fewest total strokes after nine holes wins."
+      ],
+      "tags": [
+        "3d",
+        "physics",
+        "multiplayer",
+        "async",
+        "classic"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_round",
+          "name": "Card signed",
+          "description": "Finish a round of Mini Golf.",
+          "icon": "📝",
+          "xp": 10
+        },
+        {
+          "id": "ace",
+          "name": "Ace!",
+          "description": "Get a hole in one.",
+          "icon": "⛳",
+          "xp": 50
+        },
+        {
+          "id": "under_par",
+          "name": "Under par",
+          "description": "Finish a round under par.",
+          "icon": "📉",
+          "xp": 50
+        },
+        {
+          "id": "hot_streak",
+          "name": "Hot streak",
+          "description": "Three birdies or better in a row.",
+          "icon": "🔥",
+          "xp": 50
+        },
+        {
+          "id": "clean_card",
+          "name": "Clean card",
+          "description": "Finish a round without a bogey or worse.",
+          "icon": "🧼",
+          "xp": 60
+        },
+        {
+          "id": "trick_shot",
+          "name": "Trick shot",
+          "description": "Hole out after bouncing off three or more rails or bumpers in one stroke.",
+          "icon": "🎯",
+          "xp": 40
+        },
+        {
+          "id": "airmail",
+          "name": "Airmail",
+          "description": "Hole out on a stroke that took off.",
+          "icon": "🛫",
+          "xp": 40
+        },
+        {
+          "id": "first_win",
+          "name": "Clubhouse champ",
+          "description": "Win a Mini Golf match.",
+          "icon": "🏆",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "slug": "nova-rally",
+      "name": "Nova Rally",
+      "tagline": "Kart racing with rocket ships across Mars, the asteroid belt and beyond.",
+      "description": "A full 3D kart racer in space for up to 8 racers (CPU pilots fill the grid). Pick one of eight rocket ships and a paint job, then race a single track or a three-track Grand Prix: the red canyons of Mars, a floating ribbon through a tumbling asteroid belt, Saturn's rings with a full loop and a corkscrew, an upside-down space station in a nebula, and big low-gravity jumps on the Moon. Drift for blue, orange and purple mini-turbos, nail rocket starts, trick off ramps, slipstream rivals and grab stardust for top speed. Eleven items: seeker missiles, pulse bolts, plasma mines, ion shields, EMP storms, warp drives, cloaks and a singularity that hunts down the leader. Dodge asteroids, dust devils, meteor strikes and plasma arcs. Challengers pick a single race or a cup, the speed class (100cc to 200cc) and laps. Play live, anytime, or practice against CPU pilots.",
+      "category": "games",
+      "icon": "🚀",
+      "iconImage": "nova-rally-icon.webp",
+      "coverImage": "nova-rally-cover.webp",
+      "accent": [
+        "#ff8a4c",
+        "#8f7bff"
+      ],
+      "modes": [
+        "live",
+        "async",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 8,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~3 min",
+      "howTo": [
+        "Hold ↑/W to thrust and steer with ←/→ (on phones the ship accelerates by itself: steer with the left pad).",
+        "Hold drift (Space / DRIFT) while turning to charge mini-turbos: blue, orange, then purple. Let go to boost.",
+        "Fly through item capsules and fire with E / ITEM. Hold ↓ to fire bolts and mines behind you.",
+        "Hold throttle as the last red light goes out for a rocket start, and press drift in the air for a trick boost.",
+        "Each race awards 15-12-10-8-6-4-2-1 points. In a Grand Prix, most points after the last race wins."
+      ],
+      "tags": [
+        "3d",
+        "racing",
+        "multiplayer",
+        "async",
+        "space"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "liftoff",
+          "name": "Liftoff",
+          "description": "Finish a Nova Rally Grand Prix.",
+          "icon": "🚀",
+          "xp": 10
+        },
+        {
+          "id": "checkered",
+          "name": "Checkered flag",
+          "description": "Win a race.",
+          "icon": "🏁",
+          "xp": 25
+        },
+        {
+          "id": "champion",
+          "name": "Galactic champion",
+          "description": "Win a Grand Prix.",
+          "icon": "🏆",
+          "xp": 60
+        },
+        {
+          "id": "rocket_start",
+          "name": "Rocket start",
+          "description": "Nail a rocket start off the line.",
+          "icon": "🔥",
+          "xp": 20
+        },
+        {
+          "id": "ultra_turbo",
+          "name": "Ultra turbo",
+          "description": "Charge a purple mini-turbo.",
+          "icon": "💜",
+          "xp": 25
+        },
+        {
+          "id": "sharpshooter",
+          "name": "Sharpshooter",
+          "description": "Land three item hits in one race.",
+          "icon": "🎯",
+          "xp": 40
+        },
+        {
+          "id": "stardust",
+          "name": "Stardust hoarder",
+          "description": "Hold 10 stardust at once.",
+          "icon": "⭐",
+          "xp": 25
+        },
+        {
+          "id": "showboat",
+          "name": "Showboat",
+          "description": "Land five trick boosts in one race.",
+          "icon": "🤸",
+          "xp": 30
+        },
+        {
+          "id": "untouchable",
+          "name": "Untouchable",
+          "description": "Win a race without being hit once.",
+          "icon": "🛡️",
+          "xp": 60
+        },
+        {
+          "id": "comeback",
+          "name": "Comeback kid",
+          "description": "Win a race after dropping to 7th or worse.",
+          "icon": "📈",
+          "xp": 50
+        },
+        {
+          "id": "first_win",
+          "name": "Podium finish",
+          "description": "Win a Nova Rally match.",
+          "icon": "🥇",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "slug": "frontline",
+      "name": "Frontline",
+      "tagline": "Fast first-person firefights in a sun-bleached container port.",
+      "description": "A real-time first-person shooter for 2–8 players. Pick a primary (assault rifle, SMG, sniper or shotgun), a sidearm and a perk, then fight through Saltyard: a covered warehouse, a stack of containers with perches up the stairs, and three tight container lanes. Aim down sights, learn each gun's recoil, land headshots, and chain three kills for a radar sweep. First to 20 kills or the most when the clock runs out wins (the host can change the time and kill limits). The yard changes with the seasons: snow in winter, falling leaves in autumn, blossom in spring. Team up when the table plays in teams, or practice against bots.",
+      "category": "games",
+      "icon": "🪖",
+      "iconImage": null,
+      "coverImage": "frontline-cover.webp",
+      "accent": [
+        "#f2b544",
+        "#e2553a"
+      ],
+      "modes": [
+        "live",
+        "practice"
+      ],
+      "minPlayers": 2,
+      "maxPlayers": 8,
+      "teams": 0,
+      "turnBased": false,
+      "durationLabel": "~7 min",
+      "howTo": [
+        "Pick a primary weapon and a perk, then deploy. Everyone carries a Warden P9 sidearm and one frag grenade per life.",
+        "Desktop: click to lock the mouse. WASD moves, Shift sprints, C or Ctrl crouches, Space jumps, right mouse aims, R reloads, 1/2 or the wheel swaps, hold G to aim a frag grenade and release to throw it. Esc opens settings.",
+        "Phone: the left stick moves (push to the edge to sprint), drag on the right to look, and use the fire, aim, reload, jump, crouch and grenade buttons (hold the grenade to see its arc, let go to throw).",
+        "Headshots hurt more, bullets lose power with distance, and you heal when you stay out of fire. Three kills without dying calls in a radar sweep.",
+        "Every player wears their own color, teammates' markers show through walls, and the kill leader wears a gold crown everyone can see. Seasons change the fight: icy ground and footprints in winter, crunchy leaves that put sprinters on the minimap in autumn, higher jumps in spring, a faster pace in summer.",
+        "First to 20 kills wins (team play: the team total), or the most kills when the 7-minute clock runs out. The host can change the time limit, the kill limit and the season when setting up a challenge. Your score is your kills."
+      ],
+      "tags": [
+        "3d",
+        "shooter",
+        "multiplayer",
+        "live",
+        "fps"
+      ],
+      "official": true,
+      "developer": "VibeCade Studio",
+      "achievements": [
+        {
+          "id": "first_blood",
+          "name": "First blood",
+          "description": "Get the first kill of a Frontline match.",
+          "icon": "🩸",
+          "xp": 25
+        },
+        {
+          "id": "first_win",
+          "name": "Top of the board",
+          "description": "Win a Frontline match.",
+          "icon": "🏆",
+          "xp": 30
+        },
+        {
+          "id": "radar_sweep",
+          "name": "Eyes on the yard",
+          "description": "Chain three kills without dying to call in a radar sweep.",
+          "icon": "📡",
+          "xp": 30
+        },
+        {
+          "id": "unstoppable",
+          "name": "Unstoppable",
+          "description": "Seven kills in a row without dying.",
+          "icon": "🔥",
+          "xp": 60
+        },
+        {
+          "id": "headhunter",
+          "name": "Headhunter",
+          "description": "Five headshot kills in one match.",
+          "icon": "🎯",
+          "xp": 50
+        },
+        {
+          "id": "long_shot",
+          "name": "Long shot",
+          "description": "A sniper-rifle kill from 45 m or more.",
+          "icon": "🔭",
+          "xp": 50
+        },
+        {
+          "id": "sidearm",
+          "name": "Backup plan",
+          "description": "Get a kill with your sidearm.",
+          "icon": "🔫",
+          "xp": 25
+        }
+      ]
+    }
+  ]
+}
