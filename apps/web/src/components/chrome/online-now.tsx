@@ -12,7 +12,7 @@ import { play } from "@/lib/sfx";
 import { BLUR_TWEEN, spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { activityLabel, joinableLobby, type OnlinePlayer } from "@/platform/presence";
-import { useOnlineOthers } from "@/platform/presence-client";
+import { useOnlineOthers, useOnlineStatus } from "@/platform/presence-client";
 import { useApps } from "@/platform/queries";
 import { setLobbyAlerts, useLobbyAlertsSetting } from "./lobby-alerts";
 
@@ -54,6 +54,9 @@ function OnlineRow({ player, onDone }: { player: OnlinePlayer; onDone: () => voi
 /** Top bar: who else is online (a green dot and a few faces), and a list to join their lobbies or challenge them. */
 export function OnlineNow() {
   const others = useOnlineOthers();
+  const status = useOnlineStatus();
+  /** Until we're on the channel, an empty list means "don't know", not "nobody". */
+  const count = others.length === 0 && status !== "live" ? "–" : String(others.length);
   const alerts = useLobbyAlertsSetting();
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -98,7 +101,7 @@ export function OnlineNow() {
             <Avatar key={p.userId} person={p} size={22} className="rounded-full ring-2 ring-ink-900" />
           ))}
         </span>
-        <span className="tabular font-semibold">{others.length}</span>
+        <span className="tabular font-semibold">{count}</span>
         <span className="hidden md:inline">online</span>
       </motion.button>
       <AnimatePresence>
@@ -113,7 +116,7 @@ export function OnlineNow() {
           >
             <div className="flex items-center justify-between px-2.5 pb-1 pt-2">
               <p className="text-sm font-semibold">
-                Online now <span className="tabular text-ink-400">· {others.length}</span>
+                Online now <span className="tabular text-ink-400">· {count}</span>
               </p>
               <button
                 onClick={() => setLobbyAlerts(!alerts)}
@@ -124,7 +127,13 @@ export function OnlineNow() {
                 Lobby alerts {alerts ? "on" : "off"}
               </button>
             </div>
-            {others.length === 0 ? (
+            {others.length === 0 && status !== "live" ? (
+              <p className="px-3 pb-4 pt-3 text-sm text-ink-400">
+                {status === "unavailable"
+                  ? "Can't reach the online list right now, so we can't tell who's on. Retrying…"
+                  : "Checking who's online…"}
+              </p>
+            ) : others.length === 0 ? (
               <p className="px-3 pb-4 pt-3 text-sm text-ink-400">
                 Nobody else is on right now. Open a lobby and share the link, and anyone who comes online will see it.
               </p>
