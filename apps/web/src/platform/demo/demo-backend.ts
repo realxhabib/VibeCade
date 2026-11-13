@@ -358,6 +358,39 @@ export function leaveOtherMatches(db: DemoDb, userId: string, keepId: string): n
   return n;
 }
 
+/** A lobby: a live (or sandbox) match that hasn't started. Async challenges aren't lobbies. */
+function isPlayerLobby(row: MatchRow): boolean {
+  return isLobby(row) && row.mode !== "async" && row.mode !== "practice";
+}
+
+/**
+ * Mirrors leave_other_lobbies: `userId` leaves every other lobby they're sitting in (their own is
+ * cancelled; in someone else's their seat frees up, and a private challenge now short of players is
+ * declined). Returns how many they left.
+ */
+export function leaveOtherLobbies(db: DemoDb, userId: string, keepId: string): number {
+  let n = 0;
+  for (const row of Object.values(db.matches)) {
+    if (row.id === keepId || !isPlayerLobby(row)) continue;
+    const me = seatRows(row).find((p) => p.userId === userId && p.state === "joined");
+    if (!me) continue;
+    if (row.createdBy === userId) {
+      row.status = "cancelled";
+    } else {
+      row.players = row.players.filter((p) => p !== me);
+      if (!row.isOpen && seatRows(row).length < row.minPlayers) row.status = "declined";
+    }
+    row.updatedAt = nowIso();
+    n++;
+  }
+  return n;
+}
+
+/** Mirrors the match_players_one_lobby trigger: taking a seat in a lobby leaves the others. */
+function seatedInLobby(db: DemoDb, row: MatchRow, userId: string): void {
+  if (isPlayerLobby(row)) leaveOtherLobbies(db, userId, row.id);
+}
+
 function hydrate(db: DemoDb, row: MatchRow, viewerId = getViewerId()): Match {
   const seated = row.players.filter((p) => p.role === "player").sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0));
   const spectators = row.players.filter((p) => p.role === "spectator");
@@ -1689,6 +1722,7 @@ export class DemoBackend implements Backend {
     for (const invitee of invitees) this.invite(row, invitee);
     row.isOpen = k + 1 < size;
     row.status = row.isOpen ? "open" : "pending";
+    seatedInLobby(db, row, viewerId);
     stampVersion(db, row);
     db.matches[row.id] = row;
     recordWebhook(db, row.appSlug, "match.created", row.id);
@@ -1714,6 +1748,7 @@ export class DemoBackend implements Backend {
           if (!isLobby(asked) && asked.mode !== "async") throw new BackendError("This challenge is no longer open", "conflict");
           mine.state = "joined";
           mine.joinedAt = nowIso();
+          seatedInLobby(db, asked, viewer.id);
           tryActivate(db, asked);
           asked.updatedAt = nowIso();
         }
@@ -1774,6 +1809,7 @@ export class DemoBackend implements Backend {
         }
         takeSeat(waiting, viewer.id);
         if (seatRows(waiting).length >= waiting.maxPlayers) waiting.isOpen = false;
+        seatedInLobby(db, waiting, viewer.id);
         tryActivate(db, waiting);
         waiting.updatedAt = nowIso();
         return hydrate(db, waiting, viewer.id);
@@ -1788,6 +1824,7 @@ export class DemoBackend implements Backend {
       row.status = "open";
       row.isOpen = true;
       row.settings = { quick: true };
+      seatedInLobby(db, row, viewer.id);
       stampVersion(db, row);
       db.matches[row.id] = row;
       recordWebhook(db, row.appSlug, "match.created", row.id);
@@ -1858,6 +1895,7 @@ export class DemoBackend implements Backend {
           if (!isLobby(row) && !asyncRunning) throw new BackendError("This challenge is no longer open", "conflict");
           me.state = "joined";
           me.joinedAt = nowIso();
+          seatedInLobby(db, row, viewer.id);
         }
       } else if (row.versionId && !canTest(db, row.appSlug, viewer.id)) {
         throw new BackendError("Only the developer and testers can join a test build", "forbidden");
@@ -1871,6 +1909,7 @@ export class DemoBackend implements Backend {
         if (me) row.players = row.players.filter((p) => p !== me);
         takeSeat(row, viewer.id);
         if (seatRows(row).length >= row.maxPlayers) row.isOpen = false;
+        seatedInLobby(db, row, viewer.id);
       } else {
         throw new BackendError("This challenge is no longer open", "conflict");
       }
@@ -2064,9 +2103,12 @@ export class DemoBackend implements Backend {
   async markStarted(matchId: string): Promise<Match> {
     return this.withMatch(matchId, (db, row, viewerId) => {
       row.startedAt = row.startedAt ?? nowIso();
-      // Starting a live or practice game ends my other ones.
+      // Starting a live or practice game ends my other ones and leaves my lobbies.
       const playing = seatRows(row).some((p) => p.userId === viewerId && p.state === "joined");
-      if (viewerId && playing && row.status === "active" && row.mode !== "async") leaveOtherMatches(db, viewerId, row.id);
+      if (viewerId && playing && row.status === "active" && row.mode !== "async") {
+        leaveOtherMatches(db, viewerId, row.id);
+        leaveOtherLobbies(db, viewerId, row.id);
+      }
     });
   }
 

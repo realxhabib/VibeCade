@@ -169,6 +169,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('99999999-9999-4999-8999-999999999999', null, '{"user_name":"retiree","full_name":"Retiree"}');
 create temp table retiree_matches (k text primary key, id uuid);
 grant select on retiree_matches to authenticated;
+-- One lobby at a time would close the open lobby as the pending one is seated; keep both, as old data can.
+alter table public.match_players disable trigger match_players_one_lobby;
 do $$
 declare
   v_me uuid := '99999999-9999-4999-8999-999999999999';
@@ -191,6 +193,7 @@ begin
   update public.profiles set xp = 140 where id = v_me;
   update public.apps set play_count = 9 where slug = 'trivia-royale';
 end $$;
+alter table public.match_players enable trigger match_players_one_lobby;
 
 set role service_role;
 select set_config('sync.cancelled', pg_temp.sync_retire()::text, false) as retire_result \gset
