@@ -58,6 +58,9 @@ export function FrontlineSetup() {
   const [customTime, setCustomTime] = useState(() => !(TIME_CHOICES as readonly number[]).includes(minutes));
   const [customKills, setCustomKills] = useState(() => !kills.includes(opts.kills));
 
+  // Opened from a lobby that's filling up (the host changing the options): the match already exists.
+  const inLobby = !xapps.match.id.startsWith("setup");
+
   const send = () => {
     setBusy(true);
     play("go");
@@ -159,7 +162,7 @@ export function FrontlineSetup() {
           className="flex min-w-0 flex-1 flex-col items-center rounded-full bg-[linear-gradient(120deg,var(--accent-from),var(--accent-to))] px-3 py-2 text-ink-950 disabled:opacity-70"
           onClick={send}
         >
-          <span className="text-[16px] font-extrabold leading-tight">Send challenge</span>
+          <span className="text-[16px] font-extrabold leading-tight">{inLobby ? "Save options" : "Send challenge"}</span>
           <span className="w-full truncate text-[11.5px] font-bold leading-tight opacity-75">{optionsSummary(opts)}</span>
         </motion.button>
       </div>

@@ -79,6 +79,7 @@ import type {
   UserStat,
   WebhookDelivery,
 } from "../types";
+import { SETTINGS_SUMMARY_KEY } from "../types";
 import { UPVOTES_PER_MINUTE } from "../upvotes";
 import { computeAdminOverview, computeAdminPlayers } from "./admin";
 import { computeAnalytics } from "./analytics";
@@ -2035,6 +2036,22 @@ export class DemoBackend implements Backend {
       if (row.createdBy !== viewer.id) throw new BackendError("Only the challenger can cancel", "forbidden");
       if (!isLobby(row)) throw new BackendError("Too late to cancel", "conflict");
       row.status = "cancelled";
+    });
+  }
+
+  /** Mirrors update_match_settings. */
+  async updateMatchSettings(matchId: string, settings: { [key: string]: Json }, summary?: string | null): Promise<Match> {
+    const viewer = this.requireViewer();
+    const next = challengeSettings(settings);
+    if (JSON.stringify(next).length > 4096) throw new BackendError("Match settings are too large", "invalid");
+    delete next[SETTINGS_SUMMARY_KEY];
+    const text = (summary ?? "").trim().slice(0, 140);
+    return this.withMatch(matchId, (db, row) => {
+      if (row.createdBy !== viewer.id || !isLobby(row)) throw new BackendError("Only the host can change the options before the match starts", "conflict");
+      if (!appFor(db, row.appSlug)?.setup) throw new BackendError("This game has no match options", "invalid");
+      if (row.settings.quick !== undefined) next.quick = row.settings.quick;
+      if (text) next[SETTINGS_SUMMARY_KEY] = text;
+      row.settings = next;
     });
   }
 

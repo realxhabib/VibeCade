@@ -743,6 +743,12 @@ export class SupabaseBackend implements Backend {
     return this.rpcThenGet("cancel_match", matchId);
   }
 
+  updateMatchSettings(matchId: string, settings: { [key: string]: Json }, summary?: string | null): Promise<Match> {
+    const local = this.localFor(matchId);
+    if (local) return local.updateMatchSettings(matchId, settings, summary);
+    return this.rpcThenGet("update_match_settings", matchId, { p_settings: settings, p_summary: summary ?? null });
+  }
+
   async getMatch(matchId: string): Promise<Match | null> {
     if (isOfflineMatch(matchId)) return (await this.offlineEngine()).getMatch(matchId);
     const { data, error } = await this.sb.rpc("get_match", { p_match: matchId });

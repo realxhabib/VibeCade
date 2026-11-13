@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Match options on the loadout screen: the host (the lowest-seated person)
- * can change the mode, the time limit, the kill limit and the season right up to the
- * start, in any match (quick matches included); everyone else sees what was
- * picked. Changes go into the shared match state as `{ pre: settings }`
- * (see `optionsFrom`), which the match document replaces when the fight
- * starts.
+ * Match options on the loadout screen. With other people they were picked in
+ * the lobby and are locked once the host pressed Start: everyone just sees
+ * them. In practice (no lobby) the host (the lowest-seated person) can change
+ * the mode, the time limit, the kill limit and the season right up to the
+ * start. Changes go into the shared match state as `{ pre: settings }` (see
+ * `optionsFrom`), which the match document replaces when the fight starts.
  */
 
 import { useState } from "react";
@@ -18,7 +18,7 @@ import { CustomNumber } from "./custom-number";
 import { KILLS_RANGE, MINUTES_RANGE, MODES, MODE_LABEL, killChoices, SEASONS, SEASON_ICON, SEASON_LABEL, TIME_CHOICES, minutesOf, toSettings, type MatchOptions, type SeasonChoice } from "./options";
 import { parseDoc } from "./rules";
 
-export function HostOptions({ options, host, standardKills, compact }: { options: MatchOptions; host: boolean; standardKills: number; compact?: boolean }) {
+export function HostOptions({ options, host, locked, standardKills, compact }: { options: MatchOptions; host: boolean; locked?: boolean; standardKills: number; compact?: boolean }) {
   const { update } = useMatchState();
   const [editing, setEditing] = useState<"time" | "kills" | null>(null);
 
@@ -38,7 +38,7 @@ export function HostOptions({ options, host, standardKills, compact }: { options
     <div className={cn("glass flex w-full max-w-md flex-col rounded-2xl px-3", compact ? "gap-1.5 py-2" : "gap-2 py-2.5")}>
       <p className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.16em] text-ink-300">
         <span>Match options</span>
-        <span className="normal-case tracking-normal text-ink-400">{host ? "You're the host" : "The host picks"}</span>
+        <span className="normal-case tracking-normal text-ink-400">{locked ? "Locked in" : host ? "You're the host" : "The host picks"}</span>
       </p>
       <Row label="Mode">
         {MODES.map((m) => (

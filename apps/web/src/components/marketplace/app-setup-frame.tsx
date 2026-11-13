@@ -48,6 +48,7 @@ export function AppSetupFrame({
   rivals,
   tableSize,
   initial,
+  matchId,
   onSubmit,
   onCancel,
   className,
@@ -59,6 +60,11 @@ export function AppSetupFrame({
   tableSize: number;
   /** Settings from an earlier submit, so the app can prefill its form. */
   initial?: { [key: string]: Json };
+  /**
+   * Changing the options of a match that's still filling (the lobby): the app sees the real match
+   * id instead of "setup", so it can say "Save" rather than "Send challenge".
+   */
+  matchId?: string;
   onSubmit: (result: AppSetupResult) => void;
   onCancel: () => void;
   className?: string;
@@ -87,7 +93,7 @@ export function AppSetupFrame({
       app: launchApp(app),
       user: { id: viewer.id, handle: viewer.handle, name: viewer.name, avatarUrl: viewer.avatarUrl },
       match: {
-        id: "setup",
+        id: matchId ?? "setup",
         mode,
         status: "open",
         scoring: app.scoring,

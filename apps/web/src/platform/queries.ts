@@ -312,6 +312,17 @@ export function useStartMatch() {
   });
 }
 
+/** The lobby host changes a setup app's options before the start. */
+export function useUpdateMatchSettings() {
+  const backend = useBackend();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ matchId, settings, summary }: { matchId: string; settings: { [key: string]: Json }; summary: string | null }) =>
+      backend.updateMatchSettings(matchId, settings, summary),
+    onSuccess: (match) => refreshMatchLists(queryClient, match),
+  });
+}
+
 /** Invite more people (by handle) into a match's free seats. */
 export function useInviteToMatch() {
   const backend = useBackend();

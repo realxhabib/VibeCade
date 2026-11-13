@@ -1,6 +1,7 @@
 /**
  * Host match options: the challenger picks them in the setup screen
- * (purpose "setup", `setup.tsx`) and they arrive as `match.settings`:
+ * (purpose "setup", `setup.tsx`), and can change them from the lobby until
+ * the match starts (the same screen); they arrive as `match.settings`:
  *
  *   { min?: number, kills?: number, season?: "auto" | Season, mode?: "gungame" }
  *
@@ -93,9 +94,9 @@ export function docOverrides(o: MatchOptions): { dur?: number; lim?: number; gg?
 }
 
 /**
- * The options in force: the host's picks on the loadout screen (kept in the
- * shared state as `{ pre: settings }` until the match starts, so quick
- * matches can change them too), else the challenge's settings. Once the
+ * The options in force: the host's picks on a practice match's loadout
+ * screen (kept in the shared state as `{ pre: settings }` until the match
+ * starts), else the match settings (the challenge setup, or the lobby). Once the
  * match document exists it carries the length, the limit and the season.
  */
 export function optionsFrom(state: unknown, settings: unknown): MatchOptions {

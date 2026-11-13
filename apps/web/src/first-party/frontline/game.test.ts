@@ -67,6 +67,8 @@ interface TableOptions {
   season?: Season;
   /** Gun game. */
   gg?: boolean;
+  /** The shared state never takes a write (a live server room nobody seeded). */
+  stateDown?: boolean;
 }
 
 function table(seats: SeatInfo[], opts: TableOptions = {}) {
@@ -104,7 +106,7 @@ function table(seats: SeatInfo[], opts: TableOptions = {}) {
         }
       },
       link: opts.via ? (id) => ({ via: opts.via!(me.id, id), rtt: null }) : undefined,
-      update: (fn) => shared.update(fn),
+      update: (fn) => (opts.stateDown ? Promise.reject(Object.assign(new Error("unavailable"), { code: "internal" })) : shared.update(fn)),
     };
     const g = new Game({
       map: MAPS.saltyard,
@@ -292,6 +294,23 @@ describe("two clients over the room", () => {
     intents.set("alice", idleIntent());
     await step(300);
     expect(bob.me!.hp).toBe(hp);
+  });
+
+  it("still ends at the kill limit when the shared state takes no writes", async () => {
+    const { games, step, intents } = table([seat("alice", 0), seat("bob", 1)], { lim: 1, stateDown: true });
+    const alice = games.get("alice")!;
+    const bob = games.get("bob")!;
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await step(200);
+    faceOff(alice, bob);
+    await step(600);
+    intents.set("alice", AIM_FIRE);
+    await step(1200);
+    intents.set("alice", idleIntent());
+    await step(400);
+    expect(alice.phase).toBe("over");
+    expect(bob.phase).toBe("over");
+    expect(alice.log.won).toBe(true);
   });
 
   it("ends the match once at the kill limit and settles from the shared ledger", async () => {

@@ -116,6 +116,12 @@ export interface RoomState {
    * the room no longer holds the state).
    */
   set(state: Json | null, expectedVersion: number): Promise<number>;
+  /**
+   * Offers our copy (`RoomOptions.latestState`) if the room has none or an older one. Sign-in
+   * offers already; call it when the copy becomes available after that (the match stage taking
+   * over a room the lobby opened).
+   */
+  offer(): void;
   /** Every new copy (`by`: the writer's user id, null for the copy the room already had). */
   onChange(handler: (copy: RoomStateCopy, by: string | null) => void): () => void;
 }
@@ -254,6 +260,11 @@ export interface Backend {
   joinMatch(matchId: string): Promise<Match>;
   declineMatch(matchId: string): Promise<Match>;
   cancelMatch(matchId: string): Promise<Match>;
+  /**
+   * The host of a `setup: true` app changes the options (its setup screen's settings, max 4 KB) while
+   * the lobby fills. `quick` stays the platform's; `summary` is kept as `settings._summary` for the lobby.
+   */
+  updateMatchSettings(matchId: string, settings: { [key: string]: Json }, summary?: string | null): Promise<Match>;
   getMatch(matchId: string): Promise<Match | null>;
   markStarted(matchId: string): Promise<Match>;
   heartbeat(matchId: string): Promise<void>;
