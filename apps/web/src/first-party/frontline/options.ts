@@ -1,6 +1,7 @@
 /**
  * Host match options: the challenger picks them in the setup screen
- * (purpose "setup", `setup.tsx`) and they arrive as `match.settings`:
+ * (purpose "setup", `setup.tsx`), and can change them from the lobby until
+ * the match starts (the same screen); they arrive as `match.settings`:
  *
  *   { min?: number, kills?: number, season?: "auto" | Season, mode?: "gungame" }
  *

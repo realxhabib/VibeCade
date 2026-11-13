@@ -1,7 +1,7 @@
 import type { LaunchContext, MatchResult, PlayerInfo } from "vibecade-sdk";
 import { getOfficialApp } from "./catalog";
 import { getRetiredApp } from "./retired-apps";
-import type { AppManifest, Match, MatchPlayer, PlayableMode, PlayerRole, Profile } from "./types";
+import { SETTINGS_SUMMARY_KEY, type AppManifest, type Match, type MatchPlayer, type PlayableMode, type PlayerRole, type Profile } from "./types";
 
 /* ---------------------------------------------------------------------- */
 /* Who's who                                                              */
@@ -256,7 +256,7 @@ export function toLaunchMatch(match: Match, viewerId: string): LaunchContext["ma
     seed: match.seed,
     players: seatedPlayers(match).map(toPlayerInfo),
     seat: seated ? (me.seat ?? -1) : -1,
-    settings: match.settings,
+    settings: appSettings(match.settings),
     minPlayers: match.minPlayers ?? 2,
     maxPlayers: match.maxPlayers ?? 2,
     teams: match.teams ?? 0,
@@ -504,4 +504,24 @@ export function matchHeadline(
     case "expired":
       return "Expired";
   }
+}
+
+/** The settings the app itself sees: the match's, without the platform's lobby summary. */
+export function appSettings(settings: Match["settings"]): Match["settings"] {
+  if (!(SETTINGS_SUMMARY_KEY in settings)) return settings;
+  const rest = { ...settings };
+  delete rest[SETTINGS_SUMMARY_KEY];
+  return rest;
+}
+
+/** The host's options in one line (the setup screen's summary), or null. */
+export function settingsSummary(match: Pick<Match, "settings">): string | null {
+  const text = match.settings[SETTINGS_SUMMARY_KEY];
+  return typeof text === "string" && text.trim() ? text : null;
+}
+
+/** Settings for a new challenge, carrying the setup screen's summary so the lobby can show it. */
+export function withSummary(settings: Match["settings"], summary: string | null | undefined): Match["settings"] {
+  const text = (summary ?? "").trim().slice(0, 140);
+  return text ? { ...settings, [SETTINGS_SUMMARY_KEY]: text } : settings;
 }

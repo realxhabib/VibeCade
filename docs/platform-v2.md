@@ -54,6 +54,13 @@ off multi-seat tables (2–4 players).
   challenge sheet, the app calls `xapps.setup.submit(settings, summary)`, and
   the settings (≤ 4 KB) become `match.settings`. This replaces the platform's
   hard-coded Meme Duel setup.
+  While the lobby fills (status open/pending), the host can reopen the same
+  setup screen from the lobby's "Match options" card (the app sees the real
+  match id instead of `setup`) and `update_match_settings(p_match, p_settings,
+  p_summary)` replaces `match.settings`; everyone at the table sees it through
+  the matches row's realtime update. The summary rides along as the
+  platform key `_summary` (stripped from what the app is launched with), and
+  `quick` stays the platform's (migration `20261113000000_lobby_settings.sql`).
 
 ### Manifest (apps table / `AppManifest`)
 

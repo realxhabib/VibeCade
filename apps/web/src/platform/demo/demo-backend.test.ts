@@ -549,6 +549,30 @@ describe("demo backend: spectators", () => {
   });
 });
 
+describe("demo backend: lobby settings", () => {
+  it("lets the host of a setup app change the options until the start", async () => {
+    await signUp("bob");
+    await as("alice");
+    await backend.registerApp(appInput("setupper", { players: { min: 2, max: 4 }, setup: true }));
+    await backend.registerApp(appInput("plain", { players: { min: 2, max: 4 } }));
+    const match = await backend.createChallenge({ appSlug: "setupper", mode: "live", settings: { min: 5 } });
+
+    const changed = await backend.updateMatchSettings(match.id, { min: 10, quick: true, _summary: "forged" }, "  10 min  ");
+    expect(changed.settings).toEqual({ min: 10, _summary: "10 min" });
+    expect((await backend.updateMatchSettings(match.id, { min: 3 })).settings).toEqual({ min: 3 });
+
+    const plain = await backend.createChallenge({ appSlug: "plain", mode: "live" });
+    await expectCode(backend.updateMatchSettings(plain.id, {}), "invalid");
+
+    await as("bob");
+    await expectCode(backend.updateMatchSettings(match.id, {}), "conflict");
+    await backend.joinMatch(match.id);
+    await as("alice");
+    await backend.startMatch(match.id);
+    await expectCode(backend.updateMatchSettings(match.id, {}), "conflict");
+  });
+});
+
 describe("demo backend: shared state, turns and rounds", () => {
   it("compare-and-sets the match state", async () => {
     const match = await fourPlayerLive();

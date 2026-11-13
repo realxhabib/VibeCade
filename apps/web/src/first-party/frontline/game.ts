@@ -80,6 +80,7 @@ import {
   gunGameWeapon,
   isWinner,
   killKey,
+  limitReached,
   mergeKills,
   newDoc,
   openingSpawns,
@@ -413,6 +414,8 @@ export class Game {
   private readonly listeners = new Set<() => void>();
   private finalListeners = new Set<(rows: FinalRow[]) => void>();
   private finalized = false;
+  /** Ledger size at the last local kill-limit check (only without a shared state). */
+  private localLimitCheckedAt = 0;
   private readonly initialSpawns: number[];
   private firstBloodSeen = false;
 
@@ -747,8 +750,13 @@ export class Game {
       if (this.docShared && !this.doc.end && Date.now() >= this.doc.t0 + this.doc.dur && !this.wantClockEnd) {
         this.wantClockEnd = true;
       }
-      // No shared state at all (it failed): end on our own clock, a little late.
+      // No shared state at all (it failed): end on our own clock, a little late, or at the kill
+      // limit by the kills we saw ourselves (everyone hears every kill over the room).
       if (!this.docShared && Date.now() >= this.doc.t0 + this.doc.dur + 8000) this.finish(now);
+      if (!this.docShared && this.kills.size !== this.localLimitCheckedAt) {
+        this.localLimitCheckedAt = this.kills.size;
+        if (limitReached({ ...this.doc, k: [...this.kills.values()] })) this.finish(now);
+      }
     }
     this.updateNades(now);
     this.updateDrops(now);

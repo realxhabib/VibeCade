@@ -84,6 +84,9 @@ export function acquireRoom(backend: Backend, matchId: string, viewerId: string,
     room: e.room,
     setLatestState: (fn) => {
       e.latestState = fn;
+      // The lobby opened the room before there was a copy to offer: offer it now, or the room
+      // never gets one and every state write (the match document, kills, the end) fails.
+      if (fn) e.room.state?.offer();
     },
     release: () => {
       if (released) return;

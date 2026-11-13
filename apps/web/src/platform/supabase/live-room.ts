@@ -92,6 +92,17 @@ export function createLiveRoom(
     all.forEach((w) => w.reject(error));
   };
 
+  /**
+   * Offers our copy when the room has none or an older one. On sign-in, and again when the copy
+   * becomes available later: a room opened by the lobby signs in before the match stage can supply
+   * one, and a room nobody seeds never takes a write.
+   */
+  const offerMine = () => {
+    if (closed || !welcomed || !holds) return;
+    const mine = options.latestState?.();
+    if (mine && (!held || mine.version > held.version)) raw({ t: "state.offer", state: mine.state, version: mine.version });
+  };
+
   const emitPresence = () => presenceHandlers.forEach((h) => h(peers.slice()));
   const raw = (msg: object) => {
     if (socket && socket.readyState === Socket.OPEN) socket.send(JSON.stringify(msg));
@@ -125,9 +136,7 @@ export function createLiveRoom(
         // A restarted room may be behind us, or empty: it takes the newest copy anyone offers.
         held = null;
         if (isCopy(msg.state)) adopt(msg.state, null);
-        const mine = options.latestState?.();
-        const theirs = isCopy(msg.state) ? msg.state : null;
-        if (mine && (!theirs || mine.version > theirs.version)) raw({ t: "state.offer", state: mine.state, version: mine.version });
+        offerMine();
       } else if (msg.t === "state" && typeof msg.version === "number") {
         if (holds) adopt({ state: msg.state ?? null, version: msg.version }, msg.by ?? null);
       } else if (msg.t === "state.ok") {
@@ -217,9 +226,13 @@ export function createLiveRoom(
       copy: () => (welcomed && holds && held ? { ...held } : null),
       async set(state, expectedVersion) {
         if (closed || !welcomed || !holds) throw stateError("unavailable");
-        if (!held) await seeded();
+        if (!held) {
+          offerMine();
+          await seeded();
+        }
         return write(state, expectedVersion);
       },
+      offer: offerMine,
       onChange(handler) {
         stateHandlers.add(handler);
         return () => stateHandlers.delete(handler);

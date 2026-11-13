@@ -15,6 +15,9 @@ export type { AchievementDef, Json, MatchMode, MatchStatus, MediaRef, PlayerRole
 
 export type AppCategory = "games" | "contests" | "debates" | "trivia" | "creative" | "social" | "news" | "tools" | "finance";
 
+/** Platform key in `Match.settings`: the setup screen's one-line summary, shown in the lobby. */
+export const SETTINGS_SUMMARY_KEY = "_summary";
+
 export const CATEGORIES: { id: AppCategory; label: string; emoji: string }[] = [
   { id: "games", label: "Games", emoji: "🎮" },
   { id: "contests", label: "Contests", emoji: "🏆" },
@@ -197,6 +200,7 @@ export interface Match {
   winnerId: string | null;
   /** Anyone with the link can take the empty seat. */
   isOpen: boolean;
+  /** The app's setup (`match.settings`), plus the platform's `quick` and `_summary` (SETTINGS_SUMMARY_KEY). */
   settings: { [key: string]: Json };
   votes: { [userId: string]: number };
   votesNeeded: number;

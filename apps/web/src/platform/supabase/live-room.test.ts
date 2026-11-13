@@ -154,6 +154,38 @@ describe("createLiveRoom", () => {
       room.close();
     });
 
+    it("offers our copy once we have one when the room signed in before (opened by the lobby)", async () => {
+      let latest: { state: unknown; version: number } | null = null;
+      const room = createLiveRoom(supabase(), "https://live.example", MATCH, {
+        WebSocket: FakeSocket as unknown as typeof WebSocket,
+        latestState: () => latest as never,
+      });
+      await vi.waitFor(() => expect(FakeSocket.all).toHaveLength(1));
+      const ws = FakeSocket.all[0]!;
+      ws.open();
+      ws.receive({ t: "welcome", you: "alice", holds: true, state: null });
+      expect(sentOf(ws, "state.offer")).toEqual([]);
+
+      // The match stage takes over: our copy (empty, version 0) seeds the room.
+      latest = { state: null, version: 0 };
+      room.state!.offer();
+      expect(sentOf(ws, "state.offer")).toEqual([{ t: "state.offer", state: null, version: 0 }]);
+      room.close();
+    });
+
+    it("a write to a room without a copy offers ours first", async () => {
+      const { room, ws, state } = await open({ state: null, version: 0 });
+      ws.receive({ t: "welcome", you: "alice", holds: true, state: null });
+      ws.sent.length = 0;
+      const write = state.set({ k: [1] }, 0);
+      expect(sentOf(ws, "state.offer")).toEqual([{ t: "state.offer", state: null, version: 0 }]);
+      ws.receive({ t: "state", state: null, version: 0, by: "alice" });
+      await vi.waitFor(() => expect(sentOf(ws, "state.set")).toHaveLength(1));
+      ws.receive({ t: "state.ok", id: 1, version: 1 });
+      await expect(write).resolves.toBe(1);
+      room.close();
+    });
+
     it("gives up waiting for a room that never gets a copy", async () => {
       const { room, ws, state } = await open();
       ws.receive({ t: "welcome", you: "alice", holds: true, state: null });

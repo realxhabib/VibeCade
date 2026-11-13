@@ -14,7 +14,7 @@ import { haptic } from "@/lib/haptics";
 import { play } from "@/lib/sfx";
 import { BLUR_TWEEN, spring } from "@/lib/motion";
 import { clamp, cn } from "@/lib/utils";
-import { MODE_LABEL } from "@/platform/match-utils";
+import { MODE_LABEL, withSummary } from "@/platform/match-utils";
 import { useViewer } from "@/platform/client";
 import { useCreateChallenge, useSearchProfiles } from "@/platform/queries";
 import { AppSetupFrame, type AppSetupResult } from "./app-setup-frame";
@@ -131,7 +131,7 @@ export function ChallengeSheet({
         opponentHandle: !multi && rivals[0] ? rivals[0].handle : null,
         opponentHandles: multi && handles.length > 0 ? handles : undefined,
         maxPlayers: multi ? tableSize : undefined,
-        settings: appSetup ? (setup?.settings ?? {}) : undefined,
+        settings: appSetup ? withSummary(setup?.settings ?? {}, setup?.summary) : undefined,
       });
       play("whoosh");
       const names = rivals.map((r) => `@${r.handle}`);

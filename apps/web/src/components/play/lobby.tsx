@@ -2,10 +2,11 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { AtSign, Bot, Check, Copy, Crown, Eye, Play, Plus, Swords, UserPlus, X as XIcon } from "lucide-react";
+import { AtSign, Bot, Check, Copy, Crown, Eye, Play, Plus, Settings2, Swords, UserPlus, X as XIcon } from "lucide-react";
 import { Fragment, useDeferredValue, useEffect, useRef, useState } from "react";
 import { toast } from "@/components/chrome/toasts";
 import { AppGlyph } from "@/components/marketplace/app-glyph";
+import { AppSetupFrame } from "@/components/marketplace/app-setup-frame";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,11 @@ import { play } from "@/lib/sfx";
 import { BLUR_TWEEN, spring } from "@/lib/motion";
 import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
-import { MODE_LABEL } from "@/platform/match-utils";
+import { appSettings, MODE_LABEL, settingsSummary } from "@/platform/match-utils";
 import { useBackend } from "@/platform/client";
 import { activityLabel } from "@/platform/presence";
 import { useOnlineOthers } from "@/platform/presence-client";
-import { useApps, useSearchProfiles } from "@/platform/queries";
+import { useApps, useSearchProfiles, useUpdateMatchSettings } from "@/platform/queries";
 import type { AppManifest, Match, MatchPlayer, Profile } from "@/platform/types";
 import { useHostRoutes } from "./host-routes";
 import { maxSeats, SEAT_COLORS, seatedPlayers, tableSizeLabelForMatch, teamStyle } from "./match-view";
@@ -221,6 +222,8 @@ function DuelLobby({
           {quick ? "Hang tight — or share the link and pull in a friend." : "Anyone with the link can take the seat."}
         </p>
       )}
+
+      {app.setup && <LobbyOptions app={app} match={match} viewer={viewer} host={!!onCancel} className="mt-5" />}
 
       {link && (
         <ShareBox
@@ -437,6 +440,8 @@ function TableLobby({
         </div>
       </LayoutGroup>
 
+      {app.setup && <LobbyOptions app={app} match={match} viewer={viewer} host={!!onStart && !watching} className="mt-6" />}
+
       {/* Start / waiting */}
       {!watching && (
         <div className="mt-6 flex w-full max-w-md flex-col items-center gap-2">
@@ -501,6 +506,92 @@ function TableLobby({
         </div>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * Match options in the lobby (`setup: true` apps): everyone sees the host's
+ * pick in one line; the host can open the app's own setup screen and change
+ * it until the match starts. The change lands in `match.settings`, which
+ * everyone at the table picks up from the match's realtime update.
+ */
+function LobbyOptions({ app, match, viewer, host, className }: { app: AppManifest; match: Match; viewer: Profile; host: boolean; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const save = useUpdateMatchSettings();
+  const summary = settingsSummary(match);
+  const own = { ...appSettings(match.settings) };
+  delete own.quick;
+  const custom = Object.keys(own).length > 0;
+  const creator = match.players.find((p) => p.userId === match.createdBy);
+  const rivals = seatedPlayers(match)
+    .filter((p) => p.userId !== viewer.id && p.state !== "invited")
+    .map((p) => p.profile);
+  const mode = match.mode === "practice" ? "live" : match.mode;
+
+  // Others hear a tick when the host changes something.
+  const last = useRef(summary ?? JSON.stringify(own));
+  const now = summary ?? JSON.stringify(own);
+  useEffect(() => {
+    if (last.current !== now && !host) play("tick");
+    last.current = now;
+  }, [now, host]);
+
+  return (
+    <div className={cn("w-full max-w-md", className)}>
+      <div className="glass flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left">
+        <span
+          className="grid size-9 shrink-0 place-items-center rounded-xl text-ink-950"
+          style={{ background: `linear-gradient(135deg, ${app.accent[0]}, ${app.accent[1]})` }}
+        >
+          <Settings2 className="size-4.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink-400">Match options</p>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.p
+              key={now}
+              className="truncate text-sm font-semibold"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={spring.snappy}
+            >
+              {summary ?? (custom ? "Custom settings" : "Standard settings")}
+            </motion.p>
+          </AnimatePresence>
+        </div>
+        {host ? (
+          <Button size="sm" variant={open ? "ghost" : "glass"} onClick={() => setOpen((o) => !o)} disabled={save.isPending}>
+            {open ? "Close" : "Change"}
+          </Button>
+        ) : (
+          <span className="shrink-0 text-xs text-ink-400">{creator ? `Set by @${creator.profile.handle}` : "Set by the host"}</span>
+        )}
+      </div>
+      <AnimatePresence>
+        {host && open && (
+          <AppSetupFrame
+            key="setup"
+            app={app}
+            viewer={viewer}
+            mode={mode}
+            rivals={rivals}
+            tableSize={match.maxPlayers}
+            initial={own}
+            matchId={match.id}
+            className="mt-2"
+            onCancel={() => setOpen(false)}
+            onSubmit={({ settings, summary: text }) => {
+              setOpen(false);
+              save.mutate(
+                { matchId: match.id, settings, summary: text },
+                { onError: (error) => toast(error instanceof Error ? error.message : "Couldn't change the options", { tone: "danger" }) },
+              );
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 

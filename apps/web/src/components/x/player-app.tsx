@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { goToHost } from "@/lib/host-nav";
 import { useMounted } from "@/lib/use-mounted";
 import { playsInPost, xAppPlayerPath, xMatchPlayerPath, xPlayerPath } from "@/lib/x-player";
+import { withSummary } from "@/platform/match-utils";
 import { useViewer } from "@/platform/client";
 import { useCreateChallenge, usePractice, useQuickMatch } from "@/platform/queries";
 import type { AppManifest, Match } from "@/platform/types";
@@ -236,7 +237,7 @@ export function XPlayerApp({ app }: { app: AppManifest }) {
             className="min-h-0 flex-1"
             onSubmit={(result) => {
               setSetupFor(null);
-              void sendChallenge(setupFor.opponentHandle, result.settings);
+              void sendChallenge(setupFor.opponentHandle, withSummary(result.settings, result.summary));
             }}
             onCancel={() => setSetupFor(null)}
           />
