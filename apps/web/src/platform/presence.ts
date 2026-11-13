@@ -40,8 +40,12 @@ export interface PresenceTransport {
   track(meta: PresenceMeta): void;
   /** Everyone connected, including us: each user's metas, one per open tab. */
   onSync(handler: (entries: PresenceEntry[]) => void): () => void;
+  /** Whether the channel is joined; `unavailable` when it was refused (e.g. its migration isn't installed). */
+  onStatus?(handler: (status: PresenceStatus) => void): () => void;
   close(): void;
 }
+
+export type PresenceStatus = "off" | "connecting" | "live" | "unavailable";
 
 export interface PresenceEntry {
   userId: string;
@@ -167,6 +171,8 @@ export class PresenceHub {
   private players: OnlinePlayer[] = EMPTY;
   private listeners = new Set<() => void>();
   private unsync: (() => void) | null = null;
+  private unstatus: (() => void) | null = null;
+  private status: PresenceStatus = "off";
 
   constructor(private readonly open: (viewerId: string) => PresenceTransport) {}
 
@@ -187,12 +193,17 @@ export class PresenceHub {
       this.players = mergePresence(entries);
       this.listeners.forEach((l) => l());
     });
+    this.setStatus(transport.onStatus ? "connecting" : "live");
+    this.unstatus = transport.onStatus?.((status) => this.setStatus(status)) ?? null;
     this.track();
   }
 
   disconnect(): void {
     this.unsync?.();
     this.unsync = null;
+    this.unstatus?.();
+    this.unstatus = null;
+    this.setStatus("off");
     this.transport?.close();
     this.transport = null;
     if (this.players !== EMPTY) {
@@ -218,6 +229,15 @@ export class PresenceHub {
   };
 
   snapshot = (): OnlinePlayer[] => this.players;
+
+  /** Whether we're actually on the channel (the list is only "nobody" when this is `live`). */
+  statusSnapshot = (): PresenceStatus => this.status;
+
+  private setStatus(status: PresenceStatus): void {
+    if (status === this.status) return;
+    this.status = status;
+    this.listeners.forEach((l) => l());
+  }
 
   private track(): void {
     const viewer = this.viewer;

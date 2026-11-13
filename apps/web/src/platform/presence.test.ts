@@ -122,3 +122,28 @@ describe("PresenceHub", () => {
     expect(hub.snapshot()).toEqual([]);
   });
 });
+
+describe("PresenceHub status", () => {
+  it("reports whether the channel is joined, so an empty list isn't read as nobody online", () => {
+    let report: ((s: "connecting" | "live" | "unavailable") => void) | null = null;
+    const hub = new PresenceHub(() => ({
+      track: () => undefined,
+      onSync: () => () => undefined,
+      onStatus: (h) => {
+        report = h;
+        h("connecting");
+        return () => (report = null);
+      },
+      close: () => undefined,
+    }));
+    expect(hub.statusSnapshot()).toBe("off");
+    hub.connect({ id: "me", handle: "me", name: "Me", avatarUrl: null } as Profile);
+    expect(hub.statusSnapshot()).toBe("connecting");
+    report!("unavailable");
+    expect(hub.statusSnapshot()).toBe("unavailable");
+    report!("live");
+    expect(hub.statusSnapshot()).toBe("live");
+    hub.connect(null);
+    expect(hub.statusSnapshot()).toBe("off");
+  });
+});
