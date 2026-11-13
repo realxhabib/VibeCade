@@ -45,4 +45,7 @@ test("the lobby host changes Frontline's options and the table sees them", async
   const game = host.frameLocator('iframe[title="Frontline"]');
   await expect(game.getByRole("button", { name: "Gun game", pressed: true })).toBeVisible({ timeout: 30_000 });
   await expect(game.getByText("Winter").first()).toBeVisible();
+  // Locked once the host pressed Start: picked in the lobby only.
+  await expect(game.getByText("Locked in")).toBeVisible();
+  await expect(game.getByRole("button", { name: "Standard" })).toBeDisabled();
 });

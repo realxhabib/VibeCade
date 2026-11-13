@@ -69,6 +69,9 @@ export function FrontlineApp() {
   const humans = players.filter((p) => !p.isBot);
   const hostSeat = humans.length ? Math.min(...humans.map((p) => p.seat)) : -1;
   const isHost = !isSpectator && me.seat === hostSeat;
+  // Matches with other people lock the options when the host presses Start in the lobby (they're
+  // picked there); a practice match has no lobby, so its loadout screen is where you pick them.
+  const optionsLocked = xapps.match.mode !== "practice";
 
   // Start downloading this device's textures, sky and soldier while players pick loadouts.
   const level = TIERS[tierFor(settings.quality)].assets;
@@ -177,7 +180,7 @@ export function FrontlineApp() {
                 {!small && <p className="max-w-md text-xs text-ink-400">{SEASON_TWIST[season]}</p>}
               </header>
 
-              <HostOptions options={options} host={isHost} standardKills={newDoc(0, teams, players.length).lim} compact={small} />
+              <HostOptions options={options} host={isHost && !optionsLocked} locked={optionsLocked} standardKills={newDoc(0, teams, players.length).lim} compact={small} />
 
               <Roster teams={teams} />
 
