@@ -2938,6 +2938,10 @@ select pg_temp.expect(format('select public.create_challenge(%L, %L, %L, %L, nul
 select pg_temp.expect(format('select public.create_challenge(%L, %L, null, %L, null, null, %L)', 'ship-game', 'async', '{}', pg_temp.mid('sv2')),
   '22023', '%async%');
 insert into ctx values ('tb_duel', public.create_challenge('ship-game', 'live', '@tess', '{}', null, null, pg_temp.mid('sv2'))::text);
+-- Tess takes her seat before Bob opens another lobby (one lobby at a time).
+select pg_temp.login('tess');
+select public.join_match(pg_temp.mid('tb_duel'));
+select pg_temp.login('bob');
 insert into ctx values ('tb_open', public.create_challenge('ship-game', 'live', null, '{}', null, 3, pg_temp.mid('sv2'))::text);
 select pg_temp.expect(format('select public.invite_to_match(%L, %L)', pg_temp.mid('tb_open'), '{carol}'), '22023', '@carol isn''t a tester%');
 select public.invite_to_match(pg_temp.mid('tb_open'), '{tess}');
@@ -2951,7 +2955,6 @@ begin
   assert not (public.list_user_matches(pg_temp.uid('bob')) @> jsonb_build_array(jsonb_build_object('id', pg_temp.cv('tb_duel')))), 'not on profiles';
 end $$;
 select pg_temp.login('tess');
-select public.join_match(pg_temp.mid('tb_duel'));
 select public.submit_entry(pg_temp.mid('tb_duel'), null, 5);
 do $$
 begin
@@ -2996,7 +2999,7 @@ begin
   assert (select version_id from public.matches where id = pg_temp.mid('live_quick')) is null, 'live lobby';
   assert (select published_version_id from public.matches where id = pg_temp.mid('live_quick')) = pg_temp.mid('sv1'), 'live version stamped';
   assert public.quick_match('ship-game', pg_temp.mid('sv2')) = pg_temp.mid('tb_quick'), 'same version pairs';
-  assert (select status from public.matches where id = pg_temp.mid('live_quick')) = 'open', 'other-version lobby kept';
+  assert (select status from public.matches where id = pg_temp.mid('live_quick')) = 'cancelled', 'his own lobby closes: one lobby at a time';
   assert (select max_players from public.matches where id = pg_temp.mid('tb_quick')) = 6, 'test lobby sized by the version';
 end $$;
 

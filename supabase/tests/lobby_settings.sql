@@ -23,6 +23,10 @@ grant all on ls to authenticated;
 
 set role authenticated;
 select pg_temp.login('ls_ann');
+-- Only setup apps (a new lobby would end this one: one lobby at a time).
+insert into ls values ('draw', public.create_challenge('quick-draw', 'live', 'ls_ben'));
+select pg_temp.expect(format('select public.update_match_settings(%L, %L)', (select v from ls where k = 'draw'), '{}'), '22023');
+select public.cancel_match((select v from ls where k = 'draw'));
 insert into ls values ('fl', public.create_challenge('frontline', 'live', 'ls_ben', '{"min":5}'));
 
 -- The host replaces the options; `quick` stays the platform's and the summary rides along as `_summary`.
@@ -42,13 +46,9 @@ end $$;
 select pg_temp.expect(format('select public.update_match_settings(%L, %L)', (select v from ls where k = 'fl'), '[1]'), '22023');
 select pg_temp.expect(format('select public.update_match_settings(%L, %L)', (select v from ls where k = 'fl'), jsonb_build_object('x', repeat('a', 5000))), '22023');
 
--- Only the host, only before the start, only setup apps.
+-- Only the host, only before the start.
 select pg_temp.login('ls_ben');
 select pg_temp.expect(format('select public.update_match_settings(%L, %L)', (select v from ls where k = 'fl'), '{}'), '55000');
-select pg_temp.login('ls_ann');
-insert into ls values ('draw', public.create_challenge('quick-draw', 'live', 'ls_ben'));
-select pg_temp.expect(format('select public.update_match_settings(%L, %L)', (select v from ls where k = 'draw'), '{}'), '22023');
-select public.cancel_match((select v from ls where k = 'draw'));
 select pg_temp.login('ls_ben');
 select public.join_match((select v from ls where k = 'fl'));
 select pg_temp.login('ls_ann');

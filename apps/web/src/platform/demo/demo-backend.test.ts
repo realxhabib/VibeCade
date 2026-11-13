@@ -505,6 +505,50 @@ describe("demo backend: one live game at a time", () => {
   });
 });
 
+describe("demo backend: one lobby at a time", () => {
+  it("leaves my other lobbies when I take a seat in one or start playing", async () => {
+    await signUp("bob", "cat");
+    await as("alice");
+    const annLobby = await backend.createChallenge({ appSlug: "frontline", mode: "live" });
+    await as("cat");
+    const catLobby = await backend.createChallenge({ appSlug: "frontline", mode: "live" });
+
+    // Bob joins Alice's lobby, then Cat's: his seat in Alice's frees up.
+    await as("bob");
+    await backend.joinMatch(annLobby.id);
+    await backend.joinMatch(catLobby.id);
+    const left = (await backend.getMatch(annLobby.id))!;
+    expect(seat(left, "bob")).toBeUndefined();
+    expect(left.status).toBe("open");
+    expect(seat((await backend.getMatch(catLobby.id))!, "bob")?.state).toBe("joined");
+
+    // Alice challenges Cat: her own lobby is cancelled. Cat accepts: hers (with Bob) is too.
+    await as("alice");
+    const duel = await backend.createChallenge({ appSlug: "quick-draw", mode: "live", opponentHandle: "cat" });
+    expect((await backend.getMatch(annLobby.id))!.status).toBe("cancelled");
+    await as("cat");
+    await backend.joinMatch(duel.id);
+    expect((await backend.getMatch(catLobby.id))!.status).toBe("cancelled");
+    expect((await backend.getMatch(duel.id))!.status).toBe("active");
+
+    // Quick match counts too, and starting a practice game leaves the lobby.
+    await as("bob");
+    const bobLobby = await backend.createChallenge({ appSlug: "frontline", mode: "live" });
+    await as("alice");
+    await backend.joinMatch(bobLobby.id);
+    const quick = await backend.quickMatch("frontline");
+    expect(quick.id).not.toBe(bobLobby.id);
+    expect(seat((await backend.getMatch(bobLobby.id))!, "alice")).toBeUndefined();
+    await backend.joinMatch(bobLobby.id);
+    expect((await backend.getMatch(quick.id))!.status).toBe("cancelled");
+    const practice = await backend.startPractice("quick-draw");
+    await backend.markStarted(practice.id);
+    const after = (await backend.getMatch(bobLobby.id))!;
+    expect(seat(after, "alice")).toBeUndefined();
+    expect(after.status).toBe("open");
+  });
+});
+
 describe("demo backend: spectators", () => {
   it("adds spectators without a seat and refuses them everything a player does", async () => {
     const match = await fourPlayerLive();
@@ -555,14 +599,14 @@ describe("demo backend: lobby settings", () => {
     await as("alice");
     await backend.registerApp(appInput("setupper", { players: { min: 2, max: 4 }, setup: true }));
     await backend.registerApp(appInput("plain", { players: { min: 2, max: 4 } }));
+    // Only setup apps (opening another lobby later would close this one: one lobby at a time).
+    const plain = await backend.createChallenge({ appSlug: "plain", mode: "live" });
+    await expectCode(backend.updateMatchSettings(plain.id, {}), "invalid");
     const match = await backend.createChallenge({ appSlug: "setupper", mode: "live", settings: { min: 5 } });
 
     const changed = await backend.updateMatchSettings(match.id, { min: 10, quick: true, _summary: "forged" }, "  10 min  ");
     expect(changed.settings).toEqual({ min: 10, _summary: "10 min" });
     expect((await backend.updateMatchSettings(match.id, { min: 3 })).settings).toEqual({ min: 3 });
-
-    const plain = await backend.createChallenge({ appSlug: "plain", mode: "live" });
-    await expectCode(backend.updateMatchSettings(plain.id, {}), "invalid");
 
     await as("bob");
     await expectCode(backend.updateMatchSettings(match.id, {}), "conflict");
@@ -819,10 +863,11 @@ describe("demo backend: dead lobbies", () => {
       await signUp("bob");
       await as("alice");
       const table = await backend.createChallenge({ appSlug: "quick-draw", mode: "live", opponentHandle: "bob" });
+      // Opening the table closed the quick lobby (one lobby at a time).
+      expect((await backend.getMatch(fresh.id))?.status).toBe("cancelled");
       vi.setSystemTime(Date.now() + 3 * 3_600_000);
       const later = await backend.listMyMatches();
       expect(later.find((m) => m.id === table.id)?.status).toBe("expired");
-      expect(later.find((m) => m.id === fresh.id)?.status).toBe("expired");
     } finally {
       vi.useRealTimers();
     }
