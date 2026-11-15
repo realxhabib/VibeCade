@@ -12,7 +12,8 @@ import { play } from "@/lib/sfx";
 import { BLUR_TWEEN, spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { activityLabel, joinableLobby, type OnlinePlayer } from "@/platform/presence";
-import { useOnlineOthers, useOnlineStatus } from "@/platform/presence-client";
+import { useViewer } from "@/platform/client";
+import { useOnlineOthers, useOnlinePlayers, useOnlineStatus } from "@/platform/presence-client";
 import { useApps } from "@/platform/queries";
 import { setLobbyAlerts, useLobbyAlertsSetting } from "./lobby-alerts";
 
@@ -51,12 +52,32 @@ function OnlineRow({ player, onDone }: { player: OnlinePlayer; onDone: () => voi
   );
 }
 
+/** The viewer's own row: counted as online, with what everyone else sees them doing. */
+function YouRow({ player }: { player: OnlinePlayer }) {
+  const { data: apps } = useApps();
+  const slug = player.activity?.appSlug;
+  const app = slug ? apps?.find((a) => a.slug === slug) : undefined;
+  return (
+    <div className="flex items-center gap-3 rounded-2xl px-2.5 py-2">
+      <Avatar person={player} size={36} online />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">You</span>
+        <span className="block truncate text-xs text-ink-400">{activityLabel(player.activity, app?.name)}</span>
+      </span>
+    </div>
+  );
+}
+
 /** Top bar: who else is online (a green dot and a few faces), and a list to join their lobbies or challenge them. */
 export function OnlineNow() {
   const others = useOnlineOthers();
   const status = useOnlineStatus();
-  /** Until we're on the channel, an empty list means "don't know", not "nobody". */
-  const count = others.length === 0 && status !== "live" ? "–" : String(others.length);
+  const { viewer } = useViewer();
+  const me = useOnlinePlayers().find((p) => p.userId === viewer?.id);
+  /** Everyone online, you included. Until we're on the channel we don't know: a dash, not "nobody". */
+  const known = status === "live" || others.length > 0;
+  const total = others.length + 1;
+  const count = known ? String(total) : "–";
   const alerts = useLobbyAlertsSetting();
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -89,12 +110,12 @@ export function OnlineNow() {
           "flex h-10 items-center gap-2 rounded-full border bg-white/[0.03] pl-3 pr-3 text-sm transition hover:border-white/20",
           waiting ? "border-volt/40 text-ink-50" : "border-white/10 text-ink-300 hover:text-ink-100",
         )}
-        aria-label={`${others.length} other${others.length === 1 ? "" : "s"} online`}
+        aria-label={known ? `${total} online, you included` : "Who's online"}
         aria-expanded={open}
       >
         <span className="relative flex size-2.5">
-          {!reduced && others.length > 0 && <span className="absolute inset-0 animate-ping rounded-full bg-success opacity-60" />}
-          <span className={cn("relative size-2.5 rounded-full", others.length > 0 ? "bg-success" : "bg-ink-500")} />
+          {!reduced && known && <span className="absolute inset-0 animate-ping rounded-full bg-success opacity-60" />}
+          <span className={cn("relative size-2.5 rounded-full", known ? "bg-success" : "bg-ink-500")} />
         </span>
         <span className="hidden -space-x-2 sm:flex">
           {others.slice(0, 3).map((p) => (
@@ -133,12 +154,14 @@ export function OnlineNow() {
                   ? "Can't reach the online list right now, so we can't tell who's on. Retrying…"
                   : "Checking who's online…"}
               </p>
-            ) : others.length === 0 ? (
-              <p className="px-3 pb-4 pt-3 text-sm text-ink-400">
-                Nobody else is on right now. Open a lobby and share the link, and anyone who comes online will see it.
-              </p>
             ) : (
               <div className="max-h-[min(60vh,24rem)] overflow-y-auto">
+                {me && <YouRow player={me} />}
+                {others.length === 0 && (
+                  <p className="px-3 pb-3 pt-1 text-sm text-ink-400">
+                    Just you right now. Open a lobby and share the link, and anyone who comes online will see it.
+                  </p>
+                )}
                 {others.map((p) => (
                   <OnlineRow key={p.userId} player={p} onDone={() => setOpen(false)} />
                 ))}
