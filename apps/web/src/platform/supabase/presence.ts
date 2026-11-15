@@ -1,5 +1,5 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import type { PresenceEntry, PresenceMeta, PresenceTransport } from "../presence";
+import type { PresenceEntry, PresenceMeta, PresenceStatus, PresenceTransport } from "../presence";
 
 /** The one channel everyone signed in shares (see the online_presence migration's realtime.messages policies). */
 export const ONLINE_TOPIC = "online";
@@ -11,6 +11,13 @@ export const ONLINE_TOPIC = "online";
  */
 export function createSupabasePresence(supabase: SupabaseClient, viewerId: string): PresenceTransport {
   const handlers = new Set<(entries: PresenceEntry[]) => void>();
+  const statusHandlers = new Set<(status: PresenceStatus) => void>();
+  let status: PresenceStatus = "connecting";
+  const setStatus = (next: PresenceStatus) => {
+    if (next === status) return;
+    status = next;
+    statusHandlers.forEach((h) => h(status));
+  };
   let meta: PresenceMeta | null = null;
   let entries: PresenceEntry[] = [];
   let channel: RealtimeChannel | null = null;
@@ -33,15 +40,20 @@ export function createSupabasePresence(supabase: SupabaseClient, viewerId: strin
       const state = ch.presenceState<PresenceMeta>();
       entries = Object.entries(state).map(([userId, metas]) => ({ userId, metas: metas as PresenceMeta[] }));
       emit();
-    }).subscribe((status) => {
+    }).subscribe((state, error) => {
       if (channel !== ch) return;
-      if (status === "SUBSCRIBED") {
+      if (state === "SUBSCRIBED") {
         subscribed = true;
         retries = 0;
+        setStatus("live");
         if (meta) void ch.track(meta);
-      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+      } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
         subscribed = false;
-        if (!closed) reconnect();
+        if (closed) return;
+        // A refused join is usually the online_presence migration not being installed yet.
+        console.warn(`[vibecade] who's-online channel ${state.toLowerCase()}`, error?.message ?? "");
+        setStatus("unavailable");
+        reconnect();
       }
     });
   };
@@ -68,6 +80,11 @@ export function createSupabasePresence(supabase: SupabaseClient, viewerId: strin
       meta = { ...next };
       if (channel && subscribed) void channel.track(meta);
     },
+    onStatus(handler) {
+      statusHandlers.add(handler);
+      handler(status);
+      return () => statusHandlers.delete(handler);
+    },
     onSync(handler) {
       handlers.add(handler);
       handler(entries.slice());
@@ -77,6 +94,7 @@ export function createSupabasePresence(supabase: SupabaseClient, viewerId: strin
       closed = true;
       if (retryTimer) clearTimeout(retryTimer);
       handlers.clear();
+      statusHandlers.clear();
       if (channel) void supabase.removeChannel(channel);
       channel = null;
     },

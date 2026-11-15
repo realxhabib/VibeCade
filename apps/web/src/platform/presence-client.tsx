@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useBackend, useViewer } from "./client";
-import type { OnlineActivity, OnlinePlayer } from "./presence";
+import type { OnlineActivity, OnlinePlayer, PresenceStatus } from "./presence";
 
 const NONE: OnlinePlayer[] = [];
 
@@ -10,6 +10,12 @@ const NONE: OnlinePlayer[] = [];
 export function useOnlinePlayers(): OnlinePlayer[] {
   const { presence } = useBackend();
   return useSyncExternalStore(presence.subscribe, presence.snapshot, () => NONE);
+}
+
+/** Whether the online list is live (only then does an empty list mean nobody's on). */
+export function useOnlineStatus(): PresenceStatus {
+  const { presence } = useBackend();
+  return useSyncExternalStore(presence.subscribe, presence.statusSnapshot, () => "off" as const);
 }
 
 /** Everyone online but the viewer. */
