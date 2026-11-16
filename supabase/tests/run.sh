@@ -35,3 +35,4 @@ fi
 "${psql_cmd[@]}" -d "$db" -f "$here/admin_overview.sql"
 "${psql_cmd[@]}" -d "$db" -f "$here/app_details.sql"
 "${psql_cmd[@]}" -d "$db" -f "$here/lobby_settings.sql"
+"${psql_cmd[@]}" -d "$db" -f "$here/published_at.sql"

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { useState } from "react";
 import { ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { AppArt } from "@/components/marketplace/app-art";
@@ -10,7 +11,7 @@ import { TiltCard } from "@/components/motion/tilt-card";
 import { play } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 import { useApps } from "@/platform/queries";
-import { SPOTLIGHT, SPOTLIGHT_KIND_LABEL, SPOTLIGHT_SHOWN, spotlightDate, type SpotlightEntry } from "@/platform/spotlight";
+import { SPOTLIGHT_KIND_LABEL, SPOTLIGHT_SHOWN, spotlightDate, spotlightFeed, type SpotlightEntry } from "@/platform/spotlight";
 import type { AppManifest } from "@/platform/types";
 import { SectionHeading } from "./sections";
 
@@ -38,11 +39,13 @@ function resolve(entry: SpotlightEntry, apps: AppManifest[] | undefined): Shown 
   };
 }
 
-/** "New on VibeCade": the latest games and features, edited in `platform/spotlight.ts`. */
+/** "New on VibeCade": newly published games plus the features in `platform/spotlight.ts`. */
 export function Spotlight() {
   const { data: apps } = useApps();
+  const [now] = useState(Date.now);
   if (!apps) return null;
-  const shown = SPOTLIGHT.map((e) => resolve(e, apps))
+  const shown = spotlightFeed(apps, now)
+    .map((e) => resolve(e, apps))
     .filter((s): s is Shown => !!s)
     .slice(0, SPOTLIGHT_SHOWN);
   if (shown.length === 0) return null;
