@@ -142,6 +142,11 @@ export interface AppManifest {
   /** Whether the signed-in viewer upvoted it (false or absent when signed out). */
   upvoted?: boolean;
   createdAt: string;
+  /**
+   * When the app first went public (community apps: approved in review). Absent for catalog apps
+   * and before the published_at migration; read it as `listedSince(app)` (`platform/spotlight.ts`).
+   */
+  publishedAt?: string | null;
   tags: string[];
 }
 

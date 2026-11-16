@@ -92,6 +92,8 @@ export interface AppRow {
    */
   viewer_upvoted?: boolean | null;
   created_at: string;
+  /** When it first went public (absent before the published_at migration). */
+  published_at?: string | null;
   developer?: { handle: string; name: string } | null;
 }
 
@@ -152,6 +154,7 @@ export function toApp(row: AppRow): AppManifest {
     upvotes: row.upvotes ?? 0,
     upvoted: row.viewer_upvoted === true,
     createdAt: row.created_at,
+    publishedAt: row.published_at ?? null,
     tags: row.tags,
   });
 }

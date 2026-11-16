@@ -1266,7 +1266,7 @@ export class DemoBackend implements Backend {
     version.publishedAt = now;
     (db.publishedVersions ??= {})[version.appSlug] = version.id;
     const app = db.apps[version.appSlug];
-    if (app) db.apps[version.appSlug] = { ...applyVersionToApp(app, version), status: "published" };
+    if (app) db.apps[version.appSlug] = { ...applyVersionToApp(app, version), status: "published", publishedAt: app.publishedAt ?? now };
   }
 
   private testersOf(db: DemoDb, appSlug: string): Profile[] {

@@ -2,12 +2,13 @@
 
 import { AppWindow, ArrowUpRight, Clock3, Users, Zap } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { TiltCard } from "@/components/motion/tilt-card";
 import { Badge } from "@/components/ui/badge";
 import { play } from "@/lib/sfx";
 import { tableSizeLabel } from "@/components/play/match-view";
 import { cn, formatCompact } from "@/lib/utils";
-import { NEW_APP_SLUGS } from "@/platform/spotlight";
+import { isNewApp } from "@/platform/spotlight";
 import { CATEGORIES, type AppManifest } from "@/platform/types";
 import { AppArt } from "./app-art";
 import { AppGlyph } from "./app-glyph";
@@ -34,6 +35,7 @@ export function AppCard({
   className?: string;
 }) {
   const cat = category(app.category);
+  const [now] = useState(Date.now);
   const large = size === "lg";
   return (
     <div className={cn("group relative h-full rounded-[2rem]", className)}>
@@ -74,7 +76,7 @@ export function AppCard({
               </div>
               <p className={cn("mt-3 text-ink-300", large ? "text-base" : "line-clamp-2 text-sm")}>{app.tagline}</p>
               <div className="mt-auto flex flex-wrap items-center gap-2 pt-4 text-xs text-ink-400">
-                {NEW_APP_SLUGS.has(app.slug) && <Badge tone="gold">New</Badge>}
+                {isNewApp(app, now) && <Badge tone="gold">New</Badge>}
                 {cat && (
                   <Badge tone="neutral">
                     {cat.emoji} {cat.label}
