@@ -463,6 +463,13 @@ export class Engine {
   private unvis: (() => void) | null = null;
   private unclick: (() => void) | null = null;
 
+  /** On-screen (touch) or mouse-and-keyboard controls; switching to touch gives the mouse back. */
+  setTouch(touch: boolean): void {
+    if (touch === this.opts.touch) return;
+    this.opts.touch = touch;
+    if (touch) this.input.releaseLock();
+  }
+
   setPaused(paused: boolean): void {
     if (paused === this.paused) return;
     const now = performance.now();

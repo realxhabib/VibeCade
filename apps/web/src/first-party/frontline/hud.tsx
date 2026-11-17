@@ -275,7 +275,7 @@ export function Hud({
         </div>
       )}
 
-      {touch && !spectating && !paused && <TouchControls key={`${hud.me?.alive ? "alive" : "down"}:${hud.phase}`} engine={engine} hud={hud} />}
+      {touch && !spectating && !paused && <TouchControls key={`${hud.me?.alive ? "alive" : "down"}:${hud.phase}`} engine={engine} hud={hud} hipFire={settings.hipFire} />}
 
       {/* Death screen. */}
       <AnimatePresence>
@@ -761,6 +761,7 @@ function SettingsPanel({ settings, onSettings, touch, tier }: { settings: Settin
       <Toggle label="Invert look up/down" on={settings.invert} onChange={(invert) => set({ invert })} />
       {touch && <Toggle label="Aim assist (slows your aim over enemies and helps you stay on them while you shoot)" on={settings.aimAssist} onChange={(aimAssist) => set({ aimAssist })} />}
       {touch && <Toggle label="Auto-fire (shoots when your crosshair is on an enemy)" on={settings.autoFire} onChange={(autoFire) => set({ autoFire })} />}
+      {touch && <Toggle label="Hip fire (the fire buttons shoot without aiming down sights)" on={settings.hipFire} onChange={(hipFire) => set({ hipFire })} />}
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-semibold text-ink-300">Graphics</span>
         <div className="flex gap-1" role="radiogroup" aria-label="Graphics quality">

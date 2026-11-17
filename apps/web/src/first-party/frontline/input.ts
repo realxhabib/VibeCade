@@ -9,6 +9,7 @@
  * Tab holds the scoreboard, Esc releases the mouse.
  */
 
+import { useEffect, useState } from "react";
 import type { Intent } from "./game";
 
 export interface TouchState {
@@ -312,4 +313,28 @@ export class Input {
 export function isTouchDevice(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(pointer: coarse)").matches ?? "ontouchstart" in window;
+}
+
+/**
+ * Which controls to show, following the hand actually in use: starts from the
+ * device's main pointer, switches to mouse and keyboard as soon as a mouse moves
+ * or clicks (touchscreen laptops and some desktop browsers report a "coarse"
+ * pointer, which used to strand them on the phone buttons: no pointer lock, no
+ * hip fire), and back to the on-screen controls when a finger touches the screen.
+ */
+export function useTouchControls(): boolean {
+  const [touch, setTouch] = useState(isTouchDevice);
+  useEffect(() => {
+    const on = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") setTouch(false);
+      else if (e.pointerType === "touch" && e.type === "pointerdown") setTouch(true);
+    };
+    window.addEventListener("pointerdown", on, true);
+    window.addEventListener("pointermove", on, true);
+    return () => {
+      window.removeEventListener("pointerdown", on, true);
+      window.removeEventListener("pointermove", on, true);
+    };
+  }, []);
+  return touch;
 }
