@@ -26,7 +26,7 @@ import { loadAssets } from "./assets";
 import { TIERS, tierFor } from "./quality";
 import { loadLocal, loadRemote, saveSettings, type Settings } from "./settings";
 import { LookSpeed } from "./look-speed";
-import { isTouchDevice } from "./input";
+import { useTouchControls } from "./input";
 import { TEAM_COLORS } from "./avatars";
 
 /** Nobody holds up the table: the loadout screen locks you in after this long. */
@@ -142,7 +142,7 @@ export function FrontlineApp() {
   const map = MAPS[DEFAULT_MAP];
   // The X post's card (and phones): everything on one screen, Deploy always in view.
   const small = useMediaQuery("(max-height: 600px), (max-width: 480px)");
-  const [touch] = useState(() => isTouchDevice());
+  const touch = useTouchControls();
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">

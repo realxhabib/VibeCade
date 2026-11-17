@@ -20,4 +20,10 @@ describe("parseSettings", () => {
     expect(s.sensitivity).toBe(8);
     expect(s.touchSensitivity).toBe(0.3);
   });
+
+  it("keeps aim-and-fire on phones unless hip fire was chosen", () => {
+    expect(parseSettings(null).hipFire).toBe(false);
+    expect(parseSettings({ hipFire: true }).hipFire).toBe(true);
+    expect(parseSettings({ hipFire: "yes" }).hipFire).toBe(false);
+  });
 });

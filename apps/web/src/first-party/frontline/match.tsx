@@ -19,7 +19,7 @@ import { assetProgress, loadAssets, onAssetProgress, type AssetPack } from "./as
 import { Engine } from "./engine";
 import { Game, type FinalRow, type SeatInfo } from "./game";
 import { Hud } from "./hud";
-import { isTouchDevice } from "./input";
+import { useTouchControls } from "./input";
 import { DEFAULT_MAP, MAPS } from "./map";
 import { earnedAchievements, finalStats } from "./progress";
 import { FrontlineLoading } from "./loading";
@@ -143,7 +143,8 @@ export function MatchView({ settings, onSettings, season }: { settings: Settings
   const reduce = useReducedMotion() ?? false;
   const [link] = useState(() => new PacketLink());
   const [game] = useState(() => createGame(xapps, players, me, isSpectator, settings, link, season));
-  const [touch] = useState(() => isTouchDevice());
+  const touch = useTouchControls();
+  const touchRef = useRef(touch);
   const [engine, setEngine] = useState<Engine | null>(null);
   const [failed, setFailed] = useState(false);
   const [autoTier, setAutoTier] = useState<Tier>(() => detectTier());
@@ -201,11 +202,11 @@ export function MatchView({ settings, onSettings, season }: { settings: Settings
           pack,
           tier: tierRef.current,
           reduceMotion: reduce,
-          touch,
+          touch: touchRef.current,
           season,
           settings: () => settingsRef.current,
           haptic: (style) => {
-            if (touch) xapps.ui.haptic(style).catch(ignore);
+            if (touchRef.current) xapps.ui.haptic(style).catch(ignore);
           },
           onGiveUp: () => setAutoTier((t) => lower(t)),
         });
@@ -247,8 +248,14 @@ export function MatchView({ settings, onSettings, season }: { settings: Settings
         setEngine(null);
       };
     },
-    [game, reduce, touch, xapps, pack, season],
+    [game, reduce, xapps, pack, season],
   );
+
+  // Mouse ↔ touch can change mid-match (a mouse moves on a touchscreen laptop): no new engine, just new controls.
+  useEffect(() => {
+    touchRef.current = touch;
+    engine?.setTouch(touch);
+  }, [engine, touch]);
 
   useEffect(() => {
     tierRef.current = tier;

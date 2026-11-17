@@ -6,7 +6,7 @@
  * it to the edge to sprint), drag anywhere on the right to look, and buttons
  * in the right thumb's reach: a big fire button, which aims down sights while
  * held (drag it to keep aiming while you shoot; the sniper scopes in while
- * held and fires on release), jump, crouch and grenade. A second fire button
+ * held and fires on release; the Hip fire setting makes it just shoot), jump, crouch and grenade. A second fire button
  * sits up on the left so one thumb can shoot while the other aims. Reloading is
  * automatic when the magazine runs dry, and the ammo readout at the top
  * swaps weapons (hud.tsx). Every touch surface is gesture-locked so the page
@@ -25,7 +25,7 @@ const RADIUS = 52;
 /** How far a resting thumb can slide before the stick is pushed (dead zone, px). */
 const DEAD = 6;
 
-export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }) {
+export function TouchControls({ engine, hud, hipFire }: { engine: Engine; hud: HudState; hipFire: boolean }) {
   const root = useRef<HTMLDivElement>(null);
   useGestureLock(root);
   const [stick, setStick] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
@@ -109,8 +109,10 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
   // held; the sniper scopes in while held and fires on release (a quick-scope).
   const sniper = !!me && WEAPONS[me.weapon].scope;
   const scopedIn = sniper && scoped;
+  // Hip fire (a setting): every gun, the sniper too, just shoots while held; the scope stays on its Aim toggle.
   const aimFire = (down: boolean) => {
-    if (down) input.setTouch({ ads: true, fire: !sniper });
+    if (hipFire) input.setTouch({ fire: down });
+    else if (down) input.setTouch({ ads: true, fire: !sniper });
     else if (sniper) input.pulseFire({ ads: scopedIn });
     else input.setTouch({ fire: false, ads: false });
   };
@@ -271,7 +273,7 @@ export function TouchControls({ engine, hud }: { engine: Engine; hud: HudState }
           <ChevronsDown className="size-5" />
         </Btn>
         <Btn
-          label={sniper ? (scopedIn ? "Fire" : "Fire: hold to scope in, release to fire") : "Fire: hold to aim down sights and shoot"}
+          label={hipFire || scopedIn ? "Fire" : sniper ? "Fire: hold to scope in, release to fire" : "Fire: hold to aim down sights and shoot"}
           size="lg"
           {...fireBtn(true)}
           className="bg-[color-mix(in_oklab,var(--accent-to)_40%,transparent)]"
