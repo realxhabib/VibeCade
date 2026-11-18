@@ -28,6 +28,7 @@ import {
   Euler,
   Group,
   HemisphereLight,
+  LatheGeometry,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
@@ -39,6 +40,7 @@ import {
   Quaternion,
   Scene,
   SphereGeometry,
+  Vector2,
   Vector3,
   type BufferGeometry,
   type Material,
@@ -68,6 +70,12 @@ interface GunModel {
   magY: number;
   /** How far ahead of the camera the gun sits when aimed. */
   adsZ: number;
+  /** Where it sits at the hip, when not the usual spot (a launcher rides higher, on the shoulder). */
+  hip?: [number, number, number];
+  /** Turned in toward the crosshair at the hip (radians, + = muzzle to the left), so its side shows. */
+  hipYaw?: number;
+  /** The "magazine" is the round itself (a launcher's warhead): gone once fired, pushed in by the reload. */
+  spent?: boolean;
 }
 
 const HIP: [number, number, number] = [0.14, -0.15, -0.42];
@@ -228,6 +236,10 @@ export class ViewModel {
   private kickRotV = 0;
   private roll = 0;
   private rollV = 0;
+  /** A launcher's slow shove into the shoulder (and the tube's shudder while the motor burns). */
+  private shove = 0;
+  private shoveV = 0;
+  private shudderUntil = 0;
   private sprint = 0;
   private tilt = 0;
   private bobT = 0;
@@ -471,6 +483,8 @@ export class ViewModel {
     let muzzle: [number, number, number] = [0, 0.02, -0.6];
     let sightY = 0.07;
     let adsZ = -0.22;
+    let hipAt: [number, number, number] | undefined;
+    let hipYaw: number | undefined;
     const rear = (y0: number, top: number, z: number, gap = 0.011) => {
       box(0.007, top - y0, 0.012, -gap, (y0 + top) / 2, z, black, "parkerized");
       box(0.007, top - y0, 0.012, gap, (y0 + top) / 2, z, black, "parkerized");
@@ -785,32 +799,73 @@ export class ViewModel {
       sightY = 0.064;
       adsZ = -0.34;
     } else if (id === "rpg") {
-      // A launch tube over the shoulder; the warhead out front comes off during a reload.
-      cyl(0.042, 0.78, 0, 0.03, -0.12, 0x4f5640, "parkerized", 24);
-      cyl(0.0445, 0.26, 0, 0.03, 0.02, 0x4a321c, "wood", 24); // heat shield
-      cyl(0.045, 0.012, 0, 0.03, -0.11, black, "steel", 24); // shield bands
-      cyl(0.045, 0.012, 0, 0.03, 0.15, black, "steel", 24);
-      cyl(0.058, 0.09, 0, 0.03, 0.3, black, "parkerized", 24, 0.044); // rear venturi
-      cyl(0.046, 0.04, 0, 0.03, -0.5, black, "parkerized", 24); // muzzle ring
-      pistolGrip(-0.05, 0.03);
-      rbox(0.03, 0.075, 0.04, 0, -0.045, -0.2, 0x4a321c, "wood", 0.15, 0.01); // front grip
-      rbox(0.02, 0.03, 0.06, 0, -0.012, -0.2, black, "parkerized", 0, 0.004);
-      // Optical sight on the near side.
-      rbox(0.03, 0.04, 0.09, -0.05, 0.07, -0.08, black, "parkerized", 0, 0.006);
-      cyl(0.014, 0.03, -0.05, 0.075, -0.14, black, "parkerized", 14);
-      rear(0.07, 0.1, -0.02, 0.012);
-      front(0.07, 0.1, -0.4);
-      mag = magMesh(0, 0.03, -0.57, [
-        this.place(new CylinderGeometry(0.02, 0.04, 0.03, 20).rotateX(-Math.PI / 2), 0x5d604f, "parkerized", 0, 0, 0.05),
-        this.place(new CylinderGeometry(0.046, 0.046, 0.05, 20).rotateX(-Math.PI / 2), 0x5d604f, "parkerized", 0, 0, 0.01),
-        this.place(new CylinderGeometry(0.012, 0.046, 0.11, 20).rotateX(-Math.PI / 2), 0x5d604f, "parkerized", 0, 0, -0.07),
-        this.place(new CylinderGeometry(0.006, 0.012, 0.03, 12).rotateX(-Math.PI / 2), steel, "steel", 0, 0, -0.14),
-        this.place(new CylinderGeometry(0.0468, 0.0468, 0.008, 20).rotateX(-Math.PI / 2), 0x8a1c16, "polymer", 0, 0, 0.0),
+      // A shoulder-fired launcher in the RPG-7 mould: a dark steel tube with two
+      // wooden heat shields, a flared venturi at the back, the trigger group and
+      // pistol grip under the middle, folding iron sights on top, an optic on the
+      // near side, and the fat olive warhead (ogive nose, piezo tip, the motor's
+      // neck into the muzzle) that comes off in a reload and is gone once fired.
+      const ty = 0.02; // tube axis
+      const tube = 0x2f3133;
+      const wood = 0x4e2f1a;
+      const olive = 0x4b5236;
+      // A turned part along the tube: profile points are (radius, distance back along +z), from front to back.
+      const turned = (pts: [number, number][], seg: number) => new LatheGeometry(pts.map(([r, y]) => new Vector2(r, y)), seg).rotateX(Math.PI / 2);
+      const lathe = (pts: [number, number][], color: number, surf: Surf, z: number, seg = detail ? 28 : 10) => parts.push(this.place(turned(pts, seg), color, surf, 0, ty, z));
+      // The tube, muzzle ring to the venturi.
+      cyl(0.03, 0.86, 0, ty, -0.07, tube, "parkerized", detail ? 28 : 12);
+      cyl(0.034, 0.03, 0, ty, -0.49, 0x26282a, "steel", detail ? 28 : 12); // muzzle ring
+      if (detail) cyl(0.0315, 0.006, 0, ty, -0.465, 0x1a1b1c, "parkerized", 28);
+      // Heat shields: tapered wood with steel bands at each end.
+      cyl(0.041, 0.2, 0, ty, -0.2, wood, "wood", detail ? 28 : 12, 0.039);
+      cyl(0.041, 0.17, 0, ty, 0.16, wood, "wood", detail ? 28 : 12, 0.043);
+      for (const z of [-0.3, -0.1, 0.075, 0.245]) cyl(0.043, 0.012, 0, ty, z, 0x2a2b2d, "steel", detail ? 28 : 12);
+      // Flared venturi out the back.
+      lathe([[0.03, 0], [0.034, 0.03], [0.042, 0.07], [0.056, 0.11], [0.058, 0.12], [0.052, 0.12]], 0x2a2c2e, "parkerized", 0.3);
+      if (detail) parts.push(this.place(new CylinderGeometry(0.05, 0.05, 0.002, 24).rotateX(Math.PI / 2), 0x0b0b0c, "polymer", 0, ty, 0.418)); // its dark throat
+      // Trigger group under the middle: housing, guard, pistol grip, and the safety.
+      rbox(0.03, 0.03, 0.12, 0, ty - 0.04, -0.02, tube, "parkerized", 0, 0.006);
+      pistolGrip(-0.078, 0.03, 0x3b2a1a);
+      rbox(0.008, 0.005, 0.07, 0, -0.08, -0.02, tube, "parkerized", 0, 0.002);
+      rbox(0.008, 0.03, 0.005, 0, -0.065, -0.055, tube, "parkerized", 0, 0.002);
+      if (detail) xcyl(0.005, 0.036, 0, ty - 0.04, 0.02, steel, "steel"); // safety
+      // Sling swivels.
+      if (detail) for (const z of [-0.36, 0.28]) rbox(0.004, 0.022, 0.02, -0.032, ty - 0.02, z, steel, "steel", 0, 0.002);
+      // Iron sights on top: a hooded front post and the rear leaf with its notch.
+      rbox(0.014, 0.02, 0.03, 0, ty + 0.038, -0.38, tube, "parkerized", 0, 0.003);
+      box(0.004, 0.026, 0.004, 0, ty + 0.049, -0.38, 0x1a1b1c, "parkerized");
+      if (detail) {
+        box(0.003, 0.03, 0.014, -0.011, ty + 0.05, -0.38, tube, "parkerized");
+        box(0.003, 0.03, 0.014, 0.011, ty + 0.05, -0.38, tube, "parkerized");
+      }
+      rbox(0.016, 0.012, 0.04, 0, ty + 0.034, -0.03, tube, "parkerized", 0, 0.003);
+      rear(ty + 0.038, ty + 0.064, -0.03, 0.0055);
+      // The optic low on the near (left) side, below the iron sights' line: bracket, body, objective with a sunshade, eyecup, knobs.
+      rbox(0.03, 0.012, 0.07, -0.034, ty + 0.012, -0.04, tube, "parkerized", 0, 0.003);
+      rbox(0.03, 0.044, 0.1, -0.064, ty + 0.012, -0.05, 0x2b2e2a, "parkerized", 0, 0.008);
+      cyl(0.015, 0.036, -0.064, ty + 0.02, -0.115, 0x1e2021, "parkerized", 16);
+      cyl(0.013, 0.022, -0.064, ty + 0.02, 0.01, 0x111213, "polymer", 16, 0.016); // eyecup
+      if (detail) {
+        parts.push(this.place(new CylinderGeometry(0.0125, 0.0125, 0.002, 18).rotateX(Math.PI / 2), 0x23395c, "glass", -0.064, ty + 0.02, -0.134));
+        vcyl(0.007, 0.01, -0.064, ty + 0.038, -0.06, 0x1a1b1c, "parkerized", 12);
+        xcyl(0.006, 0.01, -0.082, ty + 0.008, -0.03, 0x1a1b1c, "parkerized", 12);
+      }
+      // The warhead: motor neck into the muzzle, the tail cone, the widest band, the ogive and the fuze tip.
+      const seg = detail ? 28 : 10;
+      const head = (pts: [number, number][], color: number, surf: Surf) => this.place(turned([...pts].reverse(), seg), color, surf, 0, 0, 0);
+      mag = magMesh(0, ty, -0.5, [
+        head([[0.0, 0.03], [0.026, 0.03], [0.026, -0.02], [0.022, -0.03], [0.022, -0.1]], 0x34372f, "steel"),
+        head([[0.022, -0.1], [0.03, -0.11], [0.05, -0.18], [0.053, -0.19], [0.053, -0.215]], olive, "parkerized"),
+        head([[0.0535, -0.215], [0.0535, -0.23]], 0x22241f, "parkerized"),
+        head([[0.053, -0.23], [0.05, -0.27], [0.04, -0.32], [0.024, -0.365], [0.012, -0.39], [0.0, -0.39]], olive, "parkerized"),
+        head([[0.0, -0.37], [0.009, -0.37], [0.0085, -0.42], [0.005, -0.43], [0.0, -0.432]], 0x6d6f69, "steel"),
       ]);
-      magY = 0.03;
-      muzzle = [0, 0.03, -0.66];
-      sightY = 0.1;
-      adsZ = -0.2;
+      magY = ty;
+      muzzle = [0, ty, -0.5];
+      sightY = ty + 0.062;
+      adsZ = -0.24;
+      // On the shoulder: higher and further out than a rifle, turned in a little so its length shows.
+      hipAt = [0.17, -0.11, -0.34];
+      hipYaw = 0.07;
     } else if (id === "knife") {
       // Handle in the fist, blade forward and a little up.
       rbox(0.026, 0.032, 0.1, 0, -0.03, 0.0, 0x24211e, "polymer", 0.35, 0.01);
@@ -916,7 +971,7 @@ export class ViewModel {
     } else {
       gripHand(0, -0.078, id === "burst" ? -0.11 : 0.03, 0.28);
       const sz = SUPPORT[id] ?? -0.32;
-      underHand(id === "rpg" ? 0.03 : id === "shotgun" ? -0.014 : 0.004, sz, id === "rpg" ? 0.045 : 0.03, id === "rpg" ? 0.05 : id === "lmg" ? 0.041 : 0.038);
+      underHand(id === "rpg" ? 0.02 : id === "shotgun" ? -0.014 : 0.004, sz, id === "rpg" ? 0.043 : 0.03, id === "rpg" ? 0.046 : id === "lmg" ? 0.041 : 0.038);
     }
     // Low detail: the red dot is just a bright bead in the one mesh (no glass, no extra draws).
     if (dotAt && !detail) box(0.003, 0.003, 0.003, 0, dotAt[0], dotAt[1] - 0.02, 0xff2a1a, "glass");
@@ -937,7 +992,7 @@ export class ViewModel {
         g.add(m);
       });
     }
-    return { group: g, muzzle, sightY, mag, magY, adsZ };
+    return { group: g, muzzle, sightY, mag, magY, adsZ, hip: hipAt, hipYaw, spent: id === "rpg" };
   }
 
   /** The off hand, holding a frag: raised on the left when you hold the grenade button, swung forward on the throw. */
@@ -995,6 +1050,21 @@ export class ViewModel {
       this.slashSide = -this.slashSide;
       return;
     }
+    if (this.current && this.gun(this.current).spent) {
+      // A launcher: less snap than a rifle, a heavy shove that takes a moment to settle, a shudder, a big flash.
+      this.kickV += 2.2 * strength;
+      this.kickRotV += 1.2 * strength;
+      this.shoveV += 9;
+      this.shudderUntil = now + 260;
+      this.flashUntil = now + 90;
+      this.flash.rotation.z = Math.random() * Math.PI;
+      this.flashSize = 2.6;
+      const s = (0.9 + Math.random() * 0.3) * this.flashSize;
+      this.flash.scale.set(s, s, 1);
+      this.jet.rotation.z = Math.random() * Math.PI;
+      this.jet.scale.set(s * 1.1, s * 1.1, s * 0.9);
+      return;
+    }
     this.kickV += 3.2 * strength;
     this.kickRotV += 1.9 * strength;
     this.rollV += (Math.random() - 0.5) * 3 * strength;
@@ -1016,10 +1086,10 @@ export class ViewModel {
   private baseFov = 54;
 
   /** Portrait screens pull the gun in toward the middle so it isn't cut off at the edge. */
-  private hipX = HIP[0];
+  private hipScale = 1;
 
   resize(aspect: number): void {
-    this.hipX = HIP[0] * Math.max(0.45, Math.min(1, aspect));
+    this.hipScale = Math.max(0.45, Math.min(1, aspect));
     this.baseFov = Math.max(54, (2 * Math.atan(Math.tan((22 * Math.PI) / 180) / aspect) * 180) / Math.PI);
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
@@ -1028,9 +1098,10 @@ export class ViewModel {
   /**
    * Poses the gun for this frame. `look` = this frame's view rotation
    * (radians) for sway; `reload` / `swap` are 0…1 progress (or −1 when not
-   * doing it); `nadeHeld` the grenade button is down (with a grenade left).
+   * doing it); `nadeHeld` the grenade button is down (with a grenade left);
+   * `loaded` false when the magazine is empty (a launcher's tube shows no round).
    */
-  update(o: { now: number; dt: number; ads: number; sprinting: boolean; moving: number; strafe?: number; walkPhase: number; grounded: boolean; lookX: number; lookY: number; reload: number; swap: number; hideScoped: boolean; reduceMotion: boolean; nadeHeld?: boolean }): void {
+  update(o: { now: number; dt: number; ads: number; sprinting: boolean; moving: number; strafe?: number; walkPhase: number; grounded: boolean; lookX: number; lookY: number; reload: number; swap: number; hideScoped: boolean; reduceMotion: boolean; nadeHeld?: boolean; loaded?: boolean }): void {
     const gun = this.current ? this.guns.get(this.current) : undefined;
     if (!gun) return;
     const dt = Math.min(0.05, o.dt);
@@ -1051,6 +1122,9 @@ export class ViewModel {
     this.kickRot += this.kickRotV * dt;
     this.rollV += -this.roll * 120 * dt - this.rollV * 14 * dt;
     this.roll += this.rollV * dt;
+    this.shoveV += -this.shove * 70 * dt - this.shoveV * 11 * dt;
+    this.shove += this.shoveV * dt;
+    const shudder = o.now < this.shudderUntil ? ((this.shudderUntil - o.now) / 260) * calm : 0;
     this.sprint += ((o.sprinting ? 1 : 0) - this.sprint) * Math.min(1, dt * 9);
     this.tilt += ((o.strafe ?? 0) * 0.06 - this.tilt) * Math.min(1, dt * 6);
     this.bobT = o.walkPhase;
@@ -1066,15 +1140,27 @@ export class ViewModel {
     const by2 = Math.sin(t * 2.2) * 0.0018 * br;
     // ADS travels along a short arc (up and in) rather than a straight line.
     const arc = Math.sin(ads * Math.PI) * 0.012;
-    const x = this.hipX * hip + bx + bx2 + this.swayX * (0.4 + hip * 0.6) + 0.06 * this.sprint - arc * 0.5;
-    const y = HIP[1] * hip + -gun.sightY * ads + by + by2 + this.swayY * (0.4 + hip * 0.6) - 0.04 * this.sprint + arc;
-    const z = HIP[2] * hip + gun.adsZ * ads + Math.max(0, this.kick) * 0.06;
-    let rx = this.kickRot * (1 - ads * 0.55) - 0.35 * this.sprint;
-    let ry = 0.55 * this.sprint;
+    const hp = gun.hip ?? HIP;
+    // (A launcher stays out on the shoulder even on a narrow screen: it would cover the crosshair otherwise.)
+    const x = hp[0] * (gun.hip ? Math.max(0.75, this.hipScale) : this.hipScale) * hip + bx + bx2 + this.swayX * (0.4 + hip * 0.6) + 0.06 * this.sprint - arc * 0.5;
+    const y = hp[1] * hip + -gun.sightY * ads + by + by2 + this.swayY * (0.4 + hip * 0.6) - 0.04 * this.sprint + arc;
+    const z = hp[2] * hip + gun.adsZ * ads + Math.max(0, this.kick) * 0.06 + this.shove * 0.07 * calm;
+    let rx = this.kickRot * (1 - ads * 0.55) - 0.35 * this.sprint + this.shove * 0.1 * calm + Math.sin(o.now * 0.11) * 0.006 * shudder;
+    let ry = 0.55 * this.sprint + (gun.hipYaw ?? 0) * hip;
     let rz = 0.25 * this.sprint + this.roll * 0.05 * (1 - ads * 0.5) - this.tilt * (1 - ads * 0.6);
-    let dy = 0;
-    // Reload: dip, roll, and the magazine drops out and back in.
-    if (o.reload >= 0) {
+    let dy = -this.shove * 0.012 * calm + Math.sin(o.now * 0.087) * 0.0025 * shudder;
+    if (gun.spent && gun.mag && o.loaded === false) {
+      // A launcher with its round fired: an empty tube until the reload pushes the next one in from below.
+      const r = o.reload;
+      const w = r >= 0 ? Math.sin(Math.min(1, r * 1.15) * Math.PI) : 0;
+      dy -= 0.07 * w;
+      rz += 0.5 * w;
+      rx += 0.25 * w;
+      const inn = r < 0.3 ? 0 : Math.min(1, (r - 0.3) / 0.45);
+      gun.mag.visible = r >= 0.3;
+      gun.mag.position.y = gun.magY - 0.2 * (1 - inn) * (1 - inn);
+      gun.mag.position.z = gun.muzzle[2] - 0.12 * (1 - inn);
+    } else if (o.reload >= 0) {
       const r = o.reload;
       const w = Math.sin(Math.min(1, r * 1.15) * Math.PI);
       dy -= 0.07 * w;
@@ -1087,6 +1173,7 @@ export class ViewModel {
       }
     } else if (gun.mag) {
       gun.mag.position.y = gun.magY;
+      if (gun.spent) gun.mag.position.z = gun.muzzle[2];
       gun.mag.visible = true;
     }
     // Swap: drop out and come back up.
@@ -1144,7 +1231,7 @@ export class ViewModel {
     this.jet.position.set(gun.muzzle[0], gun.muzzle[1], gun.muzzle[2]);
     this.flashLight.position.set(gun.muzzle[0], gun.muzzle[1] + 0.02, gun.muzzle[2] + 0.12);
     // The flash lights the gun and the hands, falling off within its 50 ms.
-    this.flashLight.intensity = flashing ? 2.4 * this.flashSize * Math.max(0.3, (this.flashUntil - o.now) / 50) : 0;
+    this.flashLight.intensity = flashing ? 2.4 * this.flashSize * Math.max(0.3, Math.min(1, (this.flashUntil - o.now) / 50)) : 0;
     this.root.visible = !o.hideScoped;
     // Aiming narrows the view model's FOV a touch too (feels like leaning into the sights).
     const fov = this.baseFov - 8 * ads;

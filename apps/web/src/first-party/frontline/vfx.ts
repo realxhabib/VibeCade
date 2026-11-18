@@ -25,6 +25,7 @@ import {
   BufferGeometry,
   Color,
   CylinderGeometry,
+  DoubleSide,
   DynamicDrawUsage,
   IcosahedronGeometry,
   InstancedBufferAttribute,
@@ -384,6 +385,229 @@ class BillboardPool {
 }
 
 /* ---------------------------------------------------------------------- */
+/* Rocket smoke trails                                                    */
+/* ---------------------------------------------------------------------- */
+
+const TRAIL_POINTS = 72;
+const TRAIL_SLOTS = 4;
+
+const RIBBON_VERT = /* glsl */ `
+attribute vec3 aRib;
+varying vec3 vRib;
+#include <fog_pars_vertex>
+void main() {
+  vRib = aRib;
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`;
+
+// aRib: x = metres along the trail (for the noise), y = −1…1 across, z = opacity.
+const RIBBON_FRAG = /* glsl */ `
+uniform vec3 color;
+uniform float time;
+varying vec3 vRib;
+#include <fog_pars_fragment>
+float rh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float rn(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(rh(i), rh(i + vec2(1, 0)), f.x), mix(rh(i + vec2(0, 1)), rh(i + vec2(1, 1)), f.x), f.y);
+}
+void main() {
+  float across = 1.0 - vRib.y * vRib.y;
+  // Billows: clumps along the trail, lumps within them, both eating at the edges more than the core,
+  // and lit lumps against shadowed folds.
+  float clump = rn(vec2(vRib.x * 0.45, 3.1));
+  vec2 q = vec2(vRib.x * 1.3, vRib.y * 1.4 + time * 0.12);
+  float n = rn(q) * 0.55 + rn(q * 2.7 + 7.3) * 0.3 + rn(q * 6.1 + 2.1) * 0.15;
+  float d = across * (0.45 + 0.8 * n) * (0.7 + 0.5 * clump) - 0.18;
+  float a = vRib.z * smoothstep(0.0, 0.55, d);
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(color * (0.78 + 0.32 * n), a);
+  #include <fog_fragment>
+}`;
+
+interface TrailPoint {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  age: number;
+  /** Metres along the trail when it was laid. */
+  s: number;
+}
+
+interface SmokeTrail {
+  key: object | null;
+  pts: TrailPoint[];
+  /** The rocket's live nozzle (the head of the ribbon), while it flies. */
+  head: { x: number; y: number; z: number } | null;
+  dist: number;
+}
+
+/**
+ * The smoke a rocket motor lays down: one camera-facing ribbon per rocket
+ * through points dropped along its flight, each widening, rising and
+ * drifting as it ages, with a shader breaking it into billows. One draw
+ * call for all of them, a few hundred vertices.
+ */
+class SmokeTrails {
+  readonly mesh: Mesh;
+  private readonly slots: SmokeTrail[] = [];
+  private readonly pos: Float32Array;
+  private readonly rib: Float32Array;
+  private readonly geo = new BufferGeometry();
+  private readonly mat: ShaderMaterial;
+  private readonly aPos: BufferAttribute;
+  private readonly aRib: BufferAttribute;
+
+  constructor(private readonly life: number) {
+    const verts = TRAIL_SLOTS * (TRAIL_POINTS + 1) * 2;
+    this.pos = new Float32Array(verts * 3);
+    this.rib = new Float32Array(verts * 3);
+    this.aPos = new BufferAttribute(this.pos, 3).setUsage(DynamicDrawUsage);
+    this.aRib = new BufferAttribute(this.rib, 3).setUsage(DynamicDrawUsage);
+    this.geo.setAttribute("position", this.aPos);
+    this.geo.setAttribute("aRib", this.aRib);
+    const index: number[] = [];
+    for (let t = 0; t < TRAIL_SLOTS; t++) {
+      const base = t * (TRAIL_POINTS + 1) * 2;
+      for (let i = 0; i < TRAIL_POINTS; i++) {
+        const a = base + i * 2;
+        index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    }
+    this.geo.setIndex(index);
+    this.mat = new ShaderMaterial({
+      uniforms: UniformsUtils.merge([UniformsLib.fog, { color: { value: new Color(0.86, 0.85, 0.82) }, time: { value: 0 } }]),
+      vertexShader: RIBBON_VERT,
+      fragmentShader: RIBBON_FRAG,
+      transparent: true,
+      depthWrite: false,
+      side: DoubleSide,
+      fog: true,
+    });
+    this.mesh = new Mesh(this.geo, this.mat);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 4;
+    this.mesh.visible = false;
+    for (let i = 0; i < TRAIL_SLOTS; i++) this.slots.push({ key: null, pts: [], head: null, dist: 0 });
+  }
+
+  /** The rocket `key` is at (x, y, z) this frame: drops a point every so often and keeps the ribbon's head on it. */
+  feed(key: object, x: number, y: number, z: number): void {
+    let t = this.slots.find((s) => s.key === key);
+    if (!t) {
+      // A free slot, else the one whose smoke is oldest.
+      t = this.slots.find((s) => !s.key && !s.pts.length) ?? this.slots.reduce((a, b) => (!a.key && (b.key || (a.pts[0]?.age ?? 0) > (b.pts[0]?.age ?? 0)) ? a : b));
+      t.key = key;
+      t.pts.length = 0;
+      t.dist = 0;
+    }
+    const last = t.pts[t.pts.length - 1];
+    const step = last ? Math.hypot(x - last.x, y - last.y, z - last.z) : 1;
+    if (step >= 0.45) {
+      t.dist += last ? step : 0;
+      if (t.pts.length >= TRAIL_POINTS) t.pts.shift();
+      const a = Math.random() * Math.PI * 2;
+      const sp = 0.15 + Math.random() * 0.35;
+      t.pts.push({ x, y, z, vx: Math.cos(a) * sp + 0.25, vy: 0.18 + Math.random() * 0.25, vz: Math.sin(a) * sp + 0.08, age: 0, s: t.dist });
+    }
+    t.head = { x, y, z };
+  }
+
+  /** The rocket `key` went off: its smoke stays and fades, the head stops following. */
+  end(key: object): void {
+    const t = this.slots.find((s) => s.key === key);
+    if (t) {
+      t.key = null;
+      t.head = null;
+    }
+  }
+
+  update(dt: number, cam: Vector3, time: number): void {
+    if (!this.mesh.visible && this.slots.every((t) => !t.pts.length && !t.head)) return;
+    this.mat.uniforms.time!.value = time;
+    let any = false;
+    for (let si = 0; si < this.slots.length; si++) {
+      const t = this.slots[si]!;
+      for (const p of t.pts) {
+        p.age += dt;
+        const d = Math.exp(-1.2 * dt);
+        p.vx *= d;
+        p.vz *= d;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.z += p.vz * dt;
+      }
+      while (t.pts.length && t.pts[0]!.age >= this.life) t.pts.shift();
+      if (!t.key && !t.pts.length) t.head = null;
+      const base = si * (TRAIL_POINTS + 1) * 2;
+      // The points, oldest first, then the head on the rocket itself.
+      const n = t.pts.length + (t.head ? 1 : 0);
+      for (let i = 0; i <= TRAIL_POINTS; i++) {
+        const v = (base + i * 2) * 3;
+        if (i >= n || n < 2) {
+          // Unused: collapsed onto the last vertex (no area, nothing drawn).
+          for (let k = 0; k < 6; k++) this.pos[v + k] = i > 0 && n >= 2 ? this.pos[v - 6 + (k % 3)] : 0;
+          this.rib[v + 2] = 0;
+          this.rib[v + 5] = 0;
+          continue;
+        }
+        const p = i < t.pts.length ? t.pts[i]! : null;
+        const x = p ? p.x : t.head!.x;
+        const y = p ? p.y : t.head!.y;
+        const z = p ? p.z : t.head!.z;
+        // Direction along the ribbon from its neighbours.
+        const a = i > 0 ? (i - 1 < t.pts.length ? t.pts[i - 1]! : t.head!) : null;
+        const b = i + 1 < n ? (i + 1 < t.pts.length ? t.pts[i + 1]! : t.head!) : null;
+        _x.set((b ? b.x : x) - (a ? a.x : x), (b ? b.y : y) - (a ? a.y : y), (b ? b.z : z) - (a ? a.z : z));
+        _z.set(cam.x - x, cam.y - y, cam.z - z);
+        _y.crossVectors(_x, _z);
+        const l = _y.length();
+        // How side-on we see this stretch: a ribbon seen end-on is a thin twisted fan, so it fades out
+        // there and the puffs laid along the trail carry the look.
+        const side = l / Math.max(1e-6, _x.length() * _z.length());
+        if (l < 1e-6) _y.set(0, 1, 0);
+        else _y.multiplyScalar(1 / l);
+        const age = p ? p.age : 0;
+        const k = age / this.life;
+        // Thin and dense at the nozzle, widening and thinning out as it ages.
+        const w = 0.07 + Math.min(1.5, age * 0.9 + Math.sqrt(age) * 0.35);
+        // Fades in over the first metre behind the nozzle (the flame's own glow covers that).
+        const fadeIn = p ? Math.min(1, (t.head ? t.dist - p.s : 9) + age * 6) : 0;
+        const edge = Math.min(1, Math.max(0, (side - 0.12) / 0.3));
+        const alpha = 0.85 * fadeIn * (1 - k) * (1 - k) * Math.min(1, 0.35 / Math.max(0.35, w * 0.6)) * edge * edge * (3 - 2 * edge);
+        this.pos[v] = x + _y.x * w;
+        this.pos[v + 1] = y + _y.y * w;
+        this.pos[v + 2] = z + _y.z * w;
+        this.pos[v + 3] = x - _y.x * w;
+        this.pos[v + 4] = y - _y.y * w;
+        this.pos[v + 5] = z - _y.z * w;
+        const s = p ? p.s : t.dist + 0.5;
+        this.rib[v] = s;
+        this.rib[v + 1] = -1;
+        this.rib[v + 2] = alpha;
+        this.rib[v + 3] = s;
+        this.rib[v + 4] = 1;
+        this.rib[v + 5] = alpha;
+        any = true;
+      }
+    }
+    this.mesh.visible = any;
+    this.aPos.needsUpdate = true;
+    this.aRib.needsUpdate = true;
+  }
+
+  dispose(): void {
+    this.geo.dispose();
+    this.mat.dispose();
+  }
+}
+
+/* ---------------------------------------------------------------------- */
 /* Rigid bits (casings, debris)                                           */
 /* ---------------------------------------------------------------------- */
 
@@ -537,6 +761,7 @@ export class Vfx {
   private readonly glow: BillboardPool;
   private readonly casings: BodyPool;
   private readonly debris: BodyPool;
+  private readonly rocketTrails: SmokeTrails;
   private readonly decals: InstancedMesh;
   private readonly scorches: InstancedMesh;
   private readonly lights: FlashLight[] = [];
@@ -603,6 +828,8 @@ export class Vfx {
     this.smoke = new BillboardPool(opts.ambience ? 320 : 90, tex.smoke, false);
     this.glow = new BillboardPool(opts.ambience ? 120 : 40, tex.fire, true);
     scene.add(this.smoke.mesh, this.glow.mesh);
+    this.rocketTrails = new SmokeTrails(this.lite ? 2.4 : 3.6);
+    scene.add(this.rocketTrails.mesh);
 
     const brass = new MeshStandardMaterial({ color: 0xc9a042, metalness: 0.9, roughness: 0.3 });
     const rock = new MeshStandardMaterial({ color: 0x3a3632, metalness: 0, roughness: 0.95 });
@@ -805,61 +1032,185 @@ export class Vfx {
     this.decals.instanceMatrix.needsUpdate = true;
   }
 
-  /** A frag going off at (x, y, z): flash, fireball, sparks, debris, a smoke column, a scorch. */
-  explosion(x: number, y: number, z: number): void {
+  /**
+   * A rocket leaving the tube at (x, y, z), flying along (dx, dy, dz): the
+   * flash and a cloud of propellant smoke at the muzzle, and out of the back
+   * the backblast, a cone of flame and a big rolling cloud of smoke and grit.
+   * `own` (your launcher: its flash is drawn with the weapon) keeps the muzzle
+   * smoke clear of your sight line.
+   */
+  rocketLaunch(x: number, y: number, z: number, dx: number, dy: number, dz: number, own = false): void {
     const n = Math.max(0.5, this.scale);
-    this.flash(x, y + 0.6, z, 60, 260, 0xffb070);
-    // Core flash.
-    this.glow.spawn({ x, y: y + 0.4, z, vx: 0, vy: 0, vz: 0, life: 0.14, size0: 3.5, size1: 6, rot: Math.random() * 6, spin: 0, r: 6, g: 5, b: 3.5, a: 1, fadeIn: 0.05, drag: 0, lift: 0, hot: false });
-    // The shockwave: a bright ring racing out along the ground.
-    const ring = this.rings.reduce((a, b) => (a.age / a.life > b.age / b.life ? a : b));
-    ring.age = 0;
-    ring.life = 0.42;
-    ring.size = 15;
-    ring.mesh.position.set(x, Math.max(0.05, y - 0.2), z);
-    ring.mesh.rotation.y = Math.random() * 6;
-    ring.mesh.visible = true;
-    if (!this.lite) {
-      // Burning fragments arcing out, slow to die, and a few flames left licking at the crater.
-      for (let k = 0; k < Math.ceil(16 * n); k++) {
-        const a = Math.random() * Math.PI * 2;
-        const sp = 3 + Math.random() * 6;
-        this.sparks.spawn({ x, y: y + 0.4, z, vx: Math.cos(a) * sp, vy: 5 + Math.random() * 7, vz: Math.sin(a) * sp, life: 1.1 + Math.random() * 1.1, r: 3.6, g: 1.6, b: 0.4, a: 1, grav: 9, drag: 0.5 });
-      }
-      for (let k = 0; k < Math.ceil(7 * n); k++) {
-        const a = Math.random() * Math.PI * 2;
-        const d = Math.random() * 1.3;
-        this.glow.spawn({ x: x + Math.cos(a) * d, y: Math.max(0.15, y - 0.1), z: z + Math.sin(a) * d, vx: 0, vy: 0.5 + Math.random() * 0.5, vz: 0, life: 0.9 + Math.random() * 1.1, size0: 0.7, size1: 0.2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 2, r: 3.2, g: 2, b: 0.9, a: 0.8, fadeIn: 0.3, drag: 1, lift: 0.8, hot: true });
+    this.flash(x, y, z, own ? 10 : 16, 140, 0xffb070);
+    if (!own) {
+      this.glow.spawn({ x, y, z, vx: 0, vy: 0, vz: 0, life: 0.08, size0: 1.3, size1: 0.8, rot: Math.random() * 6, spin: 0, r: 5.5, g: 4, b: 2.4, a: 1, fadeIn: 0.01, drag: 0, lift: 0, hot: false });
+      this.glow.spawn({ x: x + dx * 0.4, y: y + dy * 0.4, z: z + dz * 0.4, vx: dx * 9, vy: dy * 9, vz: dz * 9, life: 0.1, size0: 0.7, size1: 0.3, rot: Math.random() * 6, spin: 0, r: 4.5, g: 2.8, b: 1.2, a: 0.9, fadeIn: 0.01, drag: 12, lift: 0, hot: false });
+    }
+    // Propellant smoke thrown forward and hanging in the air (your own starts a little ahead, thinner, so you can see the hit).
+    const ahead = own ? 1.6 : 0.3;
+    for (let k = 0; k < Math.ceil((own ? 4 : 7) * n); k++) {
+      const sp = 2 + Math.random() * 4;
+      this.smoke.spawn({ x: x + dx * ahead, y: y + dy * ahead, z: z + dz * ahead, vx: dx * sp + (Math.random() - 0.5) * 1.4, vy: dy * sp + Math.random() * 0.5, vz: dz * sp + (Math.random() - 0.5) * 1.4, life: 1.6 + Math.random() * 1.2, size0: 0.3, size1: (own ? 1.2 : 1.6) + Math.random() * 0.8, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.8, r: 0.78, g: 0.77, b: 0.74, a: own ? 0.22 : 0.45, fadeIn: 0.05, drag: 2.2, lift: 0.25, hot: false });
+    }
+    // Backblast: the tube's other end, a metre behind the muzzle (for your own, behind your head).
+    const back = own ? 1.6 : 1.05;
+    const bx = x - dx * back;
+    const by = y - dy * back;
+    const bz = z - dz * back;
+    if (!own) {
+      for (let k = 0; k < 3; k++) {
+        const sp = 8 + k * 5;
+        this.glow.spawn({ x: bx, y: by, z: bz, vx: -dx * sp, vy: -dy * sp, vz: -dz * sp, life: 0.09 + k * 0.03, size0: 0.6 + k * 0.3, size1: 1.4 + k * 0.5, rot: Math.random() * 6, spin: 0, r: 4.2, g: 2.6, b: 1.1, a: 0.85, fadeIn: 0.01, drag: 8, lift: 0, hot: true });
       }
     }
-    // Fireball: hot billows pushed out and up.
-    for (let k = 0; k < Math.ceil(14 * n); k++) {
-      const a = Math.random() * Math.PI * 2;
-      const up = 1 + Math.random() * 3;
-      const out = 1.5 + Math.random() * 3.5;
-      this.glow.spawn({ x: x + Math.cos(a) * 0.3, y: y + 0.3 + Math.random() * 0.4, z: z + Math.sin(a) * 0.3, vx: Math.cos(a) * out, vy: up, vz: Math.sin(a) * out, life: 0.4 + Math.random() * 0.4, size0: 1, size1: 2.8 + Math.random() * 2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 3, r: 4, g: 2.6, b: 1.2, a: 0.95, fadeIn: 0.08, drag: 4, lift: 1.5, hot: true });
+    for (let k = 0; k < Math.ceil(9 * n); k++) {
+      const sp = 5 + Math.random() * 9;
+      const sx = (Math.random() - 0.5) * 4;
+      const sz = (Math.random() - 0.5) * 4;
+      const grit = Math.random() < 0.4;
+      this.smoke.spawn({ x: bx, y: by, z: bz, vx: -dx * sp + sx, vy: -dy * sp + Math.random() * 0.8, vz: -dz * sp + sz, life: 2 + Math.random() * 1.6, size0: 0.4, size1: 2.2 + Math.random() * 1.6, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.6, r: grit ? 0.6 : 0.74, g: grit ? 0.55 : 0.73, b: grit ? 0.47 : 0.7, a: 0.5, fadeIn: 0.04, drag: 2.6, lift: 0.3, hot: false });
+    }
+    if (this.lite) return;
+    for (let k = 0; k < Math.ceil(10 * n); k++) {
+      const sp = 10 + Math.random() * 14;
+      this.sparks.spawn({ x: bx, y: by, z: bz, vx: -dx * sp + (Math.random() - 0.5) * 5, vy: -dy * sp + (Math.random() - 0.3) * 4, vz: -dz * sp + (Math.random() - 0.5) * 5, life: 0.1 + Math.random() * 0.2, r: 3.6, g: 2.2, b: 0.8, a: 1, grav: 6, drag: 4 });
+    }
+  }
+
+  /**
+   * One frame of a rocket in flight, its nozzle at (x, y, z) pointing back
+   * along −(dx, dy, dz): the motor's flame and glow, a little light, and the
+   * smoke trail (`key` = the rocket, so its ribbon continues frame to frame).
+   */
+  rocket(key: object, x: number, y: number, z: number, dx: number, dy: number, dz: number, dt: number): void {
+    this.rocketTrails.feed(key, x, y, z);
+    const f = 0.8 + Math.random() * 0.4;
+    this.glow.spawn({ x, y, z, vx: -dx * 4, vy: -dy * 4, vz: -dz * 4, life: 0.06, size0: 0.75 * f, size1: 0.35, rot: Math.random() * 6, spin: 0, r: 5, g: 3.4, b: 1.6, a: 1, fadeIn: 0.01, drag: 6, lift: 0, hot: false });
+    this.rocketLightIn -= dt;
+    if (this.rocketLightIn <= 0) {
+      this.rocketLightIn = 0.07;
+      this.flash(x, y, z, 5, 110, 0xffa050);
+    }
+    // Puffs along the way give the trail body (and carry it when it's seen end-on).
+    if (Math.random() < (this.lite ? 0.2 : 0.45) * Math.max(0.5, this.scale)) {
+      this.smoke.spawn({ x: x - dx * 0.4, y: y - dy * 0.4, z: z - dz * 0.4, vx: (Math.random() - 0.5) * 0.5, vy: 0.2, vz: (Math.random() - 0.5) * 0.5, life: 2 + Math.random() * 1.2, size0: 0.3, size1: 1.3 + Math.random() * 0.9, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.5, r: 0.85, g: 0.84, b: 0.81, a: 0.3, fadeIn: 0.08, drag: 1.5, lift: 0.2, hot: false });
+    }
+    if (this.lite) return;
+    if (Math.random() < 0.4) {
+      this.sparks.spawn({ x, y, z, vx: -dx * 12 + (Math.random() - 0.5) * 3, vy: -dy * 12 + (Math.random() - 0.5) * 3, vz: -dz * 12 + (Math.random() - 0.5) * 3, life: 0.08 + Math.random() * 0.12, r: 3.6, g: 2.4, b: 1, a: 1, grav: 2, drag: 5 });
+    }
+  }
+
+  private rocketLightIn = 0;
+
+  /** The rocket `key` hit something: its trail stops growing and drifts off. */
+  rocketEnd(key: object): void {
+    this.rocketTrails.end(key);
+  }
+
+  /**
+   * A blast at (x, y, z) off a surface facing (nx, ny, nz) (the ground: up; a
+   * rocket into a wall: the wall's face): a split-second white flash, a
+   * fireball that is swallowed within moments by dirty brown-black smoke,
+   * a shockwave, grit and chunks thrown out of the surface, burning bits, a
+   * dust ring when it's on the ground, the smoke column and a scorch.
+   */
+  explosion(x: number, y: number, z: number, nx = 0, ny = 1, nz = 0): void {
+    const n = Math.max(0.5, this.scale);
+    /** A random direction in the hemisphere around the normal, pulled toward it by `bias`. */
+    const out = (bias: number): Vector3 => {
+      _s.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
+      if (_s.x * nx + _s.y * ny + _s.z * nz < 0) _s.multiplyScalar(-1);
+      return _s.set(_s.x + nx * bias, _s.y + ny * bias, _s.z + nz * bias).normalize();
+    };
+    // The blast's center sits a little off the surface.
+    const cx = x + nx * 0.35;
+    const cy = y + ny * 0.35;
+    const cz = z + nz * 0.35;
+    const ground = ny > 0.6 && y < 1.2;
+    this.flash(cx, cy + 0.3, cz, 60, 260, 0xffb070);
+    // Core flash: white-hot, gone in a blink.
+    this.glow.spawn({ x: cx, y: cy, z: cz, vx: 0, vy: 0, vz: 0, life: 0.08, size0: 2.4, size1: 3.6, rot: Math.random() * 6, spin: 0, r: 5, g: 4.4, b: 3.4, a: 1, fadeIn: 0.05, drag: 0, lift: 0, hot: false });
+    // The shockwave: a bright ring racing out along the ground.
+    if (ground) {
+      const ring = this.rings.reduce((a, b) => (a.age / a.life > b.age / b.life ? a : b));
+      ring.age = 0;
+      ring.life = 0.42;
+      ring.size = 15;
+      ring.mesh.position.set(x, Math.max(0.05, y - 0.2), z);
+      ring.mesh.rotation.y = Math.random() * 6;
+      ring.mesh.visible = true;
+    }
+    if (!this.lite) {
+      // Burning fragments arcing out, slow to die, and a few flames left licking where it hit.
+      for (let k = 0; k < Math.ceil(16 * n); k++) {
+        const d = out(0.6);
+        const sp = 6 + Math.random() * 8;
+        this.sparks.spawn({ x: cx, y: cy, z: cz, vx: d.x * sp, vy: d.y * sp + 3, vz: d.z * sp, life: 1.1 + Math.random() * 1.1, r: 3.6, g: 1.6, b: 0.4, a: 1, grav: 9, drag: 0.5 });
+      }
+      for (let k = 0; k < Math.ceil(6 * n); k++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.random() * 1.1;
+        this.glow.spawn({ x: x + Math.cos(a) * d * (1 - Math.abs(nx)), y: Math.max(0.15, y - 0.1 + (1 - ny) * (Math.random() - 0.5)), z: z + Math.sin(a) * d * (1 - Math.abs(nz)), vx: nx * 0.3, vy: 0.5 + Math.random() * 0.5, vz: nz * 0.3, life: 0.9 + Math.random() * 1.1, size0: 0.7, size1: 0.2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 2, r: 3.2, g: 2, b: 0.9, a: 0.8, fadeIn: 0.3, drag: 1, lift: 0.8, hot: true });
+      }
+    }
+    // Fireball: hot billows pushed out of the surface, short-lived.
+    for (let k = 0; k < Math.ceil(13 * n); k++) {
+      const d = out(0.9);
+      const sp = 2 + Math.random() * 4;
+      this.glow.spawn({ x: cx + d.x * 0.3, y: cy + d.y * 0.3, z: cz + d.z * 0.3, vx: d.x * sp, vy: d.y * sp + 1, vz: d.z * sp, life: 0.2 + Math.random() * 0.22, size0: 0.8, size1: 1.8 + Math.random() * 1.2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 3, r: 3.4, g: 1.9, b: 0.7, a: 0.85, fadeIn: 0.06, drag: 5, lift: 1.5, hot: true });
+    }
+    // The dirty smoke that swallows it: brown-black, thrown out with the fireball and rolling up.
+    for (let k = 0; k < Math.ceil(16 * n); k++) {
+      const d = out(0.8);
+      const sp = 2.5 + Math.random() * 4.5;
+      const tone = 0.11 + Math.random() * 0.09;
+      this.smoke.spawn({ x: cx + d.x * 0.5, y: cy + d.y * 0.5, z: cz + d.z * 0.5, vx: d.x * sp, vy: d.y * sp + 0.6, vz: d.z * sp, life: 2.8 + Math.random() * 1.8, size0: 2, size1: 4 + Math.random() * 2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.5, r: tone * 1.15, g: tone, b: tone * 0.85, a: 1, fadeIn: 0.12, drag: 3, lift: 0.7, hot: false });
     }
     // Sparks and burning bits.
-    for (let k = 0; k < Math.ceil(40 * n); k++) {
-      const a = Math.random() * Math.PI * 2;
-      const e = Math.random() * 1.2;
+    for (let k = 0; k < Math.ceil(36 * n); k++) {
+      const d = out(0.3);
       const sp = 6 + Math.random() * 12;
-      this.sparks.spawn({ x, y: y + 0.3, z, vx: Math.cos(a) * Math.cos(e) * sp, vy: Math.sin(e) * sp + 2, vz: Math.sin(a) * Math.cos(e) * sp, life: 0.4 + Math.random() * 0.8, r: 3.5, g: 2, b: 0.7, a: 1, grav: 10, drag: 1.2 });
+      this.sparks.spawn({ x: cx, y: cy, z: cz, vx: d.x * sp, vy: d.y * sp + 2, vz: d.z * sp, life: 0.4 + Math.random() * 0.8, r: 3.5, g: 2, b: 0.7, a: 1, grav: 10, drag: 1.2 });
     }
-    // Chunks of asphalt and concrete.
+    // Chunks of whatever it hit, and a spray of grit.
     for (let k = 0; k < Math.ceil(12 * n); k++) {
-      const a = Math.random() * Math.PI * 2;
-      const sp = 3 + Math.random() * 7;
-      this.debris.spawn({ x, y: y + 0.2, z, vx: Math.cos(a) * sp, vy: 4 + Math.random() * 6, vz: Math.sin(a) * sp, rx: Math.random() * 6, ry: Math.random() * 6, rz: Math.random() * 6, wx: (Math.random() - 0.5) * 16, wy: (Math.random() - 0.5) * 16, wz: (Math.random() - 0.5) * 16, life: 4 + Math.random() * 2, s: 0.04 + Math.random() * 0.07 });
+      const d = out(0.7);
+      const sp = 4 + Math.random() * 7;
+      this.debris.spawn({ x: cx, y: cy, z: cz, vx: d.x * sp, vy: d.y * sp + 3, vz: d.z * sp, rx: Math.random() * 6, ry: Math.random() * 6, rz: Math.random() * 6, wx: (Math.random() - 0.5) * 16, wy: (Math.random() - 0.5) * 16, wz: (Math.random() - 0.5) * 16, life: 4 + Math.random() * 2, s: 0.04 + Math.random() * 0.07 });
     }
-    // Dust ring along the ground, then the dark smoke column.
-    for (let k = 0; k < Math.ceil(12 * n); k++) {
-      const a = (k / 12) * Math.PI * 2;
-      this.smoke.spawn({ x, y: 0.3, z, vx: Math.cos(a) * 6, vy: 0.2, vz: Math.sin(a) * 6, life: 1.6 + Math.random() * 0.8, size0: 0.6, size1: 3.2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.6, r: 0.5, g: 0.47, b: 0.43, a: 0.55, fadeIn: 0.05, drag: 2.6, lift: 0.3, hot: false });
+    if (!this.lite) {
+      for (let k = 0; k < Math.ceil(26 * n); k++) {
+        const d = out(1.2);
+        const sp = 5 + Math.random() * 10;
+        const tone = 0.22 + Math.random() * 0.18;
+        this.bits.spawn({ x: cx, y: cy, z: cz, vx: d.x * sp, vy: d.y * sp + 2, vz: d.z * sp, life: 0.7 + Math.random() * 0.7, r: tone * 1.1, g: tone, b: tone * 0.85, a: 1, grav: 14, drag: 1 });
+      }
     }
-    for (let k = 0; k < Math.ceil(16 * n); k++) {
-      this.smoke.spawn({ x: x + (Math.random() - 0.5) * 1.2, y: y + 0.6 + Math.random() * 1.4, z: z + (Math.random() - 0.5) * 1.2, vx: (Math.random() - 0.5) * 1.6, vy: 1.8 + Math.random() * 2, vz: (Math.random() - 0.5) * 1.6, life: 4 + Math.random() * 3.5, size0: 1.4, size1: 6 + Math.random() * 3.5, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.4, r: 0.26, g: 0.24, b: 0.22, a: 0.75, fadeIn: 0.1, drag: 0.9, lift: 0.3, hot: false });
+    if (ground) {
+      // Dust ring along the ground, and dirt thrown up in a crown.
+      for (let k = 0; k < Math.ceil(12 * n); k++) {
+        const a = (k / 12) * Math.PI * 2;
+        this.smoke.spawn({ x, y: 0.3, z, vx: Math.cos(a) * 6, vy: 0.2, vz: Math.sin(a) * 6, life: 1.6 + Math.random() * 0.8, size0: 0.6, size1: 3.2, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.6, r: 0.5, g: 0.46, b: 0.4, a: 0.55, fadeIn: 0.05, drag: 2.6, lift: 0.3, hot: false });
+      }
+      for (let k = 0; k < Math.ceil(5 * n); k++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 1 + Math.random() * 2;
+        this.smoke.spawn({ x: x + Math.cos(a) * 0.4, y: 0.4, z: z + Math.sin(a) * 0.4, vx: Math.cos(a) * sp, vy: 6 + Math.random() * 4, vz: Math.sin(a) * sp, life: 1.4 + Math.random() * 0.8, size0: 0.4, size1: 1.8 + Math.random(), rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.6, r: 0.42, g: 0.37, b: 0.31, a: 0.7, fadeIn: 0.04, drag: 2.4, lift: -1.5, hot: false });
+      }
+    } else {
+      // Off a wall: a burst of dust and grit along its face.
+      for (let k = 0; k < Math.ceil(8 * n); k++) {
+        const d = out(0.2);
+        const sp = 4 + Math.random() * 4;
+        this.smoke.spawn({ x: cx, y: cy, z: cz, vx: d.x * sp, vy: d.y * sp, vz: d.z * sp, life: 1.4 + Math.random() * 0.8, size0: 0.5, size1: 2.4, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.6, r: 0.5, g: 0.47, b: 0.42, a: 0.5, fadeIn: 0.05, drag: 2.8, lift: 0.2, hot: false });
+      }
     }
+    // The smoke column, lingering.
+    for (let k = 0; k < Math.ceil(13 * n); k++) {
+      this.smoke.spawn({ x: cx + (Math.random() - 0.5) * 1.2, y: cy + 0.4 + Math.random() * 1.4, z: cz + (Math.random() - 0.5) * 1.2, vx: (Math.random() - 0.5) * 1.6 + nx * 0.8, vy: 1.8 + Math.random() * 2, vz: (Math.random() - 0.5) * 1.6 + nz * 0.8, life: 4 + Math.random() * 3.5, size0: 1.4, size1: 6 + Math.random() * 3.5, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 0.4, r: 0.21, g: 0.19, b: 0.17, a: 0.75, fadeIn: 0.1, drag: 0.9, lift: 0.3, hot: false });
+    }
+    if (!ground) return;
     // Scorch mark.
     _o.position.set(x, 0.012, z);
     _o.rotation.set(0, Math.random() * Math.PI * 2, 0);
@@ -1009,6 +1360,7 @@ export class Vfx {
     this.puffs?.update(dt);
     this.smoke.update(dt, _cam);
     this.glow.update(dt, _cam);
+    this.rocketTrails.update(dt, _cam, performance.now() / 1000);
     this.casings.update(dt);
     this.debris.update(dt);
     const now = performance.now();
@@ -1032,9 +1384,10 @@ export class Vfx {
     this.smoke.dispose();
     this.glow.dispose();
     this.trailMesh.dispose();
+    this.rocketTrails.dispose();
     this.casings.mesh.dispose();
     this.debris.mesh.dispose();
-    for (const o of [this.tracerMesh, this.trailMesh, ...this.rings.map((r) => r.mesh), this.decals, this.scorches, this.sparks.points, this.bits.points, this.smoke.mesh, this.glow.mesh, this.casings.mesh, this.debris.mesh]) o.removeFromParent();
+    for (const o of [this.tracerMesh, this.trailMesh, ...this.rings.map((r) => r.mesh), this.decals, this.scorches, this.sparks.points, this.bits.points, this.smoke.mesh, this.glow.mesh, this.rocketTrails.mesh, this.casings.mesh, this.debris.mesh]) o.removeFromParent();
     for (const l of this.lights) l.light.removeFromParent();
     this.fireLight?.removeFromParent();
   }

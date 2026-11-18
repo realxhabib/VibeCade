@@ -7,10 +7,13 @@
 
 import {
   AdditiveBlending,
+  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   Color,
+  ConeGeometry,
   CylinderGeometry,
+  DoubleSide,
   DynamicDrawUsage,
   Group,
   Mesh,
@@ -21,24 +24,44 @@ import {
   RingGeometry,
   Scene,
   SphereGeometry,
+  LatheGeometry,
+  Vector2,
+  Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Game, LiveNade } from "./game";
 import type { NadeFlight } from "./grenade";
+import type { Vec3 } from "./physics";
 import type { Season } from "./options";
 import { throwableGeometry } from "./throwables";
 
 const ARC_POINTS = 48;
+const _d = new Vector3();
+const _a = new Vector3();
+const _b = new Vector3();
+const _c = new Color();
+
+/** Paints a geometry one color (a `color` attribute for vertex-colored materials). */
+function tint(g: BufferGeometry, hex: number): BufferGeometry {
+  _c.setHex(hex);
+  const n = g.getAttribute("position").count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) col.set([_c.r, _c.g, _c.b], i * 3);
+  g.setAttribute("color", new BufferAttribute(col, 3));
+  return g;
+}
 
 export class NadeFx {
   private readonly bodyGeo: BufferGeometry;
   private readonly bodyMat: MeshStandardMaterial;
   private readonly meshes: Mesh[] = [];
-  /** Rockets in flight: a finned body with a glowing motor. */
+  /** Rockets in flight: warhead, motor, fins, and the motor's flame (a hot core inside a longer flicker). */
   private readonly rocketGeo: BufferGeometry;
-  private readonly rocketMat = new MeshStandardMaterial({ color: 0x5f6352, roughness: 0.5, metalness: 0.4 });
-  private readonly flameGeo = new SphereGeometry(0.06, 8, 6).scale(1, 1, 2.4);
-  private readonly flameMat = new MeshBasicMaterial({ color: new Color(3, 1.6, 0.6), transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false });
+  private readonly rocketMat = new MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.35 });
+  private readonly flameGeo = new SphereGeometry(0.05, 8, 6).scale(1, 1, 3).translate(0, 0, -0.12);
+  private readonly flameMat = new MeshBasicMaterial({ color: new Color(4, 3, 1.8), transparent: true, opacity: 0.95, blending: AdditiveBlending, depthWrite: false });
+  private readonly plumeGeo = new ConeGeometry(0.07, 0.55, 10, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.3);
+  private readonly plumeMat = new MeshBasicMaterial({ color: new Color(2.6, 1.2, 0.35), transparent: true, opacity: 0.6, blending: AdditiveBlending, depthWrite: false, side: DoubleSide });
   private readonly rockets: Mesh[] = [];
   private readonly arc: Points;
   private readonly arcGeo = new BufferGeometry();
@@ -61,17 +84,30 @@ export class NadeFx {
       [body, top, spoon].forEach((g) => g.dispose());
       this.bodyMat = new MeshStandardMaterial({ color: 0x3d4a2c, roughness: 0.55, metalness: 0.35 });
     }
-    // Built along +z (lookAt points +z at the target): nose cone first, fins at the back.
-    const tube = new CylinderGeometry(0.035, 0.035, 0.32, 10).rotateX(Math.PI / 2);
-    const nose = new CylinderGeometry(0.004, 0.045, 0.16, 10).rotateX(Math.PI / 2).translate(0, 0, 0.24);
-    const fins = new CylinderGeometry(0.07, 0.07, 0.06, 4).scale(1, 0.12, 1).rotateX(Math.PI / 2).translate(0, 0, -0.15);
-    this.rocketGeo = mergeGeometries([tube.toNonIndexed(), nose.toNonIndexed(), fins.toNonIndexed()])!;
-    [tube, nose, fins].forEach((g) => g.dispose());
+    // Built along +z (lookAt points +z at the target), about a metre long: the fat olive warhead
+    // (fuze tip, ogive, widest band, tail cone), the slim motor, four fins and the nozzle.
+    const parts: BufferGeometry[] = [];
+    const turned = (pts: [number, number][], color: number) => {
+      const g = new LatheGeometry(pts.map(([r, z]) => new Vector2(r, -z)), 14).rotateX(-Math.PI / 2).toNonIndexed();
+      parts.push(tint(g, color));
+    };
+    turned([[0, 0.5], [0.006, 0.5], [0.007, 0.45]], 0x6d6f69);
+    turned([[0.007, 0.45], [0.02, 0.41], [0.034, 0.34], [0.043, 0.27], [0.044, 0.24]], 0x4b5236);
+    turned([[0.044, 0.24], [0.0445, 0.22]], 0x22241f);
+    turned([[0.0445, 0.22], [0.042, 0.17], [0.022, 0.1], [0.018, 0.08]], 0x4b5236);
+    turned([[0.018, 0.08], [0.018, -0.36], [0.022, -0.4], [0.03, -0.45], [0, -0.45]], 0x3a3d38);
+    for (let k = 0; k < 4; k++) parts.push(tint(new BoxGeometry(0.004, 0.06, 0.12).translate(0, 0.048, -0.36).rotateZ((k * Math.PI) / 2 + Math.PI / 4).toNonIndexed(), 0x2f312c));
+    this.rocketGeo = mergeGeometries(parts)!;
+    parts.forEach((g) => g.dispose());
     for (let i = 0; i < 6; i++) {
       const m = new Mesh(this.rocketGeo, this.rocketMat);
       const flame = new Mesh(this.flameGeo, this.flameMat);
-      flame.position.z = -0.24;
-      m.add(flame);
+      const plume = new Mesh(this.plumeGeo, this.plumeMat);
+      flame.position.z = -0.45;
+      plume.position.z = -0.45;
+      flame.renderOrder = 6;
+      plume.renderOrder = 6;
+      m.add(flame, plume);
       m.visible = false;
       this.rockets.push(m);
       this.group.add(m);
@@ -97,7 +133,11 @@ export class NadeFx {
     scene.add(this.group);
   }
 
-  update(game: Game, now: number, preview: NadeFlight | null, clink: (x: number, z: number) => void): void {
+  /**
+   * `rocket` hears where each rocket's nozzle is this frame (and which way it
+   * flies), once its motor has lit, for the flame's glow and the smoke trail.
+   */
+  update(game: Game, now: number, preview: NadeFlight | null, clink: (x: number, z: number) => void, rocket?: (n: LiveNade, nozzle: Vec3, dir: Vec3) => void): void {
     const live = game.nades.filter((n) => !n.rocket);
     const rockets = game.nades.filter((n) => n.rocket && now >= n.releasedAt);
     this.rockets.forEach((m, i) => {
@@ -105,9 +145,37 @@ export class NadeFx {
       m.visible = !!n;
       if (!n) return;
       const p = game.nadePos(n, now);
-      m.position.set(p.x, p.y, p.z);
+      const o = n.flight.path[0] ?? p;
       const e = n.flight.end;
-      m.lookAt(e.x, e.y, e.z);
+      _d.set(e.x - o.x, e.y - o.y, e.z - o.z);
+      if (_d.lengthSq() < 1e-6) _d.set(0, 0, 1);
+      _d.normalize();
+      // It spins and corkscrews a little in flight (a few centimetres, for the eye only).
+      const t = (now - n.releasedAt) / 1000;
+      _a.set(-_d.z, 0, _d.x);
+      if (_a.lengthSq() < 1e-6) _a.set(1, 0, 0);
+      _a.normalize();
+      _b.crossVectors(_d, _a);
+      const wob = 0.045 * Math.min(1, t * 5);
+      const ang = t * Math.PI * 2 * 5;
+      const ox = (_a.x * Math.cos(ang) + _b.x * Math.sin(ang)) * wob;
+      const oy = (_a.y * Math.cos(ang) + _b.y * Math.sin(ang)) * wob;
+      const oz = (_a.z * Math.cos(ang) + _b.z * Math.sin(ang)) * wob;
+      m.position.set(p.x + ox, p.y + oy, p.z + oz);
+      m.lookAt(m.position.x + _d.x, m.position.y + _d.y, m.position.z + _d.z);
+      m.rotateZ(ang * 0.5);
+      // The motor lights a beat after it leaves the tube; then the flame flickers.
+      const lit = t > 0.05;
+      const flame = m.children[0]!;
+      const plume = m.children[1]!;
+      flame.visible = lit;
+      plume.visible = lit;
+      if (lit) {
+        const f = 0.8 + Math.random() * 0.45;
+        flame.scale.set(f, f, 0.8 + Math.random() * 0.5);
+        plume.scale.set(0.8 + Math.random() * 0.4, 0.8 + Math.random() * 0.4, 0.7 + Math.random() * 0.8);
+        rocket?.(n, { x: m.position.x - _d.x * 0.47, y: m.position.y - _d.y * 0.47, z: m.position.z - _d.z * 0.47 }, { x: _d.x, y: _d.y, z: _d.z });
+      }
     });
     this.meshes.forEach((m, i) => {
       const n = live[i];
@@ -153,6 +221,8 @@ export class NadeFx {
     this.rocketMat.dispose();
     this.flameGeo.dispose();
     this.flameMat.dispose();
+    this.plumeGeo.dispose();
+    this.plumeMat.dispose();
     this.arcGeo.dispose();
     (this.arc.material as PointsMaterial).dispose();
     this.ring.geometry.dispose();
