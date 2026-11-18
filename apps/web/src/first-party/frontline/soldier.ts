@@ -29,6 +29,7 @@ import {
   Color,
   Float32BufferAttribute,
   Group,
+  LatheGeometry,
   LoopOnce,
   LoopRepeat,
   Matrix3,
@@ -40,6 +41,7 @@ import {
   SphereGeometry,
   Sprite,
   SpriteMaterial,
+  Vector2,
   Vector3,
   type AnimationAction,
   type Bone,
@@ -159,14 +161,21 @@ function gunGeometry(id: WeaponId): { geo: BufferGeometry; fore: Vector3; muzzle
   let fore = new Vector3(0, -0.02, -0.3);
   let muzzle = new Vector3(0, 0.02, -0.62);
   if (id === "rpg") {
-    // A launch tube on the shoulder, warhead out front.
-    box(0, 0.05, -0.12, 0.07, 0.07, 0.8, od);
-    box(0, 0.05, -0.58, 0.05, 0.05, 0.14, 0x5a5d52);
+    // A launch tube on the shoulder (as in first person, simpler): wooden heat shields, the flared
+    // back end, grip and optic, and the fat olive warhead out front.
+    // Profiles run along the tube (radius, z); listed back to front so the faces point out.
+    const turned = (pts: [number, number][], hex: number) => add(new LatheGeometry((pts[0]![1] < pts[pts.length - 1]![1] ? [...pts].reverse() : pts).map(([r, z]) => new Vector2(r, -z)), 10).rotateX(-Math.PI / 2).translate(0, 0.05, 0).toNonIndexed(), hex);
+    turned([[0.03, -0.5], [0.03, 0.34]], 0x2f3133); // tube
+    turned([[0.04, -0.3], [0.042, -0.1]], 0x4e2f1a); // heat shields
+    turned([[0.042, 0.07], [0.044, 0.24]], 0x4e2f1a);
+    turned([[0.03, 0.34], [0.04, 0.4], [0.056, 0.46], [0.05, 0.46]], 0x2a2c2e); // venturi
+    turned([[0, -0.94], [0.009, -0.91], [0.012, -0.87], [0.032, -0.8], [0.05, -0.73], [0.053, -0.7], [0.053, -0.67], [0.04, -0.62], [0.022, -0.6], [0.022, -0.5]], 0x4b5236); // warhead
     box(0, -0.04, 0.0, 0.03, 0.08, 0.04, black, 0.3); // grip
-    box(0, -0.03, -0.2, 0.03, 0.07, 0.04, black, 0.2); // front grip
-    box(0.05, 0.1, -0.08, 0.03, 0.04, 0.08, black); // sight
-    fore = new Vector3(0, -0.02, -0.2);
-    muzzle = new Vector3(0, 0.05, -0.66);
+    box(0, 0.01, -0.02, 0.03, 0.03, 0.12, black); // trigger housing
+    box(-0.06, 0.07, -0.05, 0.03, 0.045, 0.1, 0x2b2e2a); // optic
+    box(0, 0.095, -0.38, 0.01, 0.03, 0.01, black); // front sight
+    fore = new Vector3(0, 0.0, -0.2);
+    muzzle = new Vector3(0, 0.05, -0.5);
   } else if (id === "knife") {
     box(0, -0.01, 0, 0.026, 0.03, 0.1, black);
     box(0, 0.0, -0.06, 0.05, 0.012, 0.012, steel);

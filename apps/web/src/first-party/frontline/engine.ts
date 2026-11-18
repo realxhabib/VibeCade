@@ -747,6 +747,7 @@ export class Engine {
       swap,
       strafe: this.intent.strafe,
       nadeHeld: me.nadeHeld && me.nades > 0,
+      loaded: (me.mag[me.slot] ?? 0) > 0,
       hideScoped: scoped,
       reduceMotion: this.opts.reduceMotion,
     });
@@ -829,21 +830,21 @@ export class Engine {
     const g = this.game;
     const me = g.me;
     const aiming = !!me && me.alive && me.nadeHeld && me.nades > 0 && g.phase === "live";
-    this.nadeFx.update(g, now, aiming && me ? g.previewNade(me) : null, (x, z) => this.audio.clink(x, z));
-    // Rockets leave a smoke trail.
-    if (now - this.trailAt > 40) {
-      this.trailAt = now;
-      for (const n of g.nades) {
-        if (!n.rocket || now < n.releasedAt) continue;
-        const p = g.nadePos(n, now);
-        this.vfx.muzzleSmoke(p.x, p.y, p.z, true);
-      }
-    }
+    const dt = Math.min(0.05, Math.max(0, (now - this.rocketAt) / 1000));
+    this.rocketAt = now;
+    // Rockets: the motor's flame and light, and the smoke trail laid behind it.
+    this.nadeFx.update(
+      g,
+      now,
+      aiming && me ? g.previewNade(me) : null,
+      (x, z) => this.audio.clink(x, z),
+      (n, p, d) => this.vfx.rocket(n, p.x, p.y, p.z, d.x, d.y, d.z, dt),
+    );
     // Your kills' ammo drops (only yours: only you can take them).
     this.ammoFx.update(g, now, me && !this.spectating() ? me.seat : null);
   }
 
-  private trailAt = 0;
+  private rocketAt = 0;
 
   private readonly fx: GameFx = {
     nade: (n) => {
@@ -857,7 +858,17 @@ export class Engine {
     },
     explosion: (n) => {
       const p = n.flight.end;
-      this.vfx.explosion(p.x, p.y, p.z);
+      if (n.rocket) {
+        // Which way the surface it hit faces (the blast is thrown back out of it); in the open, back the way it came.
+        const o = n.flight.path[0] ?? p;
+        _v.set(p.x - o.x, p.y - o.y, p.z - o.z);
+        if (_v.lengthSq() < 1e-6) _v.set(0, -1, 0);
+        _v.normalize();
+        const hit = raycastMap(this.game.world, p.x - _v.x * 0.3, p.y - _v.y * 0.3, p.z - _v.z * 0.3, _v.x, _v.y, _v.z, 1);
+        if (hit) this.vfx.explosion(p.x, p.y, p.z, hit.nx, hit.ny, hit.nz);
+        else this.vfx.explosion(p.x, p.y, p.z, -_v.x, -_v.y, -_v.z);
+        this.vfx.rocketEnd(n);
+      } else this.vfx.explosion(p.x, p.y, p.z);
       if (!n.rocket) {
         this.seasonFx.burst(p.x, p.y, p.z);
         // The turkey's last word.
@@ -880,7 +891,10 @@ export class Engine {
       // Muzzle light, a wisp of smoke, and a spent case (not for the shotgun's pump, not every SMG round).
       const camD = Math.hypot(mx - this.camera.position.x, mz - this.camera.position.z);
       if (camD < 45) {
-        if (!w.melee) {
+        if (w.rocket) {
+          const aim = viewDir(s.yaw, s.pitch);
+          this.vfx.rocketLaunch(mx, my, mz, aim.x, aim.y, aim.z, mine);
+        } else if (!w.melee) {
           this.vfx.flash(mx, my, mz, (mine ? 3.5 : 5) * (w.heavy ? 1.6 : 1), 55, 0xffb266);
           this.vfx.muzzleSmoke(mx, my, mz, !!w.heavy);
           const aim = viewDir(s.yaw, s.pitch);
@@ -908,6 +922,7 @@ export class Engine {
       }
       if (w.melee) this.audio.slash(s.body.x, s.body.z, mine, impacts.some((i) => i.surface === "flesh"));
       else this.audio.gunshot(w.id, s.body.x, s.body.z, mine);
+      if (w.rocket) this.audio.rocket(s.body.x, s.body.z, mine);
       if (mine) {
         const strength = w.melee ? 1 : w.heavy ? 2.2 : w.id === "pistol" || w.id === "mp" ? 1.1 : 0.8;
         this.vm.fired(performance.now(), strength);

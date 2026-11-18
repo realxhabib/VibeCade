@@ -202,6 +202,37 @@ export class FrontAudio {
     }
   }
 
+  /**
+   * A rocket leaving the tube (after the launch bang, `gunshot`): the
+   * backblast's roar and the motor's hiss tearing away downrange, falling
+   * in pitch as it goes.
+   */
+  rocket(x: number, z: number, mine: boolean): void {
+    if (!this.enabled || !this.ensure()) return;
+    const ctx = this.ctx!;
+    const spot = mine ? this.spot(null, null) : this.spot(x, z, 16);
+    if (!spot || !this.noise) return;
+    const g = spot.gain * (mine ? 0.7 : 0.55);
+    // Backblast: a broad low roar.
+    this.noiseBurst(spot.out, { gain: 0.7 * g, decay: 0.5, freq: 260, q: 0.5, type: "lowpass", attack: 0.01 });
+    // The motor: band-passed noise swept down as it leaves.
+    const t0 = ctx.currentTime + 0.04;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const f = ctx.createBiquadFilter();
+    f.type = "bandpass";
+    f.Q.value = 1.4;
+    f.frequency.setValueAtTime(2600, t0);
+    f.frequency.exponentialRampToValueAtTime(700, t0 + 0.9);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.45 * g), t0 + 0.05);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.0);
+    src.connect(f).connect(env).connect(spot.out);
+    src.start(t0, Math.random() * 0.12);
+    src.stop(t0 + 1.05);
+  }
+
   /** A knife swing: a swish of air, and a dull thud when it lands on someone. */
   slash(x: number, z: number, mine: boolean, hit: boolean): void {
     if (!this.enabled || !this.ensure() || !this.budget(mine ? "slash-mine" : "slash", 2, 120)) return;
